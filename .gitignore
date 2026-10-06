@@ -1,0 +1,12 @@
+node_modules/
+**/dist/
+**/coverage/
+.env
+**/.env
+**/.env.*
+!**/.env.example
+deploy/secrets/*
+!deploy/secrets/.gitkeep
+*.pem
+*.key
+*.log
