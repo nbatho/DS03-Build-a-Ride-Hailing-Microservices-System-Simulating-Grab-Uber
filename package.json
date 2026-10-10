@@ -1,0 +1,14 @@
+{
+  "name": "ds03-ride-hailing",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ride-hailing microservices system simulating Grab/Uber",
+  "workspaces": [
+    "src/apps/*",
+    "src/services/*",
+    "src/packages/*"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

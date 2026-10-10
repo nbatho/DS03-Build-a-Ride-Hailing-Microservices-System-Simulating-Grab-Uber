@@ -13,6 +13,7 @@ Các folder được tạo trực tiếp tại repository mới. .gitkeep giúp 
 │   │   ├── driver-vehicle-location-service/
 │   │   ├── matching-service/
 │   │   ├── trip-booking-service/
+│   │   ├── pricing-service/
 │   │   ├── simulated-payment-service/
 │   │   └── notification-service/
 │   └── packages/
@@ -34,12 +35,13 @@ Mỗi service có src/config, controllers, routes, domain, use-cases, repositori
 | Identity/User | 3001 | identity_schema |
 | Driver/Vehicle/Location | 3002 | driver_schema |
 | Matching | 3006 | matching_schema |
-| Trip/Booking/Pricing/Saga | 3003 | trip_schema |
+| Trip/Booking/Saga | 3003 | trip_schema |
+| Pricing (rates, surge) | 3007 | pricing_schema |
 | Simulated Payment | 3004 | payment_schema |
 | Notification | 3005 | notification_schema |
 | API Gateway | 8080 | Không có DB nghiệp vụ |
 
-Gateway không tính vào 6 service nghiệp vụ. Pricing thuộc Trip; Matching là service độc lập. Khi triển khai, mỗi service dùng role/schema riêng và trao đổi qua REST/event.
+Gateway không tính vào 7 service nghiệp vụ. Pricing và Matching là service độc lập; Trip gọi Pricing qua REST (integrations/pricing). Khi triển khai, mỗi service dùng role/schema riêng và trao đổi qua REST/event.
 
 Root src/, deploy/, tests/, scripts/, docs/, README.md, .env.example theo mục 10.1 của đề. Phần cần bổ sung: entrypoint/manifest, API/contract, migration, Dockerfile/Compose, scripts, test và bằng chứng thực tế.
 
