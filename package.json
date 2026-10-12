@@ -14,9 +14,9 @@
     "start:prod": "npm run prod:api-gateway",
     "typecheck": "tsc --noEmit",
     "test": "npm run build:all && npm run test:smoke",
-    "test:smoke": "node --test tests/functional/startup.test.cjs",
+    "test:smoke": "node --test tests/startup.test.cjs",
 
-    "build:all": "node scripts/development/build-all.cjs",
+    "build:all": "node scripts/build-all.cjs",
     "start:all": "concurrently --kill-others --names api-gateway,identity-user-service,driver-vehicle-location-service,trip-booking-service,simulated-payment-service,notification-service,matching-service,pricing-service \"npm:start:api-gateway\" \"npm:start:identity-user-service\" \"npm:start:driver-vehicle-location-service\" \"npm:start:trip-booking-service\" \"npm:start:simulated-payment-service\" \"npm:start:notification-service\" \"npm:start:matching-service\" \"npm:start:pricing-service\"",
     "start:dev:all": "concurrently --kill-others --names api-gateway,identity-user-service,driver-vehicle-location-service,trip-booking-service,simulated-payment-service,notification-service,matching-service,pricing-service \"npm:dev:api-gateway\" \"npm:dev:identity-user-service\" \"npm:dev:driver-vehicle-location-service\" \"npm:dev:trip-booking-service\" \"npm:dev:simulated-payment-service\" \"npm:dev:notification-service\" \"npm:dev:matching-service\" \"npm:dev:pricing-service\"",
     "start:prod:all": "concurrently --kill-others --names api-gateway,identity-user-service,driver-vehicle-location-service,trip-booking-service,simulated-payment-service,notification-service,matching-service,pricing-service \"npm:prod:api-gateway\" \"npm:prod:identity-user-service\" \"npm:prod:driver-vehicle-location-service\" \"npm:prod:trip-booking-service\" \"npm:prod:simulated-payment-service\" \"npm:prod:notification-service\" \"npm:prod:matching-service\" \"npm:prod:pricing-service\"",
@@ -59,47 +59,7 @@
     "build:pricing-service": "nest build pricing-service",
     "start:pricing-service": "nest start pricing-service",
     "dev:pricing-service": "nest start pricing-service --watch",
-    "prod:pricing-service": "node dist/pricing-service/main.js",
-
-    "build:gateway": "npm run build:api-gateway",
-    "start:gateway": "npm run start:api-gateway",
-    "dev:gateway": "npm run dev:api-gateway",
-    "prod:gateway": "npm run prod:api-gateway",
-
-    "build:identity": "npm run build:identity-user-service",
-    "start:identity": "npm run start:identity-user-service",
-    "dev:identity": "npm run dev:identity-user-service",
-    "prod:identity": "npm run prod:identity-user-service",
-
-    "build:driver": "npm run build:driver-vehicle-location-service",
-    "start:driver": "npm run start:driver-vehicle-location-service",
-    "dev:driver": "npm run dev:driver-vehicle-location-service",
-    "prod:driver": "npm run prod:driver-vehicle-location-service",
-
-    "build:trip": "npm run build:trip-booking-service",
-    "start:trip": "npm run start:trip-booking-service",
-    "dev:trip": "npm run dev:trip-booking-service",
-    "prod:trip": "npm run prod:trip-booking-service",
-
-    "build:payment": "npm run build:simulated-payment-service",
-    "start:payment": "npm run start:simulated-payment-service",
-    "dev:payment": "npm run dev:simulated-payment-service",
-    "prod:payment": "npm run prod:simulated-payment-service",
-
-    "build:notification": "npm run build:notification-service",
-    "start:notification": "npm run start:notification-service",
-    "dev:notification": "npm run dev:notification-service",
-    "prod:notification": "npm run prod:notification-service",
-
-    "build:matching": "npm run build:matching-service",
-    "start:matching": "npm run start:matching-service",
-    "dev:matching": "npm run dev:matching-service",
-    "prod:matching": "npm run prod:matching-service",
-
-    "build:pricing": "npm run build:pricing-service",
-    "start:pricing": "npm run start:pricing-service",
-    "dev:pricing": "npm run dev:pricing-service",
-    "prod:pricing": "npm run prod:pricing-service"
+    "prod:pricing-service": "node dist/pricing-service/main.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.2.7",

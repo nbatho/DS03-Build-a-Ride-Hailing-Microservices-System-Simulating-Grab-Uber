@@ -7,7 +7,7 @@ const path = require('node:path');
 const { setTimeout: delay } = require('node:timers/promises');
 const { test } = require('node:test');
 
-const root = path.resolve(__dirname, '../..');
+const root = path.resolve(__dirname, '..');
 const applications = [
   ['api-gateway', 'GATEWAY_PORT'],
   ['identity-user-service', 'IDENTITY_PORT'],

@@ -1,168 +1,214 @@
 # DS03 - Ride-hailing NestJS monorepo
 
-Khung chạy NestJS cho API Gateway và 7 service nghiệp vụ mô phỏng Grab/Uber.
-Giữ cấu trúc `src/apps`, `src/services`, `src/packages` của dự án.
-Nest CLI quản lý ứng dụng qua `nest-cli.json`; dependency và lockfile dùng chung
-tại root, không cần `npm install` trong từng service.
+API Gateway và 7 service nghiệp vụ chạy độc lập bằng NestJS. Nest CLI quản lý app
+qua `nest-cli.json`; dependency và lockfile dùng chung tại root.
 
 ## Chạy nhanh
 
-Yêu cầu Node.js >= 22 (khuyến nghị Node.js 24 LTS) và npm.
-Chạy tại thư mục gốc repository:
+Yêu cầu Node.js >= 22 và npm. Chạy tại thư mục gốc:
 
 ```powershell
 npm ci
-Copy-Item .env.example .env
+# Chỉ tạo .env lần đầu
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
 npm run dev:api-gateway
 ```
 
-Chỉ copy `.env` lần đầu; giữ lại cấu hình nếu file đã tồn tại.
-`dev:api-gateway` chạy Gateway tại `http://127.0.0.1:8080`, tự build lại khi sửa code.
-Không cần cài Nest CLI toàn cục. Nếu chưa có `.env`, ứng dụng dùng port mặc định.
-
-Kiểm tra bằng PowerShell hoặc mở URL trong trình duyệt:
+Kiểm tra Gateway:
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8080/health/live
 Invoke-RestMethod http://127.0.0.1:8080/health/ready
 ```
 
-## Lệnh chạy
+## Dev từng service
 
-| Gateway / service | Lệnh chạy dev riêng | Port mặc định | Biến môi trường |
+Mỗi lệnh dev chạy trong terminal riêng, tại root:
+
+| App | Lệnh dev | Port mặc định | Biến môi trường |
 | --- | --- | ---: | --- |
-| api-gateway | `npm run dev:api-gateway` | 8080 | GATEWAY_PORT |
-| identity-user-service | `npm run dev:identity-user-service` | 3001 | IDENTITY_PORT |
-| driver-vehicle-location-service | `npm run dev:driver-vehicle-location-service` | 3002 | DRIVER_PORT |
-| trip-booking-service | `npm run dev:trip-booking-service` | 3003 | TRIP_PORT |
-| simulated-payment-service | `npm run dev:simulated-payment-service` | 3004 | PAYMENT_PORT |
-| notification-service | `npm run dev:notification-service` | 3005 | NOTIFICATION_PORT |
-| matching-service | `npm run dev:matching-service` | 3006 | MATCHING_PORT |
-| pricing-service | `npm run dev:pricing-service` | 3007 | PRICING_PORT |
+| API Gateway | `npm run dev:api-gateway` | 8080 | GATEWAY_PORT |
+| Identity/User | `npm run dev:identity-user-service` | 3001 | IDENTITY_PORT |
+| Driver/Vehicle/Location | `npm run dev:driver-vehicle-location-service` | 3002 | DRIVER_PORT |
+| Trip/Booking | `npm run dev:trip-booking-service` | 3003 | TRIP_PORT |
+| Simulated Payment | `npm run dev:simulated-payment-service` | 3004 | PAYMENT_PORT |
+| Notification | `npm run dev:notification-service` | 3005 | NOTIFICATION_PORT |
+| Matching | `npm run dev:matching-service` | 3006 | MATCHING_PORT |
+| Pricing | `npm run dev:pricing-service` | 3007 | PRICING_PORT |
 
-Port trong bảng theo mục 3.1 của báo cáo BA. Mỗi entrypoint dùng đúng biến port
-của ứng dụng đó qua runtime chung; khi dev riêng, chạy lệnh trong bảng tại root.
-File `.env` ở root dùng cho local dev và được Git bỏ qua. Nếu đổi port trong `.env`,
-dừng rồi chạy lại service. Biến môi trường đã đặt trong terminal được ưu tiên hơn `.env`.
+Port theo báo cáo BA mục 3.1. Runtime đọc `.env` tại root, dùng port mặc định nếu
+chưa cấu hình. Đổi port thì khởi động lại app; biến môi trường trong terminal được
+ưu tiên hơn `.env`. `HOST` mặc định `127.0.0.1`, dùng `0.0.0.0` trong container.
 
-Trong `package.json`, mỗi Gateway/service có một nhóm 4 script riêng,
-dùng đúng tên thư mục và tên project trong `nest-cli.json`:
+Mỗi app có một nhóm script theo tên project đầy đủ:
 
-- `build:<tên-project>`: build ứng dụng.
-- `start:<tên-project>`: build rồi chạy ứng dụng.
-- `dev:<tên-project>`: build, chạy và theo dõi thay đổi.
-- `prod:<tên-project>`: chạy bundle đã build.
+- `build:<project>`: build bundle.
+- `start:<project>`: build rồi chạy một lần.
+- `dev:<project>`: build/chạy, theo dõi thay đổi.
+- `prod:<project>`: chạy bundle đã build.
 
-Ví dụ nhóm API Gateway:
+Ví dụ:
 
 ```powershell
-npm run build:api-gateway
-npm run start:api-gateway
-npm run dev:api-gateway
-npm run prod:api-gateway
-```
-
-Các lệnh trên là những cách chạy riêng; chọn lệnh cần dùng.
-Muốn dev nhiều service thì mở terminal riêng cho mỗi service, đều tại thư mục gốc.
-`start` build rồi chạy một lần; `dev` theo dõi thay đổi; `prod` chạy bundle đã build.
-Ví dụ với service nghiệp vụ:
-
-```powershell
-npm run dev:identity-user-service
 npm run build:trip-booking-service
 npm run prod:trip-booking-service
 ```
 
-Các lệnh ngắn cũ (`dev:identity`, `dev:trip`, `dev:gateway`, ...)
-được giữ ở nhóm alias cuối phần `scripts` và gọi tới script tên đầy đủ tương ứng.
-`npm start`, `npm run start:dev`, `npm run start:prod` vẫn chạy API Gateway.
+Các alias ngắn như `dev:trip`, `dev:identity` đã bỏ; dùng tên project trong bảng.
+`npm start`, `npm run start:dev`, `npm run start:prod` mặc định chạy Gateway.
 
-Chạy toàn bộ 8 ứng dụng, mỗi ứng dụng là một process riêng:
+## Chạy toàn hệ thống
+
+Chọn nhóm lệnh phù hợp:
 
 ```powershell
-# Build và chạy một lần
 npm run start:all
-
-# Build và theo dõi thay đổi
 npm run start:dev:all
-
 # Chạy bundle sau khi build
 npm run build:all
 npm run start:prod:all
 ```
 
-Dừng bằng `Ctrl+C`. Các lệnh chạy toàn bộ dùng `concurrently`; nếu một ứng dụng dừng,
-các ứng dụng còn lại cũng được dừng để tránh sót process.
-Không chạy nhiều nhóm lệnh trên cùng bộ port.
-`HOST` mặc định là `127.0.0.1`; đặt `HOST=0.0.0.0` khi chạy trong container.
+Mỗi app là một process riêng. `Ctrl+C` dừng nhóm; `concurrently` dừng cả nhóm
+nếu một app thoát để tránh sót process. Mỗi bộ port chỉ chạy một nhóm tại một thời điểm.
 
-## Cấu trúc
+## Cấu trúc hiện tại
 
 ```text
 .
-├── package.json / package-lock.json  # Dependency và lệnh npm dùng chung
-├── nest-cli.json                     # 8 application + thư viện Nest
-├── tsconfig.json                     # TypeScript strict, decorator, alias
-├── webpack.config.js                 # Đồng bộ output.path với tsconfig.outDir
+├── README.md
+├── package.json / package-lock.json
+├── nest-cli.json
+├── tsconfig.json
+├── webpack.config.js
 ├── .env.example
 ├── src/
 │   ├── apps/api-gateway/
 │   │   ├── tsconfig.app.json
-│   │   └── src/app.module.ts, main.ts
-│   ├── services/<service-name>/
-│   │   ├── tsconfig.app.json
-│   │   ├── src/app.module.ts, main.ts
-│   │   ├── src/controllers/, domain/, use-cases/, repositories/, ...
-│   │   ├── migrations/
-│   │   └── tests/unit/, integration/
+│   │   └── src/                 # main.ts, app.module.ts, proxy/
+│   ├── services/
+│   │   ├── identity-user-service/
+│   │   ├── driver-vehicle-location-service/
+│   │   ├── trip-booking-service/
+│   │   ├── simulated-payment-service/
+│   │   ├── notification-service/
+│   │   ├── matching-service/
+│   │   └── pricing-service/
 │   └── packages/
-│       ├── contracts/               # @app/contracts: hợp đồng health
-│       ├── shared-types/            # @app/shared-types: tên và port service
-│       ├── runtime/                 # @app/runtime: bootstrap, config, health
-│       ├── logger/                  # Dự phòng, chưa triển khai
-│       └── messaging/               # Dự phòng, chưa triển khai
-├── scripts/development/build-all.cjs
-├── tests/functional/startup.test.cjs
-├── dist/<service-name>/main.js       # Sinh khi build, không commit
+│       ├── contracts/           # Health DTO dùng chung
+│       ├── shared-types/        # Tên service và cấu hình port
+│       ├── runtime/             # Bootstrap, config, validation, health
+│       └── messaging/src/       # Chuẩn bị cho RabbitMQ, chưa có implementation
 ├── deploy/
-├── clients/
-└── docs/
+│   ├── postgres/init/
+│   └── rabbitmq/
+├── scripts/
+│   ├── build-all.cjs
+│   ├── seed/
+│   └── simulation/
+├── tests/
+│   ├── startup.test.cjs
+│   ├── end-to-end/
+│   ├── concurrency/
+│   ├── fault-tolerance/
+│   ├── security/
+│   ├── performance/
+│   └── contract/
+└── docs/tasks/
+    ├── A.md
+    ├── B.md
+    └── C.md
 ```
 
-Mỗi service có `AppModule` riêng. Đặt Controller/Provider/Module nghiệp vụ trong service
-và đăng ký qua `imports`, `controllers`, `providers` của module.
-Các thư mục nghiệp vụ hiện có được giữ để tiếp tục triển khai.
-Ví dụ tạo module bằng CLI tại root:
+Mỗi service giữ `tsconfig.app.json`, `src/main.ts`, `src/app.module.ts` và
+module nghiệp vụ đã tạo, gồm Controller/Service/Module. Ví dụ Identity có
+`src/users/`, Trip có `src/trips/`.
+
+Tổ chức code theo tính năng: DTO, entity, repository hoặc UseCase đặt trong
+module liên quan. Đã tạo trước `dto/` và `entities/` trong module chính của mỗi
+service, cùng `migrations/`, `tests/unit/` và `tests/integration/` ở cấp service.
+Trip có thêm `src/trips/saga/`; Gateway có test riêng, không có entity/migration
+vì không sở hữu DB nghiệp vụ.
+
+Ví dụ Identity:
+
+```text
+identity-user-service/
+├── tsconfig.app.json
+├── src/
+│   ├── main.ts
+│   ├── app.module.ts
+│   └── users/
+│       ├── users.module.ts
+│       ├── users.controller.ts
+│       ├── users.service.ts
+│       ├── dto/
+│       └── entities/
+├── migrations/
+└── tests/
+    ├── unit/
+    └── integration/
+```
+
+Các module chính là `users`, `drivers`, `trips`, `payments`, `notifications`,
+`matching` và `pricing`. Entity/DTO được chia tiếp theo tính năng khi cần.
+
+`src/packages/contracts/src/events/` dành cho event contract chung;
+`src/packages/messaging/src/` dành cho kết nối/publish/consume/retry/DLQ.
+Messaging hiện chỉ là thư mục dự phòng, chưa đăng ký library/alias hay kết nối
+RabbitMQ. Thêm cấu hình library khi có implementation.
+
+`deploy/postgres/init/` và `deploy/rabbitmq/` chứa bootstrap/cấu hình hạ tầng;
+file Compose sẽ đặt trong `deploy/`, Dockerfile đặt trong từng app khi triển khai.
+`scripts/seed/` và `scripts/simulation/` chứa tạo dữ liệu và simulator demo.
+Test trong service kiểm tra riêng service; test ở root kiểm tra luồng liên thông,
+concurrency, recovery, security, performance và contract của hệ thống.
+
+Thư mục chuẩn bị trước chỉ chứa `.gitkeep` để Git giữ cấu trúc, chưa có nghiệp vụ
+hay test thực thi. Giữ phần này ở phạm vi cần cho BA; repository/UseCase/worker
+được tách khi implementation cần. Nest Controller đảm nhiệm routing nên không
+thêm thư mục `routes` riêng.
+
+Ví dụ tạo tính năng mới từ root:
 
 ```powershell
-npx nest generate module users --project identity-user-service
-npx nest generate controller users --project identity-user-service --no-spec
-npx nest generate service users --project identity-user-service --no-spec
+npx nest generate module locations --project driver-vehicle-location-service
+npx nest generate controller locations --project driver-vehicle-location-service --no-spec
+npx nest generate service locations --project driver-vehicle-location-service --no-spec
 ```
 
-Runtime dùng `@nestjs/config` đọc `.env`, bật graceful shutdown và `ValidationPipe`
-(`whitelist`, `forbidNonWhitelisted`, `transform`). Body JSON giới hạn 64 KiB.
-API nghiệp vụ có prefix `/api/v1`; hai endpoint health nằm ngoài prefix.
-Webpack đóng gói alias thư viện vào `dist/<service-name>/main.js`,
-không cần build thư viện riêng để chạy app.
-Chỉ chia sẻ contract và tiện ích; không import repository/entity của service khác.
+Runtime bật graceful shutdown, JSON limit 64 KiB và ValidationPipe
+(`whitelist`, `forbidNonWhitelisted`, `transform`). Public API có prefix
+`/api/v1`; health nằm ngoài prefix. Khi thêm API nội bộ phải cấu hình để giữ
+`/internal/v1` đúng contract.
 
-## Kiểm tra
+Webpack dùng `tsconfig.outDir`, đóng gói alias thư viện vào
+`dist/<project>/main.js`. `dist` và `node_modules` là thư mục sinh tự động,
+được Git bỏ qua. Chỉ chia sẻ contract/tiện ích; mỗi service quản lý dữ liệu riêng.
+
+## Kiểm tra và phần việc tiếp theo
 
 ```powershell
 npm run typecheck
 npm test
 ```
 
-`npm test` build cả 8 ứng dụng rồi kiểm tra chúng chạy đồng thời trên port tạm:
-health live/ready, định danh instance riêng, endpoint chưa triển khai trả 404,
-và port sai khiến startup thất bại với thông báo rõ ràng.
-`npm run test:smoke` kiểm tra các bundle đã build.
+`npm test` build cả 8 app rồi chạy smoke test: startup đồng thời trên port tạm,
+health, instance ID riêng, route chưa triển khai trả 404 và port sai bị chặn.
+`npm run test:smoke` chạy test với các bundle đã build.
 
-## Phạm vi hiện tại
+Hiện có bộ khung NestJS và module nghiệp vụ. JWT, API đặt xe, proxy Gateway,
+PostgreSQL, RabbitMQ, Saga, migration, seed và Compose cần triển khai tiếp.
+`.env.example` chỉ giữ biến đang được runtime đọc; thêm DB/broker env cùng
+implementation tương ứng. `/health/ready` hiện phản ánh bộ khung; bổ sung
+dependency checks và 503 khi app bắt đầu dùng DB/broker.
 
-Đây là bộ khung NestJS có thể build/chạy. API đặt xe, JWT, proxy Gateway,
-PostgreSQL, RabbitMQ, Redis, Saga, migration, seed và Docker Compose chưa triển khai.
-Biến DB/broker trong `.env.example` được giữ cho bước tích hợp tiếp theo, chưa được sử dụng.
-`/health/ready` hiện phản ánh readiness của bộ khung không có dependency bên ngoài;
-khi tích hợp DB/broker cần bổ sung kiểm tra dependency và trả 503 khi chưa sẵn sàng.
+Phân công theo BA:
+
+- [A: Identity, JWT và Trip/Saga](docs/tasks/A.md).
+- [B: Driver, Matching và Pricing](docs/tasks/B.md).
+- [C: Payment, Notification, messaging, Gateway và Compose](docs/tasks/C.md).
+
+Mỗi owner tự làm migration, Dockerfile và test cho service mình; C tích hợp
+môi trường chung. Checklist trong ba file là việc cần làm, chưa phải tính năng
+đã hoàn thành.

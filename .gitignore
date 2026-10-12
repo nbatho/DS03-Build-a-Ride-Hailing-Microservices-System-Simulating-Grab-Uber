@@ -6,8 +6,8 @@ node_modules/
 **/.env.*
 !**/.env.example
 deploy/secrets/*
-!deploy/secrets/.gitkeep
 *.pem
 *.key
 *.log
 *.tsbuildinfo
+*docs
