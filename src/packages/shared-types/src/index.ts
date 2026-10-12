@@ -1,3 +1,4 @@
+// Default ports from BA DS03 section 3.1; each app can override its own port via .env.
 export const SERVICE_CONFIG = {
   'api-gateway': { portEnv: 'GATEWAY_PORT', defaultPort: 8080 },
   'identity-user-service': { portEnv: 'IDENTITY_PORT', defaultPort: 3001 },

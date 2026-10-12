@@ -40,6 +40,11 @@ Invoke-RestMethod http://127.0.0.1:8080/health/ready
 | matching-service | `npm run dev:matching-service` | 3006 | MATCHING_PORT |
 | pricing-service | `npm run dev:pricing-service` | 3007 | PRICING_PORT |
 
+Port trong bảng theo mục 3.1 của báo cáo BA. Mỗi entrypoint dùng đúng biến port
+của ứng dụng đó qua runtime chung; khi dev riêng, chạy lệnh trong bảng tại root.
+File `.env` ở root dùng cho local dev và được Git bỏ qua. Nếu đổi port trong `.env`,
+dừng rồi chạy lại service. Biến môi trường đã đặt trong terminal được ưu tiên hơn `.env`.
+
 Trong `package.json`, mỗi Gateway/service có một nhóm 4 script riêng,
 dùng đúng tên thư mục và tên project trong `nest-cli.json`:
 
