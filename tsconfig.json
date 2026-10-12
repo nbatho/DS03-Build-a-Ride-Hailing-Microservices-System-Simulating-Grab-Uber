@@ -1,0 +1,54 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "ES2022",
+    "lib": [
+      "ES2022"
+    ],
+    "declaration": false,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "types": [
+      "node"
+    ],
+    "paths": {
+      "@app/contracts": [
+        "src/packages/contracts/src"
+      ],
+      "@app/contracts/*": [
+        "src/packages/contracts/src/*"
+      ],
+      "@app/shared-types": [
+        "src/packages/shared-types/src"
+      ],
+      "@app/shared-types/*": [
+        "src/packages/shared-types/src/*"
+      ],
+      "@app/runtime": [
+        "src/packages/runtime/src"
+      ],
+      "@app/runtime/*": [
+        "src/packages/runtime/src/*"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "tests",
+    "**/*.spec.ts"
+  ]
+}

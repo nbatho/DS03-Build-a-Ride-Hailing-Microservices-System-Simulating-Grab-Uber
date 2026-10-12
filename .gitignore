@@ -10,3 +10,4 @@ deploy/secrets/*
 *.pem
 *.key
 *.log
+*.tsbuildinfo

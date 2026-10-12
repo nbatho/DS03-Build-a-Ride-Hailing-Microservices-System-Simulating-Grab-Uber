@@ -1,10 +1,16 @@
-# DSP03 - Khung thư mục mới
+# DS03 - Cấu trúc NestJS monorepo
 
-Các folder được tạo trực tiếp tại repository mới. .gitkeep giúp Git ghi nhận các thư mục trống. Chưa có code, migration, test thực thi hoặc cấu hình triển khai.
+Repository đã có NestJS monorepo với API Gateway và 7 service chạy độc lập.
+`nest-cli.json` quản lý ứng dụng; `package.json` và lockfile ở root dùng chung dependency.
+Các thư mục nghiệp vụ trống được giữ bằng `.gitkeep`; migration và triển khai hạ tầng chưa có implementation.
 
 ```text
 .
 ├── README.md
+├── package.json / package-lock.json
+├── nest-cli.json
+├── tsconfig.json
+├── webpack.config.js
 ├── .env.example
 ├── src/
 │   ├── apps/api-gateway/
@@ -19,6 +25,8 @@ Các folder được tạo trực tiếp tại repository mới. .gitkeep giúp 
 │   └── packages/
 │       ├── contracts/src/dtos/ và events/
 │       ├── logger/src/
+│       ├── messaging/src/
+│       ├── runtime/src/              # bootstrap, config, health
 │       └── shared-types/src/
 ├── deploy/                       # docker, postgres/init, rabbitmq, redis, secrets
 ├── tests/                        # functional, concurrency, fault-tolerance, security, performance
@@ -28,7 +36,12 @@ Các folder được tạo trực tiếp tại repository mới. .gitkeep giúp 
 └── .github/workflows/
 ```
 
-Mỗi service có src/config, controllers, routes, domain, use-cases, repositories, events, producers, consumers; migrations; tests/unit và tests/integration.
+Mỗi application có `src/main.ts`, `src/app.module.ts`, `tsconfig.app.json`.
+Các thư viện đã triển khai (contracts, shared-types, runtime) có `tsconfig.lib.json`.
+Mỗi service giữ src/config, controllers, routes, domain, use-cases, repositories, events,
+producers, consumers; migrations; tests/unit và tests/integration để triển khai nghiệp vụ.
+Nest dùng Controller cho routing; thư mục routes hiện chỉ là chỗ dự phòng.
+Build tạo `dist/<application>/main.js`. Xem README cho lệnh build/start/watch/test.
 
 | Thành phần | Port dự kiến | Schema dự kiến |
 |---|---:|---|
@@ -41,8 +54,13 @@ Mỗi service có src/config, controllers, routes, domain, use-cases, repositori
 | Notification | 3005 | notification_schema |
 | API Gateway | 8080 | Không có DB nghiệp vụ |
 
-Gateway không tính vào 7 service nghiệp vụ. Pricing và Matching là service độc lập; Trip gọi Pricing qua REST (integrations/pricing). Khi triển khai, mỗi service dùng role/schema riêng và trao đổi qua REST/event.
+Gateway không tính vào 7 service nghiệp vụ. Pricing và Matching là service độc lập.
+Thiết kế dự kiến: Trip gọi Pricing qua REST (integrations/pricing), mỗi service dùng
+role/schema riêng và trao đổi qua REST/event. Bộ khung hiện chưa kết nối các dependency này.
 
-Root src/, deploy/, tests/, scripts/, docs/, README.md, .env.example theo mục 10.1 của đề. Phần cần bổ sung: entrypoint/manifest, API/contract, migration, Dockerfile/Compose, scripts, test và bằng chứng thực tế.
+Root src/, deploy/, tests/, scripts/, docs/, README.md, .env.example được giữ nguyên.
+Đã có entrypoint, cấu hình Nest/TypeScript, health contract, lệnh build/start và smoke test.
+Phần cần bổ sung: API/event nghiệp vụ, migration, Dockerfile/Compose, seed/demo,
+kiểm thử nghiệp vụ và bằng chứng tích hợp.
 
 Khi bàn giao cần docs/report.pdf; bổ sung docs/slides.pdf nếu có slide. Không tạo PDF rỗng thay cho báo cáo.

@@ -3,12 +3,120 @@
   "version": "0.1.0",
   "private": true,
   "description": "Ride-hailing microservices system simulating Grab/Uber",
-  "workspaces": [
-    "src/apps/*",
-    "src/services/*",
-    "src/packages/*"
-  ],
+  "license": "UNLICENSED",
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build:api-gateway",
+    "start": "npm run start:api-gateway",
+    "start:dev": "npm run dev:api-gateway",
+    "start:prod": "npm run prod:api-gateway",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build:all && npm run test:smoke",
+    "test:smoke": "node --test tests/functional/startup.test.cjs",
+
+    "build:all": "node scripts/development/build-all.cjs",
+    "start:all": "concurrently --kill-others --names api-gateway,identity-user-service,driver-vehicle-location-service,trip-booking-service,simulated-payment-service,notification-service,matching-service,pricing-service \"npm:start:api-gateway\" \"npm:start:identity-user-service\" \"npm:start:driver-vehicle-location-service\" \"npm:start:trip-booking-service\" \"npm:start:simulated-payment-service\" \"npm:start:notification-service\" \"npm:start:matching-service\" \"npm:start:pricing-service\"",
+    "start:dev:all": "concurrently --kill-others --names api-gateway,identity-user-service,driver-vehicle-location-service,trip-booking-service,simulated-payment-service,notification-service,matching-service,pricing-service \"npm:dev:api-gateway\" \"npm:dev:identity-user-service\" \"npm:dev:driver-vehicle-location-service\" \"npm:dev:trip-booking-service\" \"npm:dev:simulated-payment-service\" \"npm:dev:notification-service\" \"npm:dev:matching-service\" \"npm:dev:pricing-service\"",
+    "start:prod:all": "concurrently --kill-others --names api-gateway,identity-user-service,driver-vehicle-location-service,trip-booking-service,simulated-payment-service,notification-service,matching-service,pricing-service \"npm:prod:api-gateway\" \"npm:prod:identity-user-service\" \"npm:prod:driver-vehicle-location-service\" \"npm:prod:trip-booking-service\" \"npm:prod:simulated-payment-service\" \"npm:prod:notification-service\" \"npm:prod:matching-service\" \"npm:prod:pricing-service\"",
+
+    "build:api-gateway": "nest build api-gateway",
+    "start:api-gateway": "nest start api-gateway",
+    "dev:api-gateway": "nest start api-gateway --watch",
+    "prod:api-gateway": "node dist/api-gateway/main.js",
+
+    "build:identity-user-service": "nest build identity-user-service",
+    "start:identity-user-service": "nest start identity-user-service",
+    "dev:identity-user-service": "nest start identity-user-service --watch",
+    "prod:identity-user-service": "node dist/identity-user-service/main.js",
+
+    "build:driver-vehicle-location-service": "nest build driver-vehicle-location-service",
+    "start:driver-vehicle-location-service": "nest start driver-vehicle-location-service",
+    "dev:driver-vehicle-location-service": "nest start driver-vehicle-location-service --watch",
+    "prod:driver-vehicle-location-service": "node dist/driver-vehicle-location-service/main.js",
+
+    "build:trip-booking-service": "nest build trip-booking-service",
+    "start:trip-booking-service": "nest start trip-booking-service",
+    "dev:trip-booking-service": "nest start trip-booking-service --watch",
+    "prod:trip-booking-service": "node dist/trip-booking-service/main.js",
+
+    "build:simulated-payment-service": "nest build simulated-payment-service",
+    "start:simulated-payment-service": "nest start simulated-payment-service",
+    "dev:simulated-payment-service": "nest start simulated-payment-service --watch",
+    "prod:simulated-payment-service": "node dist/simulated-payment-service/main.js",
+
+    "build:notification-service": "nest build notification-service",
+    "start:notification-service": "nest start notification-service",
+    "dev:notification-service": "nest start notification-service --watch",
+    "prod:notification-service": "node dist/notification-service/main.js",
+
+    "build:matching-service": "nest build matching-service",
+    "start:matching-service": "nest start matching-service",
+    "dev:matching-service": "nest start matching-service --watch",
+    "prod:matching-service": "node dist/matching-service/main.js",
+
+    "build:pricing-service": "nest build pricing-service",
+    "start:pricing-service": "nest start pricing-service",
+    "dev:pricing-service": "nest start pricing-service --watch",
+    "prod:pricing-service": "node dist/pricing-service/main.js",
+
+    "build:gateway": "npm run build:api-gateway",
+    "start:gateway": "npm run start:api-gateway",
+    "dev:gateway": "npm run dev:api-gateway",
+    "prod:gateway": "npm run prod:api-gateway",
+
+    "build:identity": "npm run build:identity-user-service",
+    "start:identity": "npm run start:identity-user-service",
+    "dev:identity": "npm run dev:identity-user-service",
+    "prod:identity": "npm run prod:identity-user-service",
+
+    "build:driver": "npm run build:driver-vehicle-location-service",
+    "start:driver": "npm run start:driver-vehicle-location-service",
+    "dev:driver": "npm run dev:driver-vehicle-location-service",
+    "prod:driver": "npm run prod:driver-vehicle-location-service",
+
+    "build:trip": "npm run build:trip-booking-service",
+    "start:trip": "npm run start:trip-booking-service",
+    "dev:trip": "npm run dev:trip-booking-service",
+    "prod:trip": "npm run prod:trip-booking-service",
+
+    "build:payment": "npm run build:simulated-payment-service",
+    "start:payment": "npm run start:simulated-payment-service",
+    "dev:payment": "npm run dev:simulated-payment-service",
+    "prod:payment": "npm run prod:simulated-payment-service",
+
+    "build:notification": "npm run build:notification-service",
+    "start:notification": "npm run start:notification-service",
+    "dev:notification": "npm run dev:notification-service",
+    "prod:notification": "npm run prod:notification-service",
+
+    "build:matching": "npm run build:matching-service",
+    "start:matching": "npm run start:matching-service",
+    "dev:matching": "npm run dev:matching-service",
+    "prod:matching": "npm run prod:matching-service",
+
+    "build:pricing": "npm run build:pricing-service",
+    "start:pricing": "npm run start:pricing-service",
+    "dev:pricing": "npm run dev:pricing-service",
+    "prod:pricing": "npm run prod:pricing-service"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.2.7",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.2.7",
+    "@nestjs/platform-express": "^11.2.7",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.24",
+    "@nestjs/schematics": "^11.0.0",
+    "@types/node": "^22.0.0",
+    "concurrently": "^9.2.1",
+    "ts-loader": "^9.6.2",
+    "typescript": "^5.7.3"
   }
 }
