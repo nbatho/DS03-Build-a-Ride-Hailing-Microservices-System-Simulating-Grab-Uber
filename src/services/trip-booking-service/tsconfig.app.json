@@ -3,13 +3,6 @@
   "compilerOptions": {
     "outDir": "../../../dist/trip-booking-service"
   },
-  "include": [
-    "src/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "tests",
-    "**/*.spec.ts"
-  ]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "tests", "**/*.spec.ts"]
 }

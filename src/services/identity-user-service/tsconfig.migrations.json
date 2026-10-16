@@ -1,0 +1,10 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../../../dist/identity-migrations",
+    "declaration": false
+  },
+  "include": ["src/database/options.ts", "src/database/data-source.ts", "migrations/**/*.ts"],
+  "exclude": ["tests"]
+}

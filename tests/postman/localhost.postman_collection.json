@@ -1,0 +1,735 @@
+{
+  "info": {
+    "name": "DS03 localhost - Identity and JWT",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run all 20 requests in order using Collection Runner or Postman CLI. Starts against already running localhost services. Creates two uniquely named test users on every run and leaves them in the dev database. Tokens/password use run-local pm.variables. Login rate limit is 10 attempts per 60 seconds per IP; wait 60 seconds between repeated runs if receiving 429. Driver onboarding is pending so case 19 expects 404 DRIVER_NOT_ONBOARDED."
+  },
+  "variable": [
+    {
+      "key": "gatewayUrl",
+      "value": "http://127.0.0.1:8081",
+      "type": "string"
+    },
+    {
+      "key": "identityUrl",
+      "value": "http://127.0.0.1:3001",
+      "type": "string"
+    },
+    {
+      "key": "driverUrl",
+      "value": "http://127.0.0.1:3002",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Gateway live",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const suffix = pm.variables.replaceIn(\"{{$guid}}\");",
+              "pm.variables.set(\"passengerEmail\", \"passenger-\" + suffix + \"@example.test\");",
+              "pm.variables.set(\"driverEmail\", \"driver-\" + suffix + \"@example.test\");",
+              "pm.variables.set(\"normalizedDuplicateEmail\", \" \" + (\"passenger-\" + suffix + \"@example.test\").toUpperCase() + \" \");",
+              "pm.variables.set(\"testPassword\", \"LocalTest!\" + suffix);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Gateway is UP\", () => pm.expect(pm.response.json().status).to.eql(\"UP\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{gatewayUrl}}/health/live"
+      }
+    },
+    {
+      "name": "02 Identity ready (database)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Identity is UP\", () => pm.expect(pm.response.json().status).to.eql(\"UP\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{identityUrl}}/health/ready"
+      }
+    },
+    {
+      "name": "03 Driver ready",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{driverUrl}}/health/ready"
+      }
+    },
+    {
+      "name": "04 Register PASSENGER",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.test(\"Public user fields only\", () => pm.expect(Object.keys(pm.response.json()).sort()).to.eql([\"id\",\"email\",\"displayName\",\"role\",\"createdAt\"].sort()));",
+              "pm.test(\"Passenger role\", () => pm.expect(pm.response.json().role).to.eql(\"PASSENGER\"));",
+              "if (pm.response.code === 201) pm.variables.set(\"passengerId\", pm.response.json().id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{passengerEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"displayName\": \"Local Passenger\",\n  \"role\": \"PASSENGER\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "05 Duplicate normalized email",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              "pm.test(\"Error code EMAIL_EXISTS\", () => pm.expect(pm.response.json().code).to.eql(\"EMAIL_EXISTS\"));",
+              "pm.test(\"Error has correlationId\", () => pm.expect(pm.response.json().correlationId).to.be.a(\"string\").and.not.empty);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{normalizedDuplicateEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"displayName\": \"Local Passenger\",\n  \"role\": \"PASSENGER\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "06 Reject ADMIN role",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Error code VALIDATION_ERROR\", () => pm.expect(pm.response.json().code).to.eql(\"VALIDATION_ERROR\"));",
+              "pm.test(\"Error has correlationId\", () => pm.expect(pm.response.json().correlationId).to.be.a(\"string\").and.not.empty);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{passengerEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"displayName\": \"Local Passenger\",\n  \"role\": \"ADMIN\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "07 Reject short password",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Error code VALIDATION_ERROR\", () => pm.expect(pm.response.json().code).to.eql(\"VALIDATION_ERROR\"));",
+              "pm.test(\"Error has correlationId\", () => pm.expect(pm.response.json().correlationId).to.be.a(\"string\").and.not.empty);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{passengerEmail}}\",\n  \"password\": \"123456789\",\n  \"displayName\": \"Local Passenger\",\n  \"role\": \"PASSENGER\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "08 Reject unexpected field",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Error code VALIDATION_ERROR\", () => pm.expect(pm.response.json().code).to.eql(\"VALIDATION_ERROR\"));",
+              "pm.test(\"Error has correlationId\", () => pm.expect(pm.response.json().correlationId).to.be.a(\"string\").and.not.empty);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{passengerEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"displayName\": \"Local Passenger\",\n  \"role\": \"PASSENGER\",\n  \"driverId\": \"untrusted\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "09 Login PASSENGER",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Bearer JWT contract\", () => { const b = pm.response.json(); pm.expect(b.accessToken).to.be.a(\"string\").and.not.empty; pm.expect(b.tokenType).to.eql(\"Bearer\"); pm.expect(b.expiresIn).to.eql(3600); });",
+              "pm.test(\"Login role\", () => pm.expect(pm.response.json().user.role).to.eql(\"PASSENGER\"));",
+              "if (pm.response.code === 200) pm.variables.set(\"passengerToken\", pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{passengerEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "10 Reject wrong password",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "pm.test(\"Error code INVALID_CREDENTIALS\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_CREDENTIALS\"));",
+              "pm.test(\"Error has correlationId\", () => pm.expect(pm.response.json().correlationId).to.be.a(\"string\").and.not.empty);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{passengerEmail}}\",\n  \"password\": \"WrongPassword!2026\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "11 Get current user",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Public user fields only\", () => pm.expect(Object.keys(pm.response.json()).sort()).to.eql([\"id\",\"email\",\"displayName\",\"role\",\"createdAt\"].sort()));",
+              "pm.test(\"Same registered user\", () => pm.expect(pm.response.json().id).to.eql(pm.variables.get(\"passengerId\")));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{passengerToken}}"
+          }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/users/me"
+      }
+    },
+    {
+      "name": "12 Reject missing JWT",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "pm.test(\"Error code INVALID_TOKEN\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_TOKEN\"));",
+              "pm.test(\"Error has correlationId\", () => pm.expect(pm.response.json().correlationId).to.be.a(\"string\").and.not.empty);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/users/me"
+      }
+    },
+    {
+      "name": "13 Reject invalid JWT",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "pm.test(\"Error code INVALID_TOKEN\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_TOKEN\"));",
+              "pm.test(\"Error has correlationId\", () => pm.expect(pm.response.json().correlationId).to.be.a(\"string\").and.not.empty);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer invalid-token"
+          }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/users/me"
+      }
+    },
+    {
+      "name": "14 Reject userId query",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Error code VALIDATION_ERROR\", () => pm.expect(pm.response.json().code).to.eql(\"VALIDATION_ERROR\"));",
+              "pm.test(\"Error has correlationId\", () => pm.expect(pm.response.json().correlationId).to.be.a(\"string\").and.not.empty);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{passengerToken}}"
+          }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/users/me?userId={{passengerId}}"
+      }
+    },
+    {
+      "name": "15 Ignore forged actor headers",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"JWT determines actor\", () => { const b = pm.response.json(); pm.expect(b.id).to.eql(pm.variables.get(\"passengerId\")); pm.expect(b.role).to.eql(\"PASSENGER\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{passengerToken}}"
+          },
+          {
+            "key": "X-User-Id",
+            "value": "00000000-0000-4000-8000-000000000000"
+          },
+          {
+            "key": "X-Role",
+            "value": "ADMIN"
+          },
+          {
+            "key": "X-Service-Token",
+            "value": "forged"
+          }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/users/me"
+      }
+    },
+    {
+      "name": "16 Register DRIVER",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.test(\"Public user fields only\", () => pm.expect(Object.keys(pm.response.json()).sort()).to.eql([\"id\",\"email\",\"displayName\",\"role\",\"createdAt\"].sort()));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{driverEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"displayName\": \"Local Driver\",\n  \"role\": \"DRIVER\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "17 Login DRIVER",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Bearer JWT contract\", () => { const b = pm.response.json(); pm.expect(b.accessToken).to.be.a(\"string\").and.not.empty; pm.expect(b.tokenType).to.eql(\"Bearer\"); pm.expect(b.expiresIn).to.eql(3600); });",
+              "pm.test(\"Login role\", () => pm.expect(pm.response.json().user.role).to.eql(\"DRIVER\"));",
+              "if (pm.response.code === 200) pm.variables.set(\"driverToken\", pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{driverEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "18 Reject PASSENGER on Driver API",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "pm.test(\"Error code ROLE_FORBIDDEN\", () => pm.expect(pm.response.json().code).to.eql(\"ROLE_FORBIDDEN\"));",
+              "pm.test(\"Error has correlationId\", () => pm.expect(pm.response.json().correlationId).to.be.a(\"string\").and.not.empty);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{passengerToken}}"
+          }
+        ],
+        "url": "{{driverUrl}}/api/v1/drivers/me"
+      }
+    },
+    {
+      "name": "19 DRIVER verified, onboarding pending",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "pm.test(\"Error code DRIVER_NOT_ONBOARDED\", () => pm.expect(pm.response.json().code).to.eql(\"DRIVER_NOT_ONBOARDED\"));",
+              "pm.test(\"Error has correlationId\", () => pm.expect(pm.response.json().correlationId).to.be.a(\"string\").and.not.empty);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          }
+        ],
+        "url": "{{driverUrl}}/api/v1/drivers/me"
+      }
+    },
+    {
+      "name": "20 Gateway blocks internal route",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          }
+        ],
+        "url": "{{gatewayUrl}}/internal/v1/trips/00000000-0000-4000-8000-000000000000"
+      }
+    }
+  ]
+}

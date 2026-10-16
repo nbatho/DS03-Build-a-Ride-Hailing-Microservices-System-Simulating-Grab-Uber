@@ -5,21 +5,39 @@ qua `nest-cli.json`; dependency và lockfile dùng chung tại root.
 
 ## Chạy nhanh
 
-Yêu cầu Node.js >= 22 và npm. Chạy tại thư mục gốc:
+Yêu cầu Node.js >=22, npm và Docker Desktop có Linux Engine hoạt động.
+Hướng dẫn chi tiết: [Identity/User + JWT](docs/identity.md).
 
 ```powershell
 npm ci
-# Chỉ tạo .env lần đầu
-if (!(Test-Path .env)) { Copy-Item .env.example .env }
-npm run dev:api-gateway
+# Chỉ chạy setup khi chưa có .env; không ghi đè config/key hiện có.
+npm run identity:setup:dev
+npm run identity:db:up
+npm run migration:identity:run
+npm run identity:dev
 ```
 
-Kiểm tra Gateway:
+Nhóm dev chạy Gateway :8081, Identity :3001 và Driver :3002. PostgreSQL riêng
+của A ở 127.0.0.1:5541. Port theo .env; default của Gateway vẫn là 8080.
+
+Trong terminal khác, chạy demo qua Gateway:
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:8080/health/live
-Invoke-RestMethod http://127.0.0.1:8080/health/ready
+npm run demo:identity
+Invoke-RestMethod http://127.0.0.1:8081/health/live
+Invoke-RestMethod http://127.0.0.1:3001/health/ready
 ```
+
+Setup sinh credential/key local ngoài Git. Nếu đã có .env, bổ sung theo
+.env.example và docs/identity.md; không chỉ copy placeholder rồi start.
+Gateway/Driver cần public key; chỉ Identity đọc private key và DB của mình.
+
+## Swagger API Docs
+
+Chạy `npm run identity:dev`, mở [Gateway Swagger](http://localhost:8081/docs),
+[Identity Swagger](http://localhost:3001/docs) hoặc [Driver Swagger](http://localhost:3002/docs).
+Port theo `.env`. Swagger có body mẫu, mã lỗi và nút **Authorize** để test JWT.
+OpenAPI JSON tại `/docs-json`. Hướng dẫn test tay: [docs/swagger.md](docs/swagger.md).
 
 ## Dev từng service
 
@@ -193,22 +211,32 @@ npm run typecheck
 npm test
 ```
 
-`npm test` build cả 8 app rồi chạy smoke test: startup đồng thời trên port tạm,
-health, instance ID riêng, route chưa triển khai trả 404 và port sai bị chặn.
-`npm run test:smoke` chạy test với các bundle đã build.
+`npm test` build 8 app và artifact migration, chạy smoke/integration với
+PostgreSQL test container riêng, port/key tạm. `npm run test:identity:unit`
+kiểm tra JWT/role/DTO. Docker Engine cần chạy cho integration/smoke.
 
-Hiện có bộ khung NestJS và module nghiệp vụ. JWT, API đặt xe, proxy Gateway,
-PostgreSQL, RabbitMQ, Saga, migration, seed và Compose cần triển khai tiếp.
-`.env.example` chỉ giữ biến đang được runtime đọc; thêm DB/broker env cùng
-implementation tương ứng. `/health/ready` hiện phản ánh bộ khung; bổ sung
-dependency checks và 503 khi app bắt đầu dùng DB/broker.
+Đã có register/login/me, bcrypt, JWT RS256, Guard dùng chung, PostgreSQL
+Identity/migration, Gateway allowlist 3 route và Docker dev của A. Driver chỉ
+tích hợp Guard; profile/onboarding của B chưa triển khai. Trip/Saga, RabbitMQ,
+Payment/Notification/Matching/Pricing và Compose chung còn cần triển khai.
+
+Identity readiness kiểm tra DB/bảng/quyền thật và trả 503 khi DB lỗi. Các service
+chưa có dependency giữ health của bộ khung. Runtime có error/correlation chung;
+route internal được giữ ngoài public prefix.
 
 Phân công theo BA:
 
-- [A: Identity, JWT và Trip/Saga](docs/tasks/A.md).
-- [B: Driver, Matching và Pricing](docs/tasks/B.md).
-- [C: Payment, Notification, messaging, Gateway và Compose](docs/tasks/C.md).
+- A: [Identity/JWT đã triển khai](docs/identity.md), tiếp theo Trip/Saga.
+- B: Driver, Matching và Pricing.
+- C: Payment, Notification, messaging, mở rộng Gateway và Compose chung.
 
-Mỗi owner tự làm migration, Dockerfile và test cho service mình; C tích hợp
-môi trường chung. Checklist trong ba file là việc cần làm, chưa phải tính năng
-đã hoàn thành.
+Mỗi owner tự làm migration, Dockerfile và test service mình; C tích hợp môi trường chung.
+Bằng chứng Identity: docs/test-evidence/identity/. Chưa dùng kết quả này thay bộ test toàn hệ thống.
+
+## Identity/User + JWT đã triển khai
+
+Hướng dẫn setup PostgreSQL riêng, migration, key, API, Guard B/C, Docker và test: [docs/identity.md](docs/identity.md).
+
+Chạy dev: `npm run identity:dev` sau setup/migration. Gateway dev dùng 8081; PostgreSQL riêng dùng 5541.
+
+`npm test` dùng PostgreSQL test tạm riêng và kiểm tra Identity/JWT qua Gateway/Driver cùng smoke 8 app. Trip/Saga và nghiệp vụ B/C còn cần triển khai tiếp.

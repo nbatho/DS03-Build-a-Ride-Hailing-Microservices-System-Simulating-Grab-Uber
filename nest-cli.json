@@ -130,6 +130,17 @@
         "deleteOutDir": true,
         "tsConfigPath": "src/packages/runtime/tsconfig.lib.json"
       }
+    },
+    "auth": {
+      "type": "library",
+      "root": "src/packages/auth",
+      "entryFile": "index",
+      "sourceRoot": "src/packages/auth/src",
+      "compilerOptions": {
+        "webpack": false,
+        "deleteOutDir": true,
+        "tsConfigPath": "src/packages/auth/tsconfig.lib.json"
+      }
     }
   }
 }
