@@ -1,13 +1,62 @@
+# Dependencies
 node_modules/
+**/node_modules/
+
+# Build output
+/dist/
 **/dist/
+build/
+**/build/
+coverage/
 **/coverage/
+.nyc_output/
+*.tsbuildinfo
+
+# Environment variables and secrets
 .env
+.env.*
 **/.env
 **/.env.*
+!.env.example
 !**/.env.example
 deploy/secrets/*
+secrets/*
 *.pem
 *.key
+*.crt
+*.cer
+
+# Logs
 *.log
-*.tsbuildinfo
-*docs
+logs/
+**/logs/
+
+# Docker/local runtime data
+.docker/
+docker-data/
+data/
+tmp/
+temp/
+**/tmp/
+**/temp/
+
+# Databases / local storage
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Package manager caches
+.npm/
+.pnpm-store/
+.yarn/
+
+*md
+*pdf
+

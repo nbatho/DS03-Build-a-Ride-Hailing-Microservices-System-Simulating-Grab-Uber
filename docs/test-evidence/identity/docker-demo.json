@@ -1,0 +1,12 @@
+{
+  "executedAt": "2026-10-13T11:05:27.260Z",
+  "status": "PASS",
+  "flow": "Gateway (host) -> Identity (Docker non-root) -> PostgreSQL dev; Driver (independent host process) verifies real token",
+  "output": [
+    "{\"role\":\"PASSENGER\",\"userId\":\"998334f7-300a-4453-8165-1c81c833b2da\",\"correlationId\":\"5f3d4724-48ad-4078-b273-6fc48033cd18\",\"register\":201,\"login\":200,\"me\":200,\"token\":\"[REDACTED]\"}",
+    "{\"role\":\"DRIVER\",\"userId\":\"3730c0b6-feb9-4ef7-bc2e-5853289c8690\",\"correlationId\":\"ed5f2a29-83de-48fe-b41c-e1a33d91fdbc\",\"register\":201,\"login\":200,\"me\":200,\"token\":\"[REDACTED]\"}",
+    "Driver verified DRIVER token; profile onboarding remains owned by B."
+  ],
+  "token": "[REDACTED]",
+  "password": "[REDACTED]"
+}

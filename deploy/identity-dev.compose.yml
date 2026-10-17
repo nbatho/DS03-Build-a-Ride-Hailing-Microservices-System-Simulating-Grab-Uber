@@ -1,0 +1,70 @@
+name: ds03-identity-dev
+services:
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: ride_hailing
+      POSTGRES_PASSWORD: ${IDENTITY_BOOTSTRAP_PASSWORD:?Run npm run identity:setup:dev}
+      IDENTITY_APP_PASSWORD: ${IDENTITY_APP_PASSWORD:?Run npm run identity:setup:dev}
+      IDENTITY_MIGRATOR_PASSWORD: ${IDENTITY_MIGRATOR_PASSWORD:?Run npm run identity:setup:dev}
+    ports:
+      - '127.0.0.1:5541:5432'
+    volumes:
+      - identity-data:/var/lib/postgresql/data
+      - ./postgres/identity-init.sql:/docker-entrypoint-initdb.d/001-identity.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d ride_hailing']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  migrate:
+    profiles: ['migration']
+    image: ds03-identity:dev
+    build:
+      context: ..
+      dockerfile: src/services/identity-user-service/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      IDENTITY_DB_SCHEMA: identity_schema
+      IDENTITY_MIGRATION_DATABASE_URL: postgresql://identity_migrator:${IDENTITY_MIGRATOR_PASSWORD}@postgres:5432/ride_hailing
+    command: ['node', 'scripts/identity/migrate.cjs', 'run', '--compiled']
+  identity:
+    profiles: ['app']
+    image: ds03-identity:dev
+    build:
+      context: ..
+      dockerfile: src/services/identity-user-service/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      HOST: 0.0.0.0
+      IDENTITY_PORT: '3001'
+      IDENTITY_DB_SCHEMA: identity_schema
+      IDENTITY_DATABASE_URL: postgresql://identity_app:${IDENTITY_APP_PASSWORD}@postgres:5432/ride_hailing
+      JWT_ISSUER: ride-hailing
+      JWT_AUDIENCE: ride-api
+      JWT_ACCESS_TTL_SECONDS: '3600'
+      JWT_PUBLIC_KEY_FILE: /run/secrets/identity-public.pem
+      JWT_PRIVATE_KEY_FILE: /run/secrets/identity-private.pem
+      BCRYPT_ROUNDS: '10'
+    ports:
+      - '127.0.0.1:3001:3001'
+    volumes:
+      - ./secrets/identity-public.pem:/run/secrets/identity-public.pem:ro
+      - ./secrets/identity-private.pem:/run/secrets/identity-private.pem:ro
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3001/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+volumes:
+  identity-data:

@@ -1,13 +1,23 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
+import { Roles } from '@app/auth';
+import { ApiError } from '@app/runtime';
 import { DriversService } from './drivers.service';
 import { DriverProfileDto } from './dto/driver-profile.dto';
 import { AvailabilityDto } from './dto/availability.dto';
 
-// TODO: Thêm định tuyến HTTP, xác thực và xử lý dữ liệu đầu vào.
-// TODO: Xác thực JWT, kiểm tra role và lấy actor từ credential.
+// TODO: Thêm định tuyến HTTP và xử lý dữ liệu đầu vào; actor lấy bằng @CurrentUser().
 @Controller('drivers')
+@Roles('DRIVER')
 export class DriversController {
   constructor(private readonly service: DriversService) {}
+
+  // Placeholder của A, test Identity đang dựa vào 404 này.
+  // TODO: Thay bằng getProfile (API-05) khi làm onboarding; báo A cập nhật test.
+  @Get('me')
+  me(): never {
+    // Identity only creates accounts. B implements onboarding/profile persistence next.
+    throw new ApiError(404, 'DRIVER_NOT_ONBOARDED', 'Driver profile has not been created');
+  }
 
   // TODO: Tạo API cập nhật hồ sơ của tài xế đã xác thực.
   upsertProfile(driverId: string, dto: DriverProfileDto): never {

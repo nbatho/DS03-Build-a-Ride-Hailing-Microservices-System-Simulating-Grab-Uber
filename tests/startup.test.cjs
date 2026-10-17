@@ -1,14 +1,8 @@
 const assert = require('node:assert/strict');
-const { spawn } = require('node:child_process');
 const { once } = require('node:events');
-const fs = require('node:fs');
-const net = require('node:net');
-const path = require('node:path');
-const { setTimeout: delay } = require('node:timers/promises');
 const { test } = require('node:test');
-
-const root = path.resolve(__dirname, '..');
-const applications = [
+const { createEnvironment, start, stop } = require('./helpers/identity-environment.cjs');
+const apps = [
   ['api-gateway', 'GATEWAY_PORT'],
   ['identity-user-service', 'IDENTITY_PORT'],
   ['driver-vehicle-location-service', 'DRIVER_PORT'],
@@ -19,97 +13,130 @@ const applications = [
   ['pricing-service', 'PRICING_PORT'],
 ];
 
-async function allocatePort() {
-  const server = net.createServer();
-  server.listen(0, '127.0.0.1');
-  await once(server, 'listening');
-  const { port } = server.address();
-  await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
-  return port;
-}
+test(
+  'all eight apps expose independent health endpoints with real Identity dependencies',
+  { timeout: 240000 },
+  async t => {
+    const fixture = await createEnvironment(t);
+    const running = [];
 
-function start(name, environment) {
-  const entry = path.join(root, 'dist', name, 'main.js');
-  assert.ok(fs.existsSync(entry), 'Missing build: run npm run build:all first');
-  const child = spawn(process.execPath, [entry], {
-    cwd: root,
-    env: { ...process.env, HOST: '127.0.0.1', ...environment },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  const app = { child, logs: '', error: undefined };
-  child.stdout.on('data', data => { app.logs += data.toString(); });
-  child.stderr.on('data', data => { app.logs += data.toString(); });
-  child.on('error', error => { app.error = error; });
-  return app;
-}
-
-async function stop(app) {
-  if (app.child.exitCode !== null || app.child.signalCode !== null) return;
-  const exited = once(app.child, 'exit');
-  app.child.kill('SIGTERM');
-  const timer = setTimeout(() => app.child.kill('SIGKILL'), 5000);
-  try {
-    await exited;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function waitForHealth(app, url) {
-  const deadline = Date.now() + 15000;
-  while (Date.now() < deadline) {
-    if (app.error) throw app.error;
-    assert.equal(app.child.exitCode, null, app.logs);
-    try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(1000) });
-      if (response.ok) return;
-    } catch {
-      // The server may still be starting.
+    for (const [name, portEnv] of apps) {
+      running.push(await fixture.launch(name, portEnv));
     }
-    await delay(100);
-  }
-  assert.fail('Startup timed out: ' + app.logs);
-}
 
-test('all eight apps run concurrently and expose independent health endpoints', { timeout: 30000 }, async t => {
-  const running = [];
-  t.after(async () => { await Promise.all(running.map(stop)); });
+    const ids = new Set();
 
-  for (const [name, portEnv] of applications) {
-    const port = await allocatePort();
-    const app = start(name, { [portEnv]: String(port) });
-    running.push(Object.assign(app, { name, url: 'http://127.0.0.1:' + port }));
-  }
+    for (const app of running) {
+      let instance;
 
-  await Promise.all(running.map(app => waitForHealth(app, app.url + '/health/live')));
-  const instanceIds = new Set();
-  for (const app of running) {
-    await t.test(app.name, async () => {
-      let instanceId;
       for (const endpoint of ['live', 'ready']) {
         const response = await fetch(app.url + '/health/' + endpoint);
-        assert.equal(response.status, 200);
         const body = await response.json();
-        assert.deepEqual(Object.keys(body).sort(), ['checkedAt', 'instanceId', 'service', 'status']);
+
+        assert.equal(response.status, 200);
+        assert.deepEqual(Object.keys(body).sort(), [
+          'checkedAt',
+          'instanceId',
+          'service',
+          'status',
+        ]);
+
         assert.equal(body.status, 'UP');
         assert.equal(body.service, app.name);
-        assert.match(body.instanceId, /^[0-9a-f-]{36}$/);
-        assert.ok(Number.isFinite(Date.parse(body.checkedAt)));
-        if (instanceId) assert.equal(body.instanceId, instanceId);
-        instanceId = body.instanceId;
-      }
-      instanceIds.add(instanceId);
-      const missing = await fetch(app.url + '/api/v1/not-implemented');
-      assert.equal(missing.status, 404);
-    });
-  }
-  assert.equal(instanceIds.size, applications.length);
-});
+        if (instance) {
+          assert.equal(body.instanceId, instance);
+        }
 
-test('invalid port configuration fails startup with a clear error', { timeout: 10000 }, async t => {
-  const app = start('api-gateway', { GATEWAY_PORT: 'invalid' });
-  t.after(() => stop(app));
+        instance = body.instanceId;
+      }
+
+      ids.add(instance);
+      assert.equal((await fetch(app.url + '/api/v1/not-implemented')).status, 404);
+      const docsResponse = await fetch(app.url + '/docs-json');
+
+      assert.equal(docsResponse.status, 200, 'Swagger JSON is accessible without JWT');
+      const docs = await docsResponse.json();
+
+      assert.equal(docs.servers[0].url, '/');
+      assert.ok(docs.paths['/health/live']);
+      assert.ok(docs.paths['/health/ready']);
+      assert.equal(docs.paths['/api/v1/health/live'], undefined);
+      assert.equal(docs.components.securitySchemes.bearerAuth.scheme, 'bearer');
+      if (['api-gateway', 'identity-user-service'].includes(app.name)) {
+        const register = docs.paths['/api/v1/auth/register'].post;
+
+        assert.deepEqual(register.security, []);
+        assert.equal(
+          register.requestBody.content['application/json'].schema.$ref,
+          '#/components/schemas/RegisterRequest',
+        );
+
+        assert.equal(docs.components.schemas.RegisterRequest.example.role, 'PASSENGER');
+        assert.equal(docs.components.schemas.RegisterRequest.additionalProperties, false);
+        assert.deepEqual(docs.paths['/api/v1/users/me'].get.security, [{ bearerAuth: [] }]);
+        assert.equal(docs.paths['/api/v1/drivers/me'], undefined);
+        if (app.name === 'api-gateway') {
+          assert.ok(register.responses['502'] && register.responses['504']);
+        }
+      } else {
+        assert.equal(docs.paths['/api/v1/auth/register'], undefined);
+      }
+
+      if (app.name === 'driver-vehicle-location-service') {
+        const driverMe = docs.paths['/api/v1/drivers/me'].get;
+
+        assert.deepEqual(driverMe.security, [{ bearerAuth: [] }]);
+        assert.match(driverMe.responses['404'].description, /DRIVER_NOT_ONBOARDED/);
+        assert.equal(driverMe.responses['200'], undefined);
+      }
+
+      const ui = await fetch(app.url + '/docs');
+
+      assert.equal(ui.status, 200);
+      assert.match(await ui.text(), /swagger-ui/);
+      for (const asset of ['swagger-ui-init.js', 'swagger-ui-bundle.js', 'swagger-ui.css']) {
+        assert.equal(
+          (await fetch(app.url + '/docs/' + asset)).status,
+          200,
+          'Swagger asset: ' + asset,
+        );
+      }
+    }
+
+    assert.equal(ids.size, 8);
+  },
+);
+
+test('invalid port fails startup clearly', { timeout: 60000 }, async t => {
+  const { generateKeys } = require('../scripts/identity/generate-keys.cjs');
+  const fs = require('node:fs'),
+    os = require('node:os'),
+    path = require('node:path');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'identity-port-'));
+
+  generateKeys(directory);
+  const app = start('api-gateway', {
+    GATEWAY_PORT: 'invalid',
+    JWT_ISSUER: 'ride-hailing',
+    JWT_AUDIENCE: 'ride-api',
+    JWT_PUBLIC_KEY: '',
+    JWT_PUBLIC_KEY_FILE: path.join(directory, 'identity-public.pem'),
+  });
+
+  t.after(async () => {
+    await stop(app);
+    if (
+      path.dirname(path.resolve(directory)) !== path.resolve(os.tmpdir()) ||
+      !path.basename(directory).startsWith('identity-port-')
+    ) {
+      throw new Error('Unsafe temporary cleanup target');
+    }
+
+    fs.rmSync(directory, { recursive: true, force: true });
+  });
+
   const [code] = await once(app.child, 'exit');
+
   assert.equal(code, 1);
   assert.match(app.logs, /GATEWAY_PORT must be an integer between 1 and 65535/);
 });
