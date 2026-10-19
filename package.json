@@ -68,7 +68,20 @@
     "test:identity:integration": "npm run build:all && npm run build:identity-migrations && node --test tests/identity.integration.test.cjs",
     "test:identity:security": "npm run test:identity:integration",
     "demo:identity": "node scripts/identity/demo.cjs",
-    "identity:dev": "concurrently --kill-others --names gateway,identity,driver \"npm:dev:api-gateway\" \"npm:dev:identity-user-service\" \"npm:dev:driver-vehicle-location-service\""
+    "identity:dev": "concurrently --kill-others --names gateway,identity,driver \"npm:dev:api-gateway\" \"npm:dev:identity-user-service\" \"npm:dev:driver-vehicle-location-service\"",
+    "b:setup:dev": "node scripts/b/setup-dev.cjs",
+    "b:db:up": "docker compose --env-file .env -f deploy/b-dev.compose.yml up -d --wait",
+    "b:db:stop": "docker compose --env-file .env -f deploy/b-dev.compose.yml stop",
+    "b:db:start": "docker compose --env-file .env -f deploy/b-dev.compose.yml start",
+    "b:db:status": "docker compose --env-file .env -f deploy/b-dev.compose.yml ps",
+    "b:db:verify": "node scripts/b/verify-db.cjs",
+    "migration:b:run": "npm run migration:driver:run && npm run migration:matching:run && npm run migration:pricing:run",
+    "migration:driver:run": "node -r ts-node/register node_modules/typeorm/cli.js migration:run -d src/services/driver-vehicle-location-service/src/database/data-source.ts",
+    "migration:driver:revert": "node -r ts-node/register node_modules/typeorm/cli.js migration:revert -d src/services/driver-vehicle-location-service/src/database/data-source.ts",
+    "migration:matching:run": "node -r ts-node/register node_modules/typeorm/cli.js migration:run -d src/services/matching-service/src/database/data-source.ts",
+    "migration:matching:revert": "node -r ts-node/register node_modules/typeorm/cli.js migration:revert -d src/services/matching-service/src/database/data-source.ts",
+    "migration:pricing:run": "node -r ts-node/register node_modules/typeorm/cli.js migration:run -d src/services/pricing-service/src/database/data-source.ts",
+    "migration:pricing:revert": "node -r ts-node/register node_modules/typeorm/cli.js migration:revert -d src/services/pricing-service/src/database/data-source.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.2.7",

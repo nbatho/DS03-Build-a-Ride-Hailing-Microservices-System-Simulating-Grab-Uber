@@ -132,11 +132,10 @@ nếu một app thoát để tránh sót process. Mỗi bộ port chỉ chạy m
 │   ├── security/
 │   ├── performance/
 │   └── contract/
-└── docs/tasks/
-    ├── A.md
-    ├── B.md
-    └── C.md
+└── docs/                    # api/, plans/, services/, test-evidence/
 ```
+
+Phân công và kế hoạch của A, B, C nằm trong báo cáo BA (mục 11), không còn file task riêng.
 
 Mỗi service giữ `tsconfig.app.json`, `src/main.ts`, `src/app.module.ts` và
 module nghiệp vụ đã tạo, gồm Controller/Service/Module. Ví dụ Identity có
@@ -232,6 +231,31 @@ Phân công theo BA:
 
 Mỗi owner tự làm migration, Dockerfile và test service mình; C tích hợp môi trường chung.
 Bằng chứng Identity: docs/test-evidence/identity/. Chưa dùng kết quả này thay bộ test toàn hệ thống.
+
+## DB của B (Driver, Matching, Pricing)
+
+Mỗi service một PostgreSQL riêng chạy bằng Docker (BA mục 3.2). Service này không có
+địa chỉ hay mật khẩu DB của service khác.
+
+| Service | Container | Database | Cổng trên máy |
+| --- | --- | --- | ---: |
+| Driver/Vehicle/Location | `driver-db` | `driver_db` | 5542 |
+| Matching | `matching-db` | `matching_db` | 5546 |
+| Pricing | `pricing-db` | `pricing_db` | 5547 |
+
+Lần đầu (cần Docker Desktop đang chạy và đã có `.env` từ `npm run identity:setup:dev`):
+
+```powershell
+npm run b:setup:dev       # ghi mật khẩu ngẫu nhiên và URL DB local vào .env, không in mật khẩu
+npm run b:db:up           # bật 3 DB; user và schema tạo từ deploy/postgres/*-init.sql
+npm run migration:b:run   # tạo bảng (pricing nạp luôn bảng giá CAR_V1)
+npm run b:db:verify       # kiểm tra đúng DB, đủ bảng, quyền hẹp, không đăng nhập chéo được
+```
+
+Hằng ngày: `npm run b:db:start` / `npm run b:db:stop`, xem trạng thái bằng `npm run b:db:status`.
+Thêm tên container để chỉ làm với một DB, ví dụ `npm run b:db:stop -- pricing-db`;
+migration từng service: `npm run migration:driver:run`, kiểm tra một DB: `npm run b:db:verify -- driver`. Script không bao giờ xóa volume; muốn tạo lại một DB từ đầu thì
+xóa volume của đúng DB đó (ví dụ `docker volume rm ds03-b-dev_pricing-db-data`) rồi `b:db:up` và migrate lại.
 
 ## Identity/User + JWT đã triển khai
 
