@@ -1,10 +1,11 @@
 import { Controller } from '@nestjs/common';
+import { InternalRoute } from '@app/runtime';
 import { OffersService } from './offers.service';
 import { OfferDecisionDto } from './dto/offer-decision.dto';
 import { OfferResolutionDto } from './dto/offer-resolution.dto';
 
 // TODO: Thêm định tuyến HTTP, xác thực và xử lý dữ liệu đầu vào.
-// TODO: Xác thực service gọi và cấu hình prefix riêng cho route nội bộ.
+@InternalRoute('TRIP')
 @Controller('internal/v1/offers')
 export class OffersInternalController {
   constructor(private readonly service: OffersService) {}

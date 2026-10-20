@@ -1,8 +1,9 @@
 import { Controller } from '@nestjs/common';
+import { InternalRoute } from '@app/runtime';
 import { PricingService } from './pricing.service';
 
 // TODO: Thêm định tuyến HTTP, xác thực và xử lý dữ liệu đầu vào.
-// TODO: Xác thực service gọi và cấu hình prefix riêng cho route nội bộ.
+@InternalRoute('TRIP')
 @Controller('internal/v1/quotes')
 export class PricingInternalController {
   constructor(private readonly service: PricingService) {}

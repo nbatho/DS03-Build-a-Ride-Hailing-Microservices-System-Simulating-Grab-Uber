@@ -3,7 +3,8 @@ import { Logger } from '@nestjs/common';
 import type { Request, Response, NextFunction } from 'express';
 import { isUUID } from 'class-validator';
 import type { Actor } from '@app/contracts';
-export type ContextRequest = Request & { correlationId: string; actor?: Actor };
+import type { InternalCaller } from '@app/shared-types';
+export type ContextRequest = Request & { correlationId: string; actor?: Actor; internalCaller?: InternalCaller };
 export function contextMiddleware(service: string, instanceId: string) {
   return (raw: Request, res: Response, next: NextFunction): void => {
     const req = raw as ContextRequest;
@@ -17,7 +18,7 @@ export function contextMiddleware(service: string, instanceId: string) {
         service, instanceId, timestamp: new Date().toISOString(), level: 'info',
         event: 'http.request', action: req.method, resource: req.route?.path ?? 'unmatched',
         result: res.statusCode, correlationId: req.correlationId,
-        actorId: req.actor?.userId, latencyMs: Math.round(performance.now() - start),
+        actorId: req.actor?.userId, caller: req.internalCaller, latencyMs: Math.round(performance.now() - start),
       }), 'Audit');
     });
     if (supplied !== undefined && !valid) {

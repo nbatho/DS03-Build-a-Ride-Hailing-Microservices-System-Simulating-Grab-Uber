@@ -52,55 +52,6 @@ test(
 
       ids.add(instance);
       assert.equal((await fetch(app.url + '/api/v1/not-implemented')).status, 404);
-      const docsResponse = await fetch(app.url + '/docs-json');
-
-      assert.equal(docsResponse.status, 200, 'Swagger JSON is accessible without JWT');
-      const docs = await docsResponse.json();
-
-      assert.equal(docs.servers[0].url, '/');
-      assert.ok(docs.paths['/health/live']);
-      assert.ok(docs.paths['/health/ready']);
-      assert.equal(docs.paths['/api/v1/health/live'], undefined);
-      assert.equal(docs.components.securitySchemes.bearerAuth.scheme, 'bearer');
-      if (['api-gateway', 'identity-user-service'].includes(app.name)) {
-        const register = docs.paths['/api/v1/auth/register'].post;
-
-        assert.deepEqual(register.security, []);
-        assert.equal(
-          register.requestBody.content['application/json'].schema.$ref,
-          '#/components/schemas/RegisterRequest',
-        );
-
-        assert.equal(docs.components.schemas.RegisterRequest.example.role, 'PASSENGER');
-        assert.equal(docs.components.schemas.RegisterRequest.additionalProperties, false);
-        assert.deepEqual(docs.paths['/api/v1/users/me'].get.security, [{ bearerAuth: [] }]);
-        assert.equal(docs.paths['/api/v1/drivers/me'], undefined);
-        if (app.name === 'api-gateway') {
-          assert.ok(register.responses['502'] && register.responses['504']);
-        }
-      } else {
-        assert.equal(docs.paths['/api/v1/auth/register'], undefined);
-      }
-
-      if (app.name === 'driver-vehicle-location-service') {
-        const driverMe = docs.paths['/api/v1/drivers/me'].get;
-
-        assert.deepEqual(driverMe.security, [{ bearerAuth: [] }]);
-        assert.match(driverMe.responses['404'].description, /DRIVER_NOT_ONBOARDED/);
-        assert.equal(driverMe.responses['200'], undefined);
-      }
-
-      const ui = await fetch(app.url + '/docs');
-
-      assert.equal(ui.status, 200);
-      assert.match(await ui.text(), /swagger-ui/);
-      for (const asset of ['swagger-ui-init.js', 'swagger-ui-bundle.js', 'swagger-ui.css']) {
-        assert.equal(
-          (await fetch(app.url + '/docs/' + asset)).status,
-          200,
-          'Swagger asset: ' + asset,
-        );
-      }
     }
 
     assert.equal(ids.size, 8);

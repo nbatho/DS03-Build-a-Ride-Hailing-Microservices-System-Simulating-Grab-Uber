@@ -4,7 +4,6 @@ COPY package*.json ./
 RUN npm ci
 COPY tsconfig.json nest-cli.json webpack.config.js ./
 COPY src ./src
-COPY docs/api ./docs/api
 RUN npm run build:identity-user-service && npm run build:identity-migrations
 
 FROM node:24-bookworm-slim AS runtime

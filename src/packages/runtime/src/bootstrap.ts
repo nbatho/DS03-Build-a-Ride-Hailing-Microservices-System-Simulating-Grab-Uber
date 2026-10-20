@@ -7,7 +7,6 @@ import { SERVICE_CONFIG, ServiceName } from '@app/shared-types';
 import { INSTANCE_ID } from './health.controller';
 import { contextMiddleware } from './http-context';
 import { ApiExceptionFilter } from './api-exception.filter';
-import { configureSwagger } from './swagger';
 export async function bootstrap(appModule: Type<unknown>, serviceName: ServiceName): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(appModule, { bodyParser: false });
   try {
@@ -32,7 +31,6 @@ export async function bootstrap(appModule: Type<unknown>, serviceName: ServiceNa
     const trusted = serviceName === 'identity-user-service' ? config.get<string>('IDENTITY_TRUSTED_PROXY_CIDRS') : undefined;
     app.set('trust proxy', trusted ? trusted.split(',').map(value => value.trim()) : false);
     app.enableShutdownHooks();
-    configureSwagger(app, serviceName);
     await app.listen(port, config.get<string>('HOST') ?? '127.0.0.1');
     Logger.log(serviceName + ' listening at ' + await app.getUrl(), 'Bootstrap');
   } catch (error) {

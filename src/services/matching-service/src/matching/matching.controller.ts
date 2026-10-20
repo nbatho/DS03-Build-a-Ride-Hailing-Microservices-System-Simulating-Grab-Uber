@@ -1,9 +1,10 @@
 import { Controller } from '@nestjs/common';
+import { InternalRoute } from '@app/runtime';
 import { MatchingService } from './matching.service';
 import { CancelMatchingJobDto } from './dto/cancel-matching-job.dto';
 
 // TODO: Thêm định tuyến HTTP, xác thực và xử lý dữ liệu đầu vào.
-// TODO: Xác thực service gọi và cấu hình prefix riêng cho route nội bộ.
+@InternalRoute('TRIP')
 @Controller('internal/v1/matching/jobs')
 export class MatchingController {
   constructor(private readonly service: MatchingService) {}

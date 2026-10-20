@@ -32,12 +32,16 @@ Setup sinh credential/key local ngoài Git. Nếu đã có .env, bổ sung theo
 .env.example và docs/identity.md; không chỉ copy placeholder rồi start.
 Gateway/Driver cần public key; chỉ Identity đọc private key và DB của mình.
 
-## Swagger API Docs
+## Test tay API bằng Postman
 
-Chạy `npm run identity:dev`, mở [Gateway Swagger](http://localhost:8081/docs),
-[Identity Swagger](http://localhost:3001/docs) hoặc [Driver Swagger](http://localhost:3002/docs).
-Port theo `.env`. Swagger có body mẫu, mã lỗi và nút **Authorize** để test JWT.
-OpenAPI JSON tại `/docs-json`. Hướng dẫn test tay: [docs/swagger.md](docs/swagger.md).
+Service không còn trang Swagger (`/docs`). Hợp đồng API là `openapi.json` trong báo cáo BA;
+riêng Identity có bản trích ở [docs/api/identity.openapi.json](docs/api/identity.openapi.json).
+Trong Postman chọn **Import** → file OpenAPI để có sẵn request, body mẫu và header cho mọi API.
+Collection đã viết sẵn cho Identity/JWT: [tests/postman](tests/postman) (chạy bằng Collection Runner
+hoặc Postman CLI khi các service đang chạy).
+
+- API public: tab Authorization → Bearer Token, dán `accessToken` lấy từ đăng nhập.
+- API nội bộ `/internal/v1/...`: thêm header `X-Service-Token` bằng giá trị `SVC_TOKEN_<BÊN GỌI>_<BÊN NHẬN>` trong `.env`.
 
 ## Dev từng service
 
@@ -256,6 +260,57 @@ Hằng ngày: `npm run b:db:start` / `npm run b:db:stop`, xem trạng thái bằ
 Thêm tên container để chỉ làm với một DB, ví dụ `npm run b:db:stop -- pricing-db`;
 migration từng service: `npm run migration:driver:run`, kiểm tra một DB: `npm run b:db:verify -- driver`. Script không bao giờ xóa volume; muốn tạo lại một DB từ đầu thì
 xóa volume của đúng DB đó (ví dụ `docker volume rm ds03-b-dev_pricing-db-data`) rồi `b:db:up` và migrate lại.
+
+## Gọi API nội bộ: token `X-Service-Token`
+
+API `/internal/v1/...` không dùng JWT người dùng. Bên gọi gửi header `X-Service-Token`; bên nhận
+nhận ra bên gọi từ token (không tin header tên service tự khai) và chỉ cho bên trong danh sách
+(BA mục 9.2, 11.2). Sai/thiếu token: 401, đúng token nhưng không được phép: 403, cùng mã
+`INTERNAL_CALLER_FORBIDDEN`. Phần này có sẵn trong `@app/runtime` cho mọi service.
+
+```powershell
+npm run svc:tokens        # điền SVC_TOKEN_<BÊN GỌI>_<BÊN NHẬN> và <SERVICE>_BASE_URL vào .env, không in token
+npm run test:runtime:unit # test guard và client
+```
+
+Bên nhận, khai danh sách bên được gọi ở class hoặc method (method ghi đè class):
+
+```ts
+import { CurrentCaller, InternalRoute } from '@app/runtime';
+import type { InternalCaller } from '@app/shared-types';
+
+@InternalRoute('MATCHING', 'DRIVER', 'PAYMENT')   // API-27
+@Controller('internal/v1/trips')
+export class TripsInternalController {
+  @Get(':tripId')
+  get(@Param('tripId') tripId: string, @CurrentCaller() caller: InternalCaller) { ... }
+}
+```
+
+Route dưới `/internal/` mà quên `@InternalRoute` thì bị chặn với mọi bên gọi. Không cần thêm
+guard vào module: `RuntimeModule.forRoot` đã đăng ký sẵn.
+
+Bên gọi dùng `InternalHttpClient` (inject được ở mọi service). Client tự gắn token và
+`X-Correlation-Id`, chờ 2 giây mỗi lần, và thử lại 502/503/504/mất kết nối tối đa 3 lần (nghỉ 0,5 giây rồi 1,5 giây,
+BA mục 4.2). Chỉ thử lại khi `retry: true`, tức lệnh chống trùng được. 4xx trả về nguyên cho
+bên gọi xử lý:
+
+```ts
+const res = await this.internal.request<QuoteForTrip>('PRICING', {
+  method: 'GET', path: '/internal/v1/quotes/' + quoteId, correlationId: req.correlationId, retry: true,
+});
+if (res.status === 404) throw new ApiError(422, 'QUOTE_NOT_FOUND', '...');
+```
+
+Hết số lần thử thì client ném `InternalCallError` (503 `DEPENDENCY_UNAVAILABLE`). Nếu
+`outcomeUnknown = true` thì request có thể đã được ghi: hỏi lại bằng cùng mã để đối soát,
+không coi là thất bại chắc chắn.
+
+Các cặp đang có (theo `x-callers` trong OpenAPI): Trip → Pricing, Driver, Matching, Payment;
+Matching → Driver, Trip; Driver → Trip; Payment → Trip; OPS (người vận hành) → Trip. Thêm cặp mới thì sửa
+`scripts/dev/service-tokens.cjs` và `.env.example`. Trong Compose (C), mỗi service chỉ nhận biến
+token của cặp mà nó là bên gọi hoặc bên nhận. Gateway không có token nội bộ và không chuyển
+tiếp header này từ client.
 
 ## Identity/User + JWT đã triển khai
 
