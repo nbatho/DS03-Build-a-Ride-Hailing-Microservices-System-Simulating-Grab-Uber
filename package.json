@@ -63,6 +63,7 @@
     "build:identity-migrations": "tsc -p src/services/identity-user-service/tsconfig.migrations.json",
     "test:identity:unit": "node --test -r ts-node/register -r tsconfig-paths/register src/services/identity-user-service/tests/unit/auth.test.cjs",
     "test:runtime:unit": "node --test -r ts-node/register -r tsconfig-paths/register src/packages/runtime/tests/internal-auth.test.cjs",
+    "test:runtime:db": "node --test -r ts-node/register -r tsconfig-paths/register src/packages/runtime/tests/idempotency.test.cjs",
     "test:identity:integration": "npm run build:all && npm run build:identity-migrations && node --test tests/identity.integration.test.cjs",
     "test:identity:security": "npm run test:identity:integration",
     "demo:identity": "node scripts/identity/demo.cjs",

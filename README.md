@@ -312,6 +312,45 @@ Matching → Driver, Trip; Driver → Trip; Payment → Trip; OPS (người vậ
 token của cặp mà nó là bên gọi hoặc bên nhận. Gateway không có token nội bộ và không chuyển
 tiếp header này từ client.
 
+## Chống xử lý trùng và transaction tự thử lại
+
+Có trong `@app/runtime` (BA mục 4.1). Code dùng chung, còn bảng nằm trong DB của từng service, cùng cấu trúc:
+`<schema>.idempotency_keys` cho header `Idempotency-Key`, `<schema>.command_results` cho mã lệnh nội bộ
+(xem migration của Driver). Test chạy trên PostgreSQL thật: `npm run test:runtime:db` (cần Docker).
+
+| Hàm | Dùng khi | Gửi lặp cùng nội dung | Cùng mã, khác nội dung |
+| --- | --- | --- | --- |
+| `withIdempotencyKey` | API public có header `Idempotency-Key` | Trả lại đúng status và body đã lưu | 409 `IDEMPOTENCY_CONFLICT` |
+| `withCommandResult` | API nội bộ có `commandId`, `reservationId` hoặc `assignmentId` | Như trên | 409 `PAYLOAD_MISMATCH` |
+| `runInTransaction` | Mọi transaction có thể tranh khóa | Deadlock hoặc serialization thì chạy lại, tối đa 3 lần, hết lượt thì trả 503 | — |
+
+```ts
+@Post(':tripId/accept')
+async accept(
+  @Param('tripId') tripId: string, @Body() dto: AcceptTripRequest, @CurrentUser() actor: Actor,
+  @IdempotencyKey() key: string, @Req() req: Request, @Res({ passthrough: true }) res: Response,
+) {
+  const result = await withIdempotencyKey(
+    this.dataSource,
+    { schema: 'trip_schema', actorId: actor.userId, method: req.method, path: req.path, key },
+    dto,
+    async manager => {
+      // Đọc/ghi nghiệp vụ qua manager: cùng transaction với bản ghi chống trùng.
+      return { status: 202, body: { operationId } };
+    },
+  );
+  res.status(result.status);
+  return result.body;
+}
+```
+
+- `@IdempotencyKey()` đọc header bắt buộc; thiếu hoặc không phải UUID thì trả 400.
+- Handler lỗi thì nghiệp vụ và bản ghi khóa cùng rollback, nên lần gửi lại chạy như mới. Chỉ kết quả thành công được lưu.
+- Request trùng đến cùng lúc phải chờ request đầu xong, rồi nhận lại đúng kết quả của request đó.
+- Handler có thể chạy lại khi gặp deadlock, nên **không gọi HTTP hay RabbitMQ bên trong**. Gọi service khác thì làm trước hoặc sau transaction; sự kiện thì ghi vào hàng chờ gửi (outbox) trong transaction.
+- Bên nội bộ dùng `callerService` từ `@CurrentCaller()`, không lấy từ body.
+- Bản ghi khóa giữ 24 giờ (`expires_at`). App không có quyền DELETE, nên việc dọn bản ghi cũ là job riêng, chưa có.
+
 ## Identity/User + JWT đã triển khai
 
 Hướng dẫn setup PostgreSQL riêng, migration, key, API, Guard B/C, Docker và test: [docs/identity.md](docs/identity.md).

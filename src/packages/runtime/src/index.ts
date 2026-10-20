@@ -9,3 +9,7 @@ export {
 } from './internal-auth';
 export { InternalHttpClient, InternalCallError } from './internal-http.client';
 export type { InternalRequest, InternalResponse } from './internal-http.client';
+export { runInTransaction, isRetryableTransactionError } from './transaction';
+export type { TransactionOptions } from './transaction';
+export { withIdempotencyKey, withCommandResult, requestFingerprint, IdempotencyKey } from './idempotency';
+export type { StoredResponse, IdempotentResult, IdempotencyKeyScope, CommandScope } from './idempotency';
