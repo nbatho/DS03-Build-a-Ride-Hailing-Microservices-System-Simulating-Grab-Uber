@@ -1,0 +1,41 @@
+# DB dev của C: mỗi service một PostgreSQL riêng (BA mục 3.2), không dùng DB cloud.
+# Chạy qua npm: c:setup:dev (tạo mật khẩu), c:db:up, c:db:stop, c:db:start, c:db:verify.
+name: ds03-c-dev
+services:
+  payment-db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_PASSWORD: ${PAYMENT_BOOTSTRAP_PASSWORD:?Run npm run c:setup:dev}
+      PAYMENT_APP_PASSWORD: ${PAYMENT_APP_PASSWORD:?Run npm run c:setup:dev}
+      PAYMENT_MIGRATOR_PASSWORD: ${PAYMENT_MIGRATOR_PASSWORD:?Run npm run c:setup:dev}
+    ports:
+      - '127.0.0.1:5544:5432'
+    volumes:
+      - payment-db-data:/var/lib/postgresql/data
+      - ./postgres/payment-init.sql:/docker-entrypoint-initdb.d/001-payment.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d payment_db']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  notification-db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_PASSWORD: ${NOTIFICATION_BOOTSTRAP_PASSWORD:?Run npm run c:setup:dev}
+      NOTIFICATION_APP_PASSWORD: ${NOTIFICATION_APP_PASSWORD:?Run npm run c:setup:dev}
+      NOTIFICATION_MIGRATOR_PASSWORD: ${NOTIFICATION_MIGRATOR_PASSWORD:?Run npm run c:setup:dev}
+    ports:
+      - '127.0.0.1:5545:5432'
+    volumes:
+      - notification-db-data:/var/lib/postgresql/data
+      - ./postgres/notification-init.sql:/docker-entrypoint-initdb.d/001-notification.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d notification_db']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+volumes:
+  payment-db-data:
+  notification-db-data:
