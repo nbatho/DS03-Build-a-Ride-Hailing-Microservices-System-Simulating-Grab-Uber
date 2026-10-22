@@ -1,0 +1,17 @@
+{
+  "event_id": "de66863b-8a11-5a97-8007-6ba6b2435fba",
+  "type": "matching.failed",
+  "schema_version": 1,
+  "aggregate_id": "69cbecf7-1a8d-5259-8666-62228770e284",
+  "aggregate_version": 1,
+  "occurred_at": "2026-10-11T02:00:00Z",
+  "correlation_id": "96214f40-18f4-55f8-a411-75ce0f9f1790",
+  "causation_id": "541af9b9-e8c6-5cec-800d-abeabc2cccd3",
+  "producer": "matching-service",
+  "payload": {
+    "tripId": "a1031bdc-44d7-5c67-93ff-7f11b2987aa4",
+    "jobId": "69cbecf7-1a8d-5259-8666-62228770e284",
+    "jobVersion": 1,
+    "reason": "NO_CANDIDATE"
+  }
+}
