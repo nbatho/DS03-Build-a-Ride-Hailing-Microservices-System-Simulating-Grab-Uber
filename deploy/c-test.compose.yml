@@ -1,0 +1,48 @@
+# Hạ tầng dùng một lần cho test phục hồi của C (tests/fault-tolerance/c-recovery.test.cjs).
+# Test tự đặt tên project, cổng và mật khẩu ngẫu nhiên rồi `down -v` khi xong; không dùng DB dev (BA mục 3.2, 12.2).
+services:
+  payment-db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_PASSWORD: ${C_TEST_BOOTSTRAP_PASSWORD:?set by test}
+      PAYMENT_APP_PASSWORD: ${C_TEST_APP_PASSWORD:?set by test}
+      PAYMENT_MIGRATOR_PASSWORD: ${C_TEST_MIGRATOR_PASSWORD:?set by test}
+    ports:
+      - '127.0.0.1:${C_TEST_PAYMENT_DB_PORT:?set by test}:5432'
+    volumes:
+      - ./postgres/payment-init.sql:/docker-entrypoint-initdb.d/001-payment.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d payment_db']
+      interval: 1s
+      timeout: 2s
+      retries: 60
+  notification-db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_PASSWORD: ${C_TEST_BOOTSTRAP_PASSWORD:?set by test}
+      NOTIFICATION_APP_PASSWORD: ${C_TEST_APP_PASSWORD:?set by test}
+      NOTIFICATION_MIGRATOR_PASSWORD: ${C_TEST_MIGRATOR_PASSWORD:?set by test}
+    ports:
+      - '127.0.0.1:${C_TEST_NOTIFICATION_DB_PORT:?set by test}:5432'
+    volumes:
+      - ./postgres/notification-init.sql:/docker-entrypoint-initdb.d/001-notification.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d notification_db']
+      interval: 1s
+      timeout: 2s
+      retries: 60
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ride
+      RABBITMQ_DEFAULT_PASS: ${C_TEST_RABBITMQ_PASSWORD:?set by test}
+      RABBITMQ_DEFAULT_VHOST: ride
+    ports:
+      - '127.0.0.1:${C_TEST_RABBITMQ_PORT:?set by test}:5672'
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'check_port_connectivity']
+      interval: 2s
+      timeout: 5s
+      retries: 60

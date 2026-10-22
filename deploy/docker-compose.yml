@@ -1,0 +1,339 @@
+# Compose chung của cả hệ thống (BA mục 3.2, 9.1–9.3): 7 PostgreSQL riêng + RabbitMQ + migration + 8 app.
+# Chạy qua npm: stack:up, stack:down, stack:ps, stack:logs. Cần .env do các lệnh setup tạo
+# (identity:setup:dev, b:setup:dev, c:setup:dev, svc:tokens) và khóa JWT trong deploy/secrets.
+# Bản demo chỉ mở cổng 8080 của Gateway; DB, RabbitMQ và 3001–3007 chỉ đi trong mạng của Compose.
+# Mỗi app chỉ nhận địa chỉ/mật khẩu DB của chính nó và token nội bộ của các cặp nó tham gia.
+name: ds03
+
+x-db-health: &db-health
+  interval: 2s
+  timeout: 2s
+  retries: 30
+
+x-app-health: &app-health
+  interval: 3s
+  timeout: 3s
+  retries: 40
+
+x-jwt-env: &jwt-env
+  JWT_ISSUER: ride-hailing
+  JWT_AUDIENCE: ride-api
+  JWT_PUBLIC_KEY_FILE: /run/secrets/identity-public.pem
+
+x-jwt-volume: &jwt-volume ./secrets/identity-public.pem:/run/secrets/identity-public.pem:ro
+
+x-rabbit-env: &rabbit-env
+  RABBITMQ_URL: amqp://${RABBITMQ_USER:-ride}:${RABBITMQ_PASSWORD:?Run npm run c:setup:dev}@rabbitmq:5672/${RABBITMQ_VHOST:-ride}
+  RABBITMQ_PREFETCH: ${RABBITMQ_PREFETCH:-10}
+
+services:
+  # ---------- Hạ tầng ----------
+  identity-db:
+    image: postgres:17-bookworm
+    environment:
+      # Tài khoản chưa đổi tên DB sang identity_db (BA mục 3.2); giữ ride_hailing cho khớp identity-init.sql.
+      POSTGRES_DB: ride_hailing
+      POSTGRES_PASSWORD: ${IDENTITY_BOOTSTRAP_PASSWORD:?Run npm run identity:setup:dev}
+      IDENTITY_APP_PASSWORD: ${IDENTITY_APP_PASSWORD:?Run npm run identity:setup:dev}
+      IDENTITY_MIGRATOR_PASSWORD: ${IDENTITY_MIGRATOR_PASSWORD:?Run npm run identity:setup:dev}
+    volumes:
+      - identity-db-data:/var/lib/postgresql/data
+      - ./postgres/identity-init.sql:/docker-entrypoint-initdb.d/001-identity.sql:ro
+    healthcheck: { test: ['CMD-SHELL', 'pg_isready -U postgres -d ride_hailing'], <<: *db-health }
+
+  driver-db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: driver_db
+      POSTGRES_PASSWORD: ${DRIVER_BOOTSTRAP_PASSWORD:?Run npm run b:setup:dev}
+      DRIVER_APP_PASSWORD: ${DRIVER_APP_PASSWORD:?Run npm run b:setup:dev}
+      DRIVER_MIGRATOR_PASSWORD: ${DRIVER_MIGRATOR_PASSWORD:?Run npm run b:setup:dev}
+    volumes:
+      - driver-db-data:/var/lib/postgresql/data
+      - ./postgres/driver-init.sql:/docker-entrypoint-initdb.d/001-driver.sql:ro
+    healthcheck: { test: ['CMD-SHELL', 'pg_isready -U postgres -d driver_db'], <<: *db-health }
+
+  trip-db:
+    image: postgres:17-bookworm
+    profiles: ['trip-db']
+    # TODO(A): bật khi có deploy/postgres/trip-init.sql và migration của Chuyến đi.
+    environment:
+      POSTGRES_DB: trip_db
+      POSTGRES_PASSWORD: ${TRIP_BOOTSTRAP_PASSWORD:-unset}
+    volumes:
+      - trip-db-data:/var/lib/postgresql/data
+    healthcheck: { test: ['CMD-SHELL', 'pg_isready -U postgres -d trip_db'], <<: *db-health }
+
+  payment-db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_PASSWORD: ${PAYMENT_BOOTSTRAP_PASSWORD:?Run npm run c:setup:dev}
+      PAYMENT_APP_PASSWORD: ${PAYMENT_APP_PASSWORD:?Run npm run c:setup:dev}
+      PAYMENT_MIGRATOR_PASSWORD: ${PAYMENT_MIGRATOR_PASSWORD:?Run npm run c:setup:dev}
+    volumes:
+      - payment-db-data:/var/lib/postgresql/data
+      - ./postgres/payment-init.sql:/docker-entrypoint-initdb.d/001-payment.sql:ro
+    healthcheck: { test: ['CMD-SHELL', 'pg_isready -U postgres -d payment_db'], <<: *db-health }
+
+  notification-db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_PASSWORD: ${NOTIFICATION_BOOTSTRAP_PASSWORD:?Run npm run c:setup:dev}
+      NOTIFICATION_APP_PASSWORD: ${NOTIFICATION_APP_PASSWORD:?Run npm run c:setup:dev}
+      NOTIFICATION_MIGRATOR_PASSWORD: ${NOTIFICATION_MIGRATOR_PASSWORD:?Run npm run c:setup:dev}
+    volumes:
+      - notification-db-data:/var/lib/postgresql/data
+      - ./postgres/notification-init.sql:/docker-entrypoint-initdb.d/001-notification.sql:ro
+    healthcheck: { test: ['CMD-SHELL', 'pg_isready -U postgres -d notification_db'], <<: *db-health }
+
+  matching-db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: matching_db
+      POSTGRES_PASSWORD: ${MATCHING_BOOTSTRAP_PASSWORD:?Run npm run b:setup:dev}
+      MATCHING_APP_PASSWORD: ${MATCHING_APP_PASSWORD:?Run npm run b:setup:dev}
+      MATCHING_MIGRATOR_PASSWORD: ${MATCHING_MIGRATOR_PASSWORD:?Run npm run b:setup:dev}
+    volumes:
+      - matching-db-data:/var/lib/postgresql/data
+      - ./postgres/matching-init.sql:/docker-entrypoint-initdb.d/001-matching.sql:ro
+    healthcheck: { test: ['CMD-SHELL', 'pg_isready -U postgres -d matching_db'], <<: *db-health }
+
+  pricing-db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: pricing_db
+      POSTGRES_PASSWORD: ${PRICING_BOOTSTRAP_PASSWORD:?Run npm run b:setup:dev}
+      PRICING_APP_PASSWORD: ${PRICING_APP_PASSWORD:?Run npm run b:setup:dev}
+      PRICING_MIGRATOR_PASSWORD: ${PRICING_MIGRATOR_PASSWORD:?Run npm run b:setup:dev}
+    volumes:
+      - pricing-db-data:/var/lib/postgresql/data
+      - ./postgres/pricing-init.sql:/docker-entrypoint-initdb.d/001-pricing.sql:ro
+    healthcheck: { test: ['CMD-SHELL', 'pg_isready -U postgres -d pricing_db'], <<: *db-health }
+
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-ride}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Run npm run c:setup:dev}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-ride}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      { test: ['CMD', 'rabbitmq-diagnostics', '-q', 'check_port_connectivity'], interval: 5s, timeout: 5s, retries: 30 }
+
+  # ---------- Migration (chạy một lần rồi thoát; app chờ bước này xong) ----------
+  identity-migrate:
+    image: ds03-identity:latest
+    build: { context: .., dockerfile: src/services/identity-user-service/Dockerfile }
+    depends_on: { identity-db: { condition: service_healthy } }
+    environment:
+      IDENTITY_DB_SCHEMA: identity_schema
+      IDENTITY_MIGRATION_DATABASE_URL: postgresql://identity_migrator:${IDENTITY_MIGRATOR_PASSWORD}@identity-db:5432/ride_hailing
+    command: ['node', 'scripts/identity/migrate.cjs', 'run', '--compiled']
+
+  driver-migrate:
+    build: &build-driver-migrate
+      context: ..
+      dockerfile: deploy/node-service.Dockerfile
+      target: migrate
+      args: { SERVICE: driver-vehicle-location-service }
+    depends_on: { driver-db: { condition: service_healthy } }
+    environment:
+      DRIVER_DB_SCHEMA: driver_schema
+      DRIVER_MIGRATION_DATABASE_URL: postgresql://driver_migrator:${DRIVER_MIGRATOR_PASSWORD}@driver-db:5432/driver_db
+
+  payment-migrate:
+    build: { <<: *build-driver-migrate, args: { SERVICE: simulated-payment-service } }
+    depends_on: { payment-db: { condition: service_healthy } }
+    environment:
+      PAYMENT_DB_SCHEMA: payment_schema
+      PAYMENT_MIGRATION_DATABASE_URL: postgresql://payment_migrator:${PAYMENT_MIGRATOR_PASSWORD}@payment-db:5432/payment_db
+
+  notification-migrate:
+    build: { <<: *build-driver-migrate, args: { SERVICE: notification-service } }
+    depends_on: { notification-db: { condition: service_healthy } }
+    environment:
+      NOTIFICATION_DB_SCHEMA: notification_schema
+      NOTIFICATION_MIGRATION_DATABASE_URL: postgresql://notification_migrator:${NOTIFICATION_MIGRATOR_PASSWORD}@notification-db:5432/notification_db
+
+  matching-migrate:
+    build: { <<: *build-driver-migrate, args: { SERVICE: matching-service } }
+    depends_on: { matching-db: { condition: service_healthy } }
+    environment:
+      MATCHING_DB_SCHEMA: matching_schema
+      MATCHING_MIGRATION_DATABASE_URL: postgresql://matching_migrator:${MATCHING_MIGRATOR_PASSWORD}@matching-db:5432/matching_db
+
+  pricing-migrate:
+    build: { <<: *build-driver-migrate, args: { SERVICE: pricing-service } }
+    depends_on: { pricing-db: { condition: service_healthy } }
+    environment:
+      PRICING_DB_SCHEMA: pricing_schema
+      PRICING_MIGRATION_DATABASE_URL: postgresql://pricing_migrator:${PRICING_MIGRATOR_PASSWORD}@pricing-db:5432/pricing_db
+
+  # ---------- App ----------
+  identity:
+    image: ds03-identity:latest
+    build: { context: .., dockerfile: src/services/identity-user-service/Dockerfile }
+    depends_on: { identity-migrate: { condition: service_completed_successfully } }
+    environment:
+      <<: *jwt-env
+      IDENTITY_PORT: '3001'
+      IDENTITY_DB_SCHEMA: identity_schema
+      IDENTITY_DATABASE_URL: postgresql://identity_app:${IDENTITY_APP_PASSWORD}@identity-db:5432/ride_hailing
+      JWT_ACCESS_TTL_SECONDS: '3600'
+      JWT_PRIVATE_KEY_FILE: /run/secrets/identity-private.pem
+      BCRYPT_ROUNDS: '10'
+      # Chỉ tin X-Forwarded-For từ đúng IP của Gateway trong mạng Compose.
+      IDENTITY_TRUSTED_PROXY_CIDRS: 10.203.0.80/32
+    volumes:
+      - *jwt-volume
+      - ./secrets/identity-private.pem:/run/secrets/identity-private.pem:ro
+    healthcheck:
+      { test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3001/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], <<: *app-health }
+
+  driver:
+    build: &build-runtime
+      context: ..
+      dockerfile: deploy/node-service.Dockerfile
+      target: runtime
+      args: { SERVICE: driver-vehicle-location-service }
+    depends_on: { driver-migrate: { condition: service_completed_successfully } }
+    environment:
+      <<: *jwt-env
+      DRIVER_PORT: '3002'
+      DRIVER_DB_SCHEMA: driver_schema
+      DRIVER_DATABASE_URL: postgresql://driver_app:${DRIVER_APP_PASSWORD}@driver-db:5432/driver_db
+      TRIP_BASE_URL: http://trip:3003
+      SVC_TOKEN_TRIP_DRIVER: ${SVC_TOKEN_TRIP_DRIVER:-}
+      SVC_TOKEN_MATCHING_DRIVER: ${SVC_TOKEN_MATCHING_DRIVER:-}
+      SVC_TOKEN_DRIVER_TRIP: ${SVC_TOKEN_DRIVER_TRIP:-}
+    volumes: [*jwt-volume]
+    healthcheck:
+      { test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3002/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], <<: *app-health }
+
+  trip:
+    build: { <<: *build-runtime, args: { SERVICE: trip-booking-service } }
+    depends_on: { rabbitmq: { condition: service_healthy } }
+    environment:
+      <<: [*jwt-env, *rabbit-env]
+      TRIP_PORT: '3003'
+      # TODO(A): TRIP_DATABASE_URL khi Chuyến đi có DB riêng (trip-db).
+      PRICING_BASE_URL: http://pricing:3007
+      DRIVER_BASE_URL: http://driver:3002
+      MATCHING_BASE_URL: http://matching:3006
+      PAYMENT_BASE_URL: http://payment:3004
+      SVC_TOKEN_TRIP_PRICING: ${SVC_TOKEN_TRIP_PRICING:-}
+      SVC_TOKEN_TRIP_DRIVER: ${SVC_TOKEN_TRIP_DRIVER:-}
+      SVC_TOKEN_TRIP_MATCHING: ${SVC_TOKEN_TRIP_MATCHING:-}
+      SVC_TOKEN_TRIP_PAYMENT: ${SVC_TOKEN_TRIP_PAYMENT:-}
+      SVC_TOKEN_MATCHING_TRIP: ${SVC_TOKEN_MATCHING_TRIP:-}
+      SVC_TOKEN_DRIVER_TRIP: ${SVC_TOKEN_DRIVER_TRIP:-}
+      SVC_TOKEN_PAYMENT_TRIP: ${SVC_TOKEN_PAYMENT_TRIP:-}
+      SVC_TOKEN_OPS_TRIP: ${SVC_TOKEN_OPS_TRIP:-}
+    volumes: [*jwt-volume]
+    healthcheck:
+      { test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3003/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], <<: *app-health }
+
+  payment:
+    build: { <<: *build-runtime, args: { SERVICE: simulated-payment-service } }
+    depends_on:
+      payment-migrate: { condition: service_completed_successfully }
+      rabbitmq: { condition: service_healthy }
+    environment:
+      <<: [*jwt-env, *rabbit-env]
+      PAYMENT_PORT: '3004'
+      PAYMENT_DB_SCHEMA: payment_schema
+      PAYMENT_DATABASE_URL: postgresql://payment_app:${PAYMENT_APP_PASSWORD}@payment-db:5432/payment_db
+      PAYMENT_SIMULATION_MODE: ${PAYMENT_SIMULATION_MODE:-SUCCEED}
+      PAYMENT_FAILURE_RATE: ${PAYMENT_FAILURE_RATE:-0.2}
+      SVC_TOKEN_TRIP_PAYMENT: ${SVC_TOKEN_TRIP_PAYMENT:-}
+      SVC_TOKEN_PAYMENT_TRIP: ${SVC_TOKEN_PAYMENT_TRIP:-}
+    volumes: [*jwt-volume]
+    healthcheck:
+      { test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3004/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], <<: *app-health }
+
+  notification:
+    build: { <<: *build-runtime, args: { SERVICE: notification-service } }
+    depends_on:
+      notification-migrate: { condition: service_completed_successfully }
+      rabbitmq: { condition: service_healthy }
+    environment:
+      <<: [*jwt-env, *rabbit-env]
+      NOTIFICATION_PORT: '3005'
+      NOTIFICATION_DB_SCHEMA: notification_schema
+      NOTIFICATION_DATABASE_URL: postgresql://notification_app:${NOTIFICATION_APP_PASSWORD}@notification-db:5432/notification_db
+    volumes: [*jwt-volume]
+    healthcheck:
+      { test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3005/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], <<: *app-health }
+
+  matching:
+    build: { <<: *build-runtime, args: { SERVICE: matching-service } }
+    depends_on:
+      matching-migrate: { condition: service_completed_successfully }
+      rabbitmq: { condition: service_healthy }
+    environment:
+      <<: [*jwt-env, *rabbit-env]
+      MATCHING_PORT: '3006'
+      MATCHING_DB_SCHEMA: matching_schema
+      MATCHING_DATABASE_URL: postgresql://matching_app:${MATCHING_APP_PASSWORD}@matching-db:5432/matching_db
+      DRIVER_BASE_URL: http://driver:3002
+      TRIP_BASE_URL: http://trip:3003
+      SVC_TOKEN_TRIP_MATCHING: ${SVC_TOKEN_TRIP_MATCHING:-}
+      SVC_TOKEN_MATCHING_DRIVER: ${SVC_TOKEN_MATCHING_DRIVER:-}
+      SVC_TOKEN_MATCHING_TRIP: ${SVC_TOKEN_MATCHING_TRIP:-}
+    volumes: [*jwt-volume]
+    healthcheck:
+      { test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3006/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], <<: *app-health }
+
+  pricing:
+    build: { <<: *build-runtime, args: { SERVICE: pricing-service } }
+    depends_on: { pricing-migrate: { condition: service_completed_successfully } }
+    environment:
+      <<: *jwt-env
+      PRICING_PORT: '3007'
+      PRICING_DB_SCHEMA: pricing_schema
+      PRICING_DATABASE_URL: postgresql://pricing_app:${PRICING_APP_PASSWORD}@pricing-db:5432/pricing_db
+      SVC_TOKEN_TRIP_PRICING: ${SVC_TOKEN_TRIP_PRICING:-}
+    volumes: [*jwt-volume]
+    healthcheck:
+      { test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3007/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], <<: *app-health }
+
+  gateway:
+    build: { <<: *build-runtime, args: { SERVICE: api-gateway } }
+    # Gateway chỉ cần process của service phía sau đã chạy; không gộp health của mọi service thành một điều kiện.
+    depends_on: [identity, driver, trip, payment, notification, pricing]
+    environment:
+      <<: *jwt-env
+      GATEWAY_PORT: '8080'
+      IDENTITY_BASE_URL: http://identity:3001
+      DRIVER_BASE_URL: http://driver:3002
+      TRIP_BASE_URL: http://trip:3003
+      PAYMENT_BASE_URL: http://payment:3004
+      NOTIFICATION_BASE_URL: http://notification:3005
+      PRICING_BASE_URL: http://pricing:3007
+    networks:
+      default:
+        ipv4_address: 10.203.0.80
+    ports:
+      - '127.0.0.1:8080:8080'
+    volumes: [*jwt-volume]
+    healthcheck:
+      { test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:8080/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], <<: *app-health }
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 10.203.0.0/24
+
+volumes:
+  identity-db-data:
+  driver-db-data:
+  trip-db-data:
+  payment-db-data:
+  notification-db-data:
+  matching-db-data:
+  pricing-db-data:
+  rabbitmq-data:
