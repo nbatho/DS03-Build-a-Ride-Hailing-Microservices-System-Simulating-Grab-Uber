@@ -41,6 +41,16 @@ export type {
   OfferDecisionRequest,
   OfferResolutionRequest,
 } from './dtos/matching';
+export { PAYMENT_STATUSES } from './dtos/payment';
+export type { PaymentStatus, Payment } from './dtos/payment';
+export { NOTIFICATION_TYPES, TRIP_STATUSES } from './dtos/notification';
+export type {
+  NotificationType,
+  TripStatus,
+  Notification,
+  NotificationsPage,
+  ReadNotificationRequest,
+} from './dtos/notification';
 export { MATCHING_EVENT_PRODUCER, MATCHING_EVENT_TYPES, MATCHING_FAILED_REASONS } from './events/matching';
 export type {
   MatchingEventType,
@@ -48,3 +58,34 @@ export type {
   MatchingOfferCreatedPayload,
   MatchingFailedPayload,
 } from './events/matching';
+export { RIDE_EVENTS_EXCHANGE, EVENT_SCHEMA_VERSION, EVENT_PRODUCERS } from './events/envelope';
+export type { EventEnvelope, EventProducer } from './events/envelope';
+export {
+  TRIP_EVENT_PRODUCER, TRIP_EVENT_TYPES, TRIP_NO_DRIVER_REASONS, TRIP_CANCEL_REASONS,
+} from './events/trip';
+export type {
+  TripEventType,
+  TripNoDriverReason,
+  TripCancelReason,
+  TripRequestedPayload,
+  TripNoDriverPayload,
+  TripAcceptedPayload,
+  TripStartedPayload,
+  TripCompletedPayload,
+  TripCancelledPayload,
+  PaymentRequestedPayload,
+} from './events/trip';
+export {
+  PAYMENT_EVENT_PRODUCER, PAYMENT_EVENT_TYPES, PAYMENT_FAILED_REASONS, MAX_PAYMENT_ATTEMPTS,
+} from './events/payment';
+export type {
+  PaymentEventType, PaymentFailedReason, PaymentSucceededPayload, PaymentFailedPayload,
+} from './events/payment';
+export { EVENT_QUEUES, EVENT_CATALOG, EVENT_TYPES, isEventType, eventTypesForQueue } from './events/catalog';
+export type {
+  EventQueue, EventPayloads, EventType, RideEvent, EventAggregate, EventDefinition,
+} from './events/catalog';
+export {
+  validateRideEvent, assertRideEvent, EventValidationError, buildEventsJsonSchema,
+} from './events/schema';
+export type { EventValidationResult, PayloadOf } from './events/schema';

@@ -1,0 +1,22 @@
+# RabbitMQ dev (BA mục 9, 11.2). Chạy qua npm: mq:up, mq:stop, mq:start, mq:status.
+# Topology (ride.events, 4 queue, retry, DLQ) do code tự khai báo: npm run events:topology.
+name: ds03-rabbitmq-dev
+services:
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-ride}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-ride}
+    ports:
+      - '127.0.0.1:5672:5672'
+      - '127.0.0.1:15672:15672'
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'check_port_connectivity']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+volumes:
+  rabbitmq-data:

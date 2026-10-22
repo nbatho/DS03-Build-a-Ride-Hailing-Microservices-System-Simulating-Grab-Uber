@@ -1,0 +1,1205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ds03.local/events.schema.json",
+  "title": "DS03 ride events",
+  "description": "Exchange topic ride.events; routing key = type; schema_version = 1. Sinh từ src/packages/contracts/src/events/schema.ts, không sửa tay.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/trip.requested"
+    },
+    {
+      "$ref": "#/$defs/matching.offer.created"
+    },
+    {
+      "$ref": "#/$defs/matching.failed"
+    },
+    {
+      "$ref": "#/$defs/trip.no_driver"
+    },
+    {
+      "$ref": "#/$defs/trip.accepted"
+    },
+    {
+      "$ref": "#/$defs/trip.started"
+    },
+    {
+      "$ref": "#/$defs/trip.completed"
+    },
+    {
+      "$ref": "#/$defs/trip.cancelled"
+    },
+    {
+      "$ref": "#/$defs/payment.requested"
+    },
+    {
+      "$ref": "#/$defs/payment.succeeded"
+    },
+    {
+      "$ref": "#/$defs/payment.failed"
+    }
+  ],
+  "$defs": {
+    "trip.requested": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "type",
+        "schema_version",
+        "aggregate_id",
+        "aggregate_version",
+        "occurred_at",
+        "correlation_id",
+        "causation_id",
+        "producer",
+        "payload"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "const": "trip.requested"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "aggregate_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "aggregate_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "correlation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "causation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "producer": {
+          "const": "trip-booking-service"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tripId",
+            "passengerId",
+            "pickup",
+            "dropoff",
+            "amount",
+            "currency",
+            "tripVersion"
+          ],
+          "properties": {
+            "tripId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "passengerId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "pickup": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "lat",
+                "lng",
+                "zoneId"
+              ],
+              "properties": {
+                "lat": {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                },
+                "lng": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                },
+                "zoneId": {
+                  "enum": [
+                    "ZONE_A",
+                    "ZONE_B"
+                  ]
+                }
+              }
+            },
+            "dropoff": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "lat",
+                "lng",
+                "zoneId"
+              ],
+              "properties": {
+                "lat": {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                },
+                "lng": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                },
+                "zoneId": {
+                  "enum": [
+                    "ZONE_A",
+                    "ZONE_B"
+                  ]
+                }
+              }
+            },
+            "amount": {
+              "type": "string",
+              "pattern": "^[0-9]{1,14}$"
+            },
+            "currency": {
+              "const": "VND"
+            },
+            "tripVersion": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      },
+      "title": "EVT-01 trip.requested",
+      "description": "Tạo job idempotent theo tripId; không mở lại tombstone đã hủy.",
+      "x-producer": "trip-booking-service",
+      "x-queues": [
+        "matching.events"
+      ]
+    },
+    "matching.offer.created": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "type",
+        "schema_version",
+        "aggregate_id",
+        "aggregate_version",
+        "occurred_at",
+        "correlation_id",
+        "causation_id",
+        "producer",
+        "payload"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "const": "matching.offer.created"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "aggregate_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "aggregate_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "correlation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "causation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "producer": {
+          "const": "matching-service"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "offer",
+            "pickup",
+            "dropoff",
+            "amount",
+            "currency"
+          ],
+          "properties": {
+            "offer": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "jobId",
+                "tripId",
+                "driverId",
+                "status",
+                "expiresAt",
+                "version"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "jobId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "tripId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "driverId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "status": {
+                  "enum": [
+                    "OPEN",
+                    "CLAIMED",
+                    "ACCEPTED",
+                    "REJECTED",
+                    "EXPIRED",
+                    "CANCELLED"
+                  ]
+                },
+                "expiresAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "assignmentId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "pickup": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "lat",
+                "lng",
+                "zoneId"
+              ],
+              "properties": {
+                "lat": {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                },
+                "lng": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                },
+                "zoneId": {
+                  "enum": [
+                    "ZONE_A",
+                    "ZONE_B"
+                  ]
+                }
+              }
+            },
+            "dropoff": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "lat",
+                "lng",
+                "zoneId"
+              ],
+              "properties": {
+                "lat": {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                },
+                "lng": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                },
+                "zoneId": {
+                  "enum": [
+                    "ZONE_A",
+                    "ZONE_B"
+                  ]
+                }
+              }
+            },
+            "amount": {
+              "type": "string",
+              "pattern": "^[0-9]{1,14}$"
+            },
+            "currency": {
+              "const": "VND"
+            }
+          }
+        }
+      },
+      "title": "EVT-02 matching.offer.created",
+      "description": "Recipient = offer.driverId; đủ offerId/tripId để client accept; chưa phải đã gán chuyến.",
+      "x-producer": "matching-service",
+      "x-queues": [
+        "notification.events"
+      ]
+    },
+    "matching.failed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "type",
+        "schema_version",
+        "aggregate_id",
+        "aggregate_version",
+        "occurred_at",
+        "correlation_id",
+        "causation_id",
+        "producer",
+        "payload"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "const": "matching.failed"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "aggregate_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "aggregate_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "correlation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "causation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "producer": {
+          "const": "matching-service"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tripId",
+            "jobId",
+            "jobVersion",
+            "reason"
+          ],
+          "properties": {
+            "tripId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "jobId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "jobVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "reason": {
+              "enum": [
+                "NO_CANDIDATE",
+                "SEARCH_TIMEOUT"
+              ]
+            }
+          }
+        }
+      },
+      "title": "EVT-03 matching.failed",
+      "description": "Trip xác minh state/phiên job trước khi chuyển NO_DRIVER; Notification không nghe event này.",
+      "x-producer": "matching-service",
+      "x-queues": [
+        "trip.events"
+      ]
+    },
+    "trip.no_driver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "type",
+        "schema_version",
+        "aggregate_id",
+        "aggregate_version",
+        "occurred_at",
+        "correlation_id",
+        "causation_id",
+        "producer",
+        "payload"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "const": "trip.no_driver"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "aggregate_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "aggregate_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "correlation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "causation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "producer": {
+          "const": "trip-booking-service"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tripId",
+            "passengerId",
+            "tripVersion",
+            "reason"
+          ],
+          "properties": {
+            "tripId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "passengerId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "tripVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "reason": {
+              "enum": [
+                "NO_CANDIDATE",
+                "SEARCH_TIMEOUT"
+              ]
+            }
+          }
+        }
+      },
+      "title": "EVT-04 trip.no_driver",
+      "description": "Chỉ Trip phát sau commit NO_DRIVER.",
+      "x-producer": "trip-booking-service",
+      "x-queues": [
+        "notification.events"
+      ]
+    },
+    "trip.accepted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "type",
+        "schema_version",
+        "aggregate_id",
+        "aggregate_version",
+        "occurred_at",
+        "correlation_id",
+        "causation_id",
+        "producer",
+        "payload"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "const": "trip.accepted"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "aggregate_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "aggregate_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "correlation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "causation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "producer": {
+          "const": "trip-booking-service"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tripId",
+            "passengerId",
+            "driverId",
+            "tripVersion",
+            "status"
+          ],
+          "properties": {
+            "tripId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "passengerId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "driverId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "tripVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "status": {
+              "const": "ASSIGNED"
+            }
+          }
+        }
+      },
+      "title": "EVT-05 trip.accepted",
+      "description": "Thông báo cho passenger và assigned driver; kiểm tra aggregate version.",
+      "x-producer": "trip-booking-service",
+      "x-queues": [
+        "notification.events"
+      ]
+    },
+    "trip.started": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "type",
+        "schema_version",
+        "aggregate_id",
+        "aggregate_version",
+        "occurred_at",
+        "correlation_id",
+        "causation_id",
+        "producer",
+        "payload"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "const": "trip.started"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "aggregate_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "aggregate_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "correlation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "causation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "producer": {
+          "const": "trip-booking-service"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tripId",
+            "passengerId",
+            "driverId",
+            "tripVersion",
+            "status"
+          ],
+          "properties": {
+            "tripId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "passengerId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "driverId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "tripVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "status": {
+              "const": "IN_PROGRESS"
+            }
+          }
+        }
+      },
+      "title": "EVT-06 trip.started",
+      "description": "Thông báo cho passenger và assigned driver; kiểm tra aggregate version.",
+      "x-producer": "trip-booking-service",
+      "x-queues": [
+        "notification.events"
+      ]
+    },
+    "trip.completed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "type",
+        "schema_version",
+        "aggregate_id",
+        "aggregate_version",
+        "occurred_at",
+        "correlation_id",
+        "causation_id",
+        "producer",
+        "payload"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "const": "trip.completed"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "aggregate_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "aggregate_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "correlation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "causation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "producer": {
+          "const": "trip-booking-service"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tripId",
+            "passengerId",
+            "driverId",
+            "tripVersion",
+            "status"
+          ],
+          "properties": {
+            "tripId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "passengerId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "driverId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "tripVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "status": {
+              "const": "COMPLETED"
+            }
+          }
+        }
+      },
+      "title": "EVT-07 trip.completed",
+      "description": "Thông báo cho passenger và assigned driver; kiểm tra aggregate version.",
+      "x-producer": "trip-booking-service",
+      "x-queues": [
+        "notification.events"
+      ]
+    },
+    "trip.cancelled": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "type",
+        "schema_version",
+        "aggregate_id",
+        "aggregate_version",
+        "occurred_at",
+        "correlation_id",
+        "causation_id",
+        "producer",
+        "payload"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "const": "trip.cancelled"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "aggregate_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "aggregate_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "correlation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "causation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "producer": {
+          "const": "trip-booking-service"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tripId",
+            "passengerId",
+            "affectedDriverIds",
+            "tripVersion",
+            "reason"
+          ],
+          "properties": {
+            "tripId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "passengerId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "affectedDriverIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "tripVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "reason": {
+              "enum": [
+                "CHANGE_PLAN",
+                "WAIT_TOO_LONG"
+              ]
+            }
+          }
+        }
+      },
+      "title": "EVT-08 trip.cancelled",
+      "description": "affectedDriverIds có thể rỗng; Notification bổ sung recipient từ projection; không broadcast.",
+      "x-producer": "trip-booking-service",
+      "x-queues": [
+        "matching.events",
+        "notification.events"
+      ]
+    },
+    "payment.requested": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "type",
+        "schema_version",
+        "aggregate_id",
+        "aggregate_version",
+        "occurred_at",
+        "correlation_id",
+        "causation_id",
+        "producer",
+        "payload"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "const": "payment.requested"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "aggregate_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "aggregate_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "correlation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "causation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "producer": {
+          "const": "trip-booking-service"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "paymentId",
+            "tripId",
+            "passengerId",
+            "amount",
+            "currency",
+            "attemptNo"
+          ],
+          "properties": {
+            "paymentId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "tripId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "passengerId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "amount": {
+              "type": "string",
+              "pattern": "^[0-9]{1,14}$"
+            },
+            "currency": {
+              "const": "VND"
+            },
+            "attemptNo": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      },
+      "title": "EVT-09 payment.requested",
+      "description": "Trip COMPLETED mới phát; paymentId cố định theo trip; attempt mới khác transport retry.",
+      "x-producer": "trip-booking-service",
+      "x-queues": [
+        "payment.events"
+      ]
+    },
+    "payment.succeeded": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "type",
+        "schema_version",
+        "aggregate_id",
+        "aggregate_version",
+        "occurred_at",
+        "correlation_id",
+        "causation_id",
+        "producer",
+        "payload"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "const": "payment.succeeded"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "aggregate_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "aggregate_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "correlation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "causation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "producer": {
+          "const": "simulated-payment-service"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "paymentId",
+            "tripId",
+            "passengerId",
+            "amount",
+            "currency",
+            "attemptNo",
+            "paymentVersion"
+          ],
+          "properties": {
+            "paymentId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "tripId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "passengerId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "amount": {
+              "type": "string",
+              "pattern": "^[0-9]{1,14}$"
+            },
+            "currency": {
+              "const": "VND"
+            },
+            "attemptNo": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "paymentVersion": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      },
+      "title": "EVT-10 payment.succeeded",
+      "description": "SUCCEEDED là terminal; event FAILED cũ không làm lùi trạng thái.",
+      "x-producer": "simulated-payment-service",
+      "x-queues": [
+        "trip.events",
+        "notification.events"
+      ]
+    },
+    "payment.failed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "type",
+        "schema_version",
+        "aggregate_id",
+        "aggregate_version",
+        "occurred_at",
+        "correlation_id",
+        "causation_id",
+        "producer",
+        "payload"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "const": "payment.failed"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "aggregate_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "aggregate_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "correlation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "causation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "producer": {
+          "const": "simulated-payment-service"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "paymentId",
+            "tripId",
+            "passengerId",
+            "attemptNo",
+            "paymentVersion",
+            "retryable",
+            "reason"
+          ],
+          "properties": {
+            "paymentId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "tripId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "passengerId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "attemptNo": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "paymentVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "retryable": {
+              "type": "boolean"
+            },
+            "reason": {
+              "enum": [
+                "SIMULATED_TEMPORARY_FAILURE",
+                "SIMULATED_FINAL_FAILURE"
+              ]
+            }
+          }
+        }
+      },
+      "title": "EVT-11 payment.failed",
+      "description": "Trip điều phối tối đa 3 attempt; Notification ghi kết quả, không tự hủy Trip.",
+      "x-producer": "simulated-payment-service",
+      "x-queues": [
+        "trip.events",
+        "notification.events"
+      ]
+    }
+  }
+}

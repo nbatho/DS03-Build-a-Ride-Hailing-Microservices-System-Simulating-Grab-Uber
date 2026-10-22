@@ -117,10 +117,10 @@ nếu một app thoát để tránh sót process. Mỗi bộ port chỉ chạy m
 │   │   ├── matching-service/
 │   │   └── pricing-service/
 │   └── packages/
-│       ├── contracts/           # Health DTO dùng chung
+│       ├── contracts/           # DTO và event contract dùng chung
 │       ├── shared-types/        # Tên service và cấu hình port
 │       ├── runtime/             # Bootstrap, config, validation, health
-│       └── messaging/src/       # Chuẩn bị cho RabbitMQ, chưa có implementation
+│       └── messaging/           # RabbitMQ: topology, publish/consume, retry/DLQ, outbox
 ├── deploy/
 │   ├── postgres/init/
 │   └── rabbitmq/
@@ -174,10 +174,46 @@ identity-user-service/
 Các module chính là `users`, `drivers`, `trips`, `payments`, `notifications`,
 `matching` và `pricing`. Entity/DTO được chia tiếp theo tính năng khi cần.
 
-`src/packages/contracts/src/events/` dành cho event contract chung;
-`src/packages/messaging/src/` dành cho kết nối/publish/consume/retry/DLQ.
-Messaging hiện chỉ là thư mục dự phòng, chưa đăng ký library/alias hay kết nối
-RabbitMQ. Thêm cấu hình library khi có implementation.
+### Phần của C: Payment, Notification, Gateway, Compose
+
+- **Payment** (`:3004`): nhận `payment.requested`, mô phỏng thu tiền theo `PAYMENT_SIMULATION_MODE`
+  (`SUCCEED`, `FAIL_ONCE`, `TEMPORARY`, `FINAL`, `RANDOM`), ghi lần thử + kết quả + outbox trong một
+  transaction; sự kiện trùng không thu hai lần. API: `GET /api/v1/payments/{id}`, `GET /api/v1/payments?tripId=`,
+  `GET /internal/v1/payments/{id}` (Trip).
+- **Notification** (`:3005`): nhận 8 loại sự kiện, giữ bản sao trạng thái chuyến để xử lý sai thứ tự, gửi đúng
+  người nhận. API: `GET /api/v1/notifications?limit&cursor&unreadOnly`, `PATCH /api/v1/notifications/{id}/read`.
+- **Gateway** (`:8080`): chỉ chuyển tiếp các cặp method + đường dẫn trong `src/apps/api-gateway/src/proxy/routes.ts`,
+  chặn `/internal/...`, bỏ header giả (`X-Service-Token`, `X-User-Id`, `X-Role`), chờ tối đa 10 giây.
+- **DB của C**: `npm run c:setup:dev` (mật khẩu DB + RabbitMQ vào `.env`), `c:db:up`, `migration:c:run`, `c:db:verify`.
+- **Cả hệ thống**: `npm run stack:up` dựng 7 DB, RabbitMQ, migration và 8 app (`deploy/docker-compose.yml`,
+  `deploy/node-service.Dockerfile`); chỉ mở `127.0.0.1:8080`. `stack:ps`, `stack:logs`, `stack:down`.
+- Test: `npm run test:c:unit` (không cần Docker); `test:payment:integration`, `test:notification:integration`,
+  `test:messaging:integration` cần DB/RabbitMQ đang chạy.
+- Test phục hồi `npm run test:c:recovery` (cần Docker, tự dựng và xóa hạ tầng riêng qua `deploy/c-test.compose.yml`):
+  R01 Payment tắt/bật, R03 gửi trùng / tin hỏng / kill giữa chừng / RabbitMQ khởi động lại, F09 thử lại thanh toán,
+  F10 lời mời đến sau khi hủy. Bằng chứng ghi vào `docs/test-evidence/c/recovery.json`.
+
+### Sự kiện và RabbitMQ (Phụ lục C)
+
+- `src/packages/contracts/src/events/`: 11 event EVT-01…EVT-11 (`catalog.ts` là nguồn
+  duy nhất của routing: producer, queue nhận), kiểu payload và validator chạy lúc nhận
+  (`validateRideEvent`, `assertRideEvent`). Bản máy đọc: `docs/api/events.schema.json`
+  (sinh bằng `npm run events:schema`, test sẽ báo nếu lệch). Mẫu: `docs/events/samples/`.
+- `@app/messaging` (`src/packages/messaging/src/`), dùng amqplib trực tiếp:
+  - `MessagingModule.forRoot()` (import sau `RuntimeModule.forRoot()`): tự kết nối lại,
+    khai báo exchange `ride.events`, 4 queue, binding, `<queue>.retry.1s|5s|15s`, `<queue>.dlq`;
+    readiness báo chưa sẵn sàng khi mất RabbitMQ.
+  - `createRideEvent` + `enqueueOutboxEvent(manager, '<schema>.outbox_events', event)` trong
+    transaction nghiệp vụ; `new OutboxRelay(dataSource, publisher, { table }).start()` gửi qua
+    confirm channel + mandatory, chỉ đánh dấu `PUBLISHED` khi được xác nhận và không bị trả lại.
+  - `EventConsumer.subscribe(queue, handlers)`; trong handler dùng
+    `processEventOnce(dataSource, { table: '<schema>.processed_events', consumerName }, event, work)`
+    để bỏ trùng. Lỗi thường → retry 1s/5s/15s về đúng queue gốc; `NonRetryableEventError`, sai
+    cấu trúc hoặc hết 3 lần → DLQ kèm `x-error-code`.
+  - `outboxTableDdl(schema)`, `processedEventsTableDdl(schema)`: DDL bảng chuẩn cho migration.
+- Lệnh: `npm run mq:up` (RabbitMQ dev, cần `RABBITMQ_PASSWORD` trong `.env`),
+  `events:topology`, `events:send -- all|evt-01|trip.cancelled [--new-id]`,
+  `events:dlq -- trip.events [--replay]`, `test:messaging:unit`, `test:messaging:integration`.
 
 `deploy/postgres/init/` và `deploy/rabbitmq/` chứa bootstrap/cấu hình hạ tầng;
 file Compose sẽ đặt trong `deploy/`, Dockerfile đặt trong từng app khi triển khai.

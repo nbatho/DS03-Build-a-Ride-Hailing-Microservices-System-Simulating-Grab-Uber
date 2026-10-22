@@ -1,0 +1,18 @@
+{
+  "event_id": "4edb2ea5-4471-52c2-816c-8db45a1b082d",
+  "type": "trip.completed",
+  "schema_version": 1,
+  "aggregate_id": "a1031bdc-44d7-5c67-93ff-7f11b2987aa4",
+  "aggregate_version": 1,
+  "occurred_at": "2026-10-11T02:00:00Z",
+  "correlation_id": "96214f40-18f4-55f8-a411-75ce0f9f1790",
+  "causation_id": "541af9b9-e8c6-5cec-800d-abeabc2cccd3",
+  "producer": "trip-booking-service",
+  "payload": {
+    "tripId": "a1031bdc-44d7-5c67-93ff-7f11b2987aa4",
+    "passengerId": "c15878c4-5fc0-5082-a243-691c58a8c3f3",
+    "driverId": "e7c02766-ce0d-553f-b18a-3860ac1be699",
+    "tripVersion": 1,
+    "status": "COMPLETED"
+  }
+}

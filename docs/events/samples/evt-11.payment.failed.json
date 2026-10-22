@@ -1,0 +1,20 @@
+{
+  "event_id": "ce4d6ab9-70f1-5ef7-81c8-c9d7ef58794c",
+  "type": "payment.failed",
+  "schema_version": 1,
+  "aggregate_id": "b9bfefb8-1556-5e49-816c-4f95e3d86990",
+  "aggregate_version": 1,
+  "occurred_at": "2026-10-11T02:00:00Z",
+  "correlation_id": "96214f40-18f4-55f8-a411-75ce0f9f1790",
+  "causation_id": "541af9b9-e8c6-5cec-800d-abeabc2cccd3",
+  "producer": "simulated-payment-service",
+  "payload": {
+    "paymentId": "b9bfefb8-1556-5e49-816c-4f95e3d86990",
+    "tripId": "a1031bdc-44d7-5c67-93ff-7f11b2987aa4",
+    "passengerId": "c15878c4-5fc0-5082-a243-691c58a8c3f3",
+    "attemptNo": 1,
+    "paymentVersion": 1,
+    "retryable": true,
+    "reason": "SIMULATED_TEMPORARY_FAILURE"
+  }
+}
