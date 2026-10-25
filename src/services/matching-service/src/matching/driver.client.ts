@@ -1,9 +1,24 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import type { Candidates, ZoneId } from '@app/contracts';
+import { ApiError, InternalHttpClient } from '@app/runtime';
+import { readCandidates } from './event-contracts';
 
 @Injectable()
 export class DriverClient {
-  getCandidates(zoneId: 'ZONE_A' | 'ZONE_B', limit: number): never {
-    // TODO: HTTP thật; caller token; 2s/lần tối đa3, backoff+jitter; validate consumer contract.
-    throw new NotImplementedException('DriverClient.getCandidates TODO');
+  constructor(private readonly http: InternalHttpClient) {}
+
+  async getCandidates(zoneId: ZoneId, limit: number, correlationId: string): Promise<Candidates> {
+    const response = await this.http.request('DRIVER', {
+      method: 'GET',
+      path: '/internal/v1/drivers/candidates?zoneId=' + zoneId + '&limit=' + limit,
+      correlationId,
+      retry: true,
+    });
+
+    if (response.status !== 200) {
+      throw new ApiError(503, 'DEPENDENCY_UNAVAILABLE', 'Driver candidates are unavailable');
+    }
+
+    return readCandidates(response.body);
   }
 }
