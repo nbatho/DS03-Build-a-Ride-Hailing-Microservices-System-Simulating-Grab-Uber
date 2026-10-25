@@ -1,33 +1,61 @@
-import { Controller } from '@nestjs/common';
-import { InternalRoute } from '@app/runtime';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Put,
+  Req,
+} from '@nestjs/common';
+import { CurrentCaller, InternalRoute, type ContextRequest } from '@app/runtime';
+import type { InternalCaller } from '@app/shared-types';
+import type { Reservation } from '@app/contracts';
 import { ReservationsService } from './reservations.service';
 import { ReserveReservationDto } from './dto/reserve-reservation.dto';
 import { ConfirmReservationDto } from './dto/confirm-reservation.dto';
 import { ReleaseReservationDto } from './dto/release-reservation.dto';
 
-// TODO: Thêm định tuyến HTTP, xác thực và xử lý dữ liệu đầu vào.
 @InternalRoute('TRIP')
 @Controller('internal/v1/reservations')
 export class ReservationsInternalController {
   constructor(private readonly service: ReservationsService) {}
 
-  // TODO: Tạo API giữ tài xế cho assignment, chỉ cho phép Trip gọi.
-  reserve(reservationId: string, dto: ReserveReservationDto): never {
-    return this.service.reserve(reservationId, dto);
+  @Put(':reservationId')
+  reserve(
+    @Param('reservationId', new ParseUUIDPipe()) id: string,
+    @Body() dto: ReserveReservationDto,
+    @CurrentCaller() caller: InternalCaller,
+    @Req() req: ContextRequest,
+  ): Promise<Reservation> {
+    return this.service.reserve(id.toLowerCase(), dto, caller, req.correlationId);
   }
 
-  // TODO: Tạo API đọc trạng thái reservation để Trip đối soát.
-  getReservation(reservationId: string): never {
-    return this.service.getReservation(reservationId);
+  @Get(':reservationId')
+  getReservation(@Param('reservationId', new ParseUUIDPipe()) id: string): Promise<Reservation> {
+    return this.service.getReservation(id);
   }
 
-  // TODO: Tạo API xác nhận reservation và trả trạng thái HTTP thành công theo contract.
-  confirm(reservationId: string, dto: ConfirmReservationDto): never {
-    return this.service.confirm(reservationId, dto);
+  @Post(':reservationId/confirm')
+  @HttpCode(200)
+  confirm(
+    @Param('reservationId', new ParseUUIDPipe()) id: string,
+    @Body() dto: ConfirmReservationDto,
+    @CurrentCaller() caller: InternalCaller,
+    @Req() req: ContextRequest,
+  ): Promise<Reservation> {
+    return this.service.confirm(id.toLowerCase(), dto, caller, req.correlationId);
   }
 
-  // TODO: Tạo API giải phóng reservation và trả trạng thái HTTP thành công theo contract.
-  release(reservationId: string, dto: ReleaseReservationDto): never {
-    return this.service.release(reservationId, dto);
+  @Post(':reservationId/release')
+  @HttpCode(200)
+  release(
+    @Param('reservationId', new ParseUUIDPipe()) id: string,
+    @Body() dto: ReleaseReservationDto,
+    @CurrentCaller() caller: InternalCaller,
+    @Req() req: ContextRequest,
+  ): Promise<Reservation> {
+    return this.service.release(id.toLowerCase(), dto, caller, req.correlationId);
   }
 }

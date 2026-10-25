@@ -1,7 +1,19 @@
-// TODO: UUID; reservationId=assignmentId lấy từ path; body không có commandId.
-// TODO: Thêm kiểm tra và chuẩn hóa dữ liệu đầu vào theo contract đã thống nhất.
+import { Transform } from 'class-transformer';
+import { IsUUID } from 'class-validator';
+
+export const normalizeUuid = ({ value }: { value: unknown }) =>
+  typeof value === 'string' ? value.toLowerCase() : value;
+
 export class ReserveReservationDto {
-  declare tripId: string;
-  declare driverId: string;
-  declare offerId: string;
+  @Transform(normalizeUuid)
+  @IsUUID()
+  tripId!: string;
+
+  @Transform(normalizeUuid)
+  @IsUUID()
+  driverId!: string;
+
+  @Transform(normalizeUuid)
+  @IsUUID()
+  offerId!: string;
 }

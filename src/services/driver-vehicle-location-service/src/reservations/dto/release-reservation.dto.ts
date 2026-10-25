@@ -1,8 +1,8 @@
-// TODO: UUID; release đúng assignment; tombstone khi reserve chưa đến.
-// TODO: Thêm kiểm tra và chuẩn hóa dữ liệu đầu vào theo contract đã thống nhất.
-export class ReleaseReservationDto {
-  declare commandId: string;
-  declare tripId: string;
-  declare driverId: string;
-  declare reason: 'ASSIGNMENT_FAILED' | 'TRIP_CANCELLED' | 'TRIP_COMPLETED';
+import { IsIn } from 'class-validator';
+import { RELEASE_REASONS, type ReleaseReason } from '@app/contracts';
+import { ConfirmReservationDto } from './confirm-reservation.dto';
+
+export class ReleaseReservationDto extends ConfirmReservationDto {
+  @IsIn(RELEASE_REASONS)
+  reason!: ReleaseReason;
 }

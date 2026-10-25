@@ -1,7 +1,17 @@
-// TODO: UUID và ownership; commandId ổn định khi retry.
-// TODO: Thêm kiểm tra và chuẩn hóa dữ liệu đầu vào theo contract đã thống nhất.
+import { Transform } from 'class-transformer';
+import { IsUUID } from 'class-validator';
+import { normalizeUuid } from './reserve-reservation.dto';
+
 export class ConfirmReservationDto {
-  declare commandId: string;
-  declare tripId: string;
-  declare driverId: string;
+  @Transform(normalizeUuid)
+  @IsUUID()
+  commandId!: string;
+
+  @Transform(normalizeUuid)
+  @IsUUID()
+  tripId!: string;
+
+  @Transform(normalizeUuid)
+  @IsUUID()
+  driverId!: string;
 }
