@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-25",
+  "scope": "Matching API-29/30/31/32/40, RabbitMQ consumer/outbox and workers",
+  "environment": "Real PostgreSQL and RabbitMQ test containers; Driver/Trip HTTP fakes enforce BA schemas and service tokens",
+  "checks": [
+    { "command": "npm run typecheck", "result": "PASS" },
+    { "command": "npm run test:matching:unit", "result": "PASS", "tests": 6 },
+    { "command": "npm test", "result": "PASS", "tests": 65, "matchingScenarios": 19 },
+    { "check": "Local startup using existing .env, matching_db and local RabbitMQ", "result": "PASS", "readinessHttpStatus": 200 }
+  ],
+  "verified": [
+    "All five internal APIs enforce Trip token and validate input",
+    "Duplicate events create one job; cancellation before requested and stale versions cannot reopen it",
+    "Invalid event JSON/schema goes to DLQ without business writes",
+    "Attempt, offer, job transition and outbox are atomic; outbox insertion failure rolls all back",
+    "Two accept requests have one winner; identical command replays preserve the stored response",
+    "Search tries at most five different drivers; original search deadline never extends",
+    "Offer expiry is checked with DB clock after locks; deadline produces SEARCH_TIMEOUT",
+    "CLAIMED is retained while Trip is ASSIGNING; authoritative assignment/version controls reconciliation",
+    "Cancellation during Driver HTTP invalidates worker lease; HTTP is outside the transaction",
+    "Driver outages retry instead of reporting an empty candidate list",
+    "Unroutable publishes stay pending; recovery and stale PUBLISHING leases preserve event identity",
+    "Consumer retry delays are 1/5/15 seconds then DLQ; retry publish must confirm before ACK",
+    "DB and RabbitMQ restarts recover without losing committed state",
+    "Application role cannot delete dedup evidence or cancellation tombstones",
+    "Identity, Pricing, Driver and health endpoints of all eight apps continue to pass"
+  ],
+  "remainingIntegration": [
+    "Trip/Notification workflows with real services",
+    "Replace local RabbitMQ adapter with C messaging package when available",
+    "Full ride flow through Gateway, Dockerfiles/shared Compose and BA load tests"
+  ]
+}
