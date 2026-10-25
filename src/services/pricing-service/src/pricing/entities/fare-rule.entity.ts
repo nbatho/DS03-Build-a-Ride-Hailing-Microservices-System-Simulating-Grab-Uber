@@ -1,11 +1,25 @@
-// TODO: Ánh xạ pricing_schema.fare_rules bằng ORM và đăng ký với kết nối DB.
-// TODO: BIGINT tiền giữ dạng string; CAR_V1 seed 12000/8000/500; rule bất biến.
+import { Column, CreateDateColumn, Entity, PrimaryColumn } from 'typeorm';
+
+@Entity({ schema: 'pricing_schema', name: 'fare_rules' })
 export class FareRuleEntity {
-  declare ruleVersion: string;
-  declare vehicleType: 'CAR';
-  declare baseFee: string;
-  declare perKm: string;
-  declare perMin: string;
-  declare currency: 'VND';
-  declare createdAt: Date;
+  @PrimaryColumn({ name: 'rule_version', type: 'varchar', length: 40 })
+  ruleVersion!: string;
+
+  @Column({ name: 'vehicle_type', type: 'text' })
+  vehicleType!: 'CAR';
+
+  @Column({ name: 'base_fee', type: 'bigint' })
+  baseFee!: string;
+
+  @Column({ name: 'per_km', type: 'bigint' })
+  perKm!: string;
+
+  @Column({ name: 'per_min', type: 'bigint' })
+  perMin!: string;
+
+  @Column({ type: 'text' })
+  currency!: 'VND';
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
 }

@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const { once } = require('node:events');
 const { test } = require('node:test');
 const { createEnvironment, start, stop } = require('./helpers/identity-environment.cjs');
+const { createPricingDatabase } = require('./helpers/pricing-environment.cjs');
 const apps = [
   ['api-gateway', 'GATEWAY_PORT'],
   ['identity-user-service', 'IDENTITY_PORT'],
@@ -18,10 +19,13 @@ test(
   { timeout: 240000 },
   async t => {
     const fixture = await createEnvironment(t);
+    const pricing = await createPricingDatabase(t);
     const running = [];
 
     for (const [name, portEnv] of apps) {
-      running.push(await fixture.launch(name, portEnv));
+      running.push(
+        await fixture.launch(name, portEnv, name === 'pricing-service' ? pricing.env : {}),
+      );
     }
 
     const ids = new Set();

@@ -221,7 +221,8 @@ kiểm tra JWT/role/DTO. Docker Engine cần chạy cho integration/smoke.
 Đã có register/login/me, bcrypt, JWT RS256, Guard dùng chung, PostgreSQL
 Identity/migration, Gateway allowlist 3 route và Docker dev của A. Driver chỉ
 tích hợp Guard; profile/onboarding của B chưa triển khai. Trip/Saga, RabbitMQ,
-Payment/Notification/Matching/Pricing và Compose chung còn cần triển khai.
+Payment/Notification/Matching và Compose chung còn cần triển khai. Pricing đã có
+tạo/đọc báo giá, JWT/token nội bộ, DB/readiness và test; xem [hướng dẫn Pricing](docs/services/pricing-service.md).
 
 Identity readiness kiểm tra DB/bảng/quyền thật và trả 503 khi DB lỗi. Các service
 chưa có dependency giữ health của bộ khung. Runtime có error/correlation chung;
@@ -357,4 +358,5 @@ Hướng dẫn setup PostgreSQL riêng, migration, key, API, Guard B/C, Docker v
 
 Chạy dev: `npm run identity:dev` sau setup/migration. Gateway dev dùng 8081; PostgreSQL riêng dùng 5541.
 
-`npm test` dùng PostgreSQL test tạm riêng và kiểm tra Identity/JWT qua Gateway/Driver cùng smoke 8 app. Trip/Saga và nghiệp vụ B/C còn cần triển khai tiếp.
+`npm test` dùng PostgreSQL test tạm riêng, kiểm tra Identity/JWT qua Gateway/Driver,
+integration Pricing và smoke 8 app. Trip/Saga và nghiệp vụ Driver/Matching/C còn cần triển khai tiếp.

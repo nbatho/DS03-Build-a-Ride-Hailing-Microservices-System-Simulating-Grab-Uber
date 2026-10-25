@@ -1,15 +1,15 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
 import { InternalRoute } from '@app/runtime';
+import type { Quote } from '@app/contracts';
 import { PricingService } from './pricing.service';
 
-// TODO: Thêm định tuyến HTTP, xác thực và xử lý dữ liệu đầu vào.
 @InternalRoute('TRIP')
 @Controller('internal/v1/quotes')
 export class PricingInternalController {
   constructor(private readonly service: PricingService) {}
 
-  // TODO: Tạo API đọc báo giá nội bộ, chỉ cho phép Trip gọi.
-  getQuoteForTrip(quoteId: string): never {
+  @Get(':quoteId')
+  getQuoteForTrip(@Param('quoteId', new ParseUUIDPipe()) quoteId: string): Promise<Quote> {
     return this.service.getQuoteForTrip(quoteId);
   }
 }

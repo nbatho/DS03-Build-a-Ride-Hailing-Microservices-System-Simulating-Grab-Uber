@@ -1,20 +1,29 @@
-import { Controller } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { CurrentUser, Roles } from '@app/auth';
+import type { Actor, Quote } from '@app/contracts';
+import { IdempotencyKey } from '@app/runtime';
 import { PricingService } from './pricing.service';
 import { CreateQuoteDto } from './dto/create-quote.dto';
 
-// TODO: Thêm định tuyến HTTP, xác thực và xử lý dữ liệu đầu vào.
-// TODO: Xác thực JWT, kiểm tra role và lấy actor từ credential.
 @Controller('quotes')
+@Roles('PASSENGER')
 export class PricingController {
   constructor(private readonly service: PricingService) {}
 
-  // TODO: Tạo API tạo báo giá cho hành khách đã xác thực và kiểm tra khóa chống gửi lặp.
-  createQuote(passengerId: string, dto: CreateQuoteDto, idempotencyKey: string): never {
-    return this.service.createQuote(passengerId, dto, idempotencyKey);
+  @Post()
+  createQuote(
+    @CurrentUser() actor: Actor,
+    @Body() dto: CreateQuoteDto,
+    @IdempotencyKey() idempotencyKey: string,
+  ): Promise<Quote> {
+    return this.service.createQuote(actor.userId, dto, idempotencyKey);
   }
 
-  // TODO: Tạo API đọc báo giá và kiểm tra hành khách sở hữu báo giá.
-  getMyQuote(passengerId: string, quoteId: string): never {
-    return this.service.getMyQuote(passengerId, quoteId);
+  @Get(':quoteId')
+  getMyQuote(
+    @CurrentUser() actor: Actor,
+    @Param('quoteId', new ParseUUIDPipe()) quoteId: string,
+  ): Promise<Quote> {
+    return this.service.getMyQuote(actor.userId, quoteId);
   }
 }

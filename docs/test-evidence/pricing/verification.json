@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-25",
+  "scope": "Pricing API-15, API-16, API-17; direct service HTTP with real PostgreSQL",
+  "checks": [
+    { "command": "npm run typecheck", "result": "PASS" },
+    { "command": "npm run test:pricing:unit", "result": "PASS", "tests": 5 },
+    { "command": "npm run test:pricing:integration", "result": "PASS", "scenarios": 11 },
+    { "command": "npm test", "result": "PASS", "tests": 23 },
+    {
+      "command": "npx eslint tests/helpers/pricing-environment.cjs tests/startup.test.cjs",
+      "result": "PASS"
+    }
+  ],
+  "verified": [
+    "CAR_V1: 3000 meters / 600 seconds = 41000 VND; 1 meter / 1 second = 12017 VND",
+    "BigInt arithmetic and rounding up each component",
+    "Passenger JWT, ownership, input validation and Trip-only internal token",
+    "Quote expiry is exactly 300 seconds from its DB creation time",
+    "Ten concurrent requests with one key create exactly one quote",
+    "Same key with a changed body returns 409; replay preserves the stored response",
+    "Expired quotes remain readable; new fare rules do not change old quotes",
+    "Missing fare rule returns 503 and rolls back the idempotency key",
+    "Application role cannot update/delete quotes or modify fare rules",
+    "DB outage returns 503 for readiness/API; liveness stays up; restart recovers",
+    "Identity integration and independent health endpoints of all eight apps pass"
+  ],
+  "remainingIntegration": [
+    "Actual Trip service checks quote owner/expiry when booking",
+    "Gateway quote routes, complete ride flow and BA load tests"
+  ]
+}
