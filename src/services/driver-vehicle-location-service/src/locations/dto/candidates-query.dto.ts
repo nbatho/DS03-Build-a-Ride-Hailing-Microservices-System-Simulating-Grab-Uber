@@ -1,6 +1,14 @@
-// TODO: transform/validate query limit; candidates sort driverId ASC.
-// TODO: Thêm kiểm tra và chuẩn hóa dữ liệu đầu vào theo contract đã thống nhất.
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+
 export class CandidatesQueryDto {
-  declare zoneId: 'ZONE_A' | 'ZONE_B';
-  declare limit?: number;
+  @IsString()
+  zoneId!: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  limit?: number;
 }

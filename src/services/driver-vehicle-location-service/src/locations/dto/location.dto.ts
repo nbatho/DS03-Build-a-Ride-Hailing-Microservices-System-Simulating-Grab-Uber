@@ -1,7 +1,42 @@
-// TODO: sequence tăng; recordedAt RFC3339 lệch tối đa 60s; canonical tọa độ.
-// TODO: Thêm kiểm tra và chuẩn hóa dữ liệu đầu vào theo contract đã thống nhất.
+import { Type } from 'class-transformer';
+import {
+  IsDateString,
+  IsDefined,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsObject,
+  Matches,
+  Max,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+import { ZONE_IDS, type ZoneId } from '@app/contracts';
+
+class PositionDto {
+  @IsNumber()
+  lat!: number;
+
+  @IsNumber()
+  lng!: number;
+
+  @IsIn(ZONE_IDS)
+  zoneId!: ZoneId;
+}
+
 export class LocationDto {
-  declare position: { lat: number; lng: number; zoneId: 'ZONE_A' | 'ZONE_B' };
-  declare sequence: number;
-  declare recordedAt: string;
+  @IsDefined()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => PositionDto)
+  position!: PositionDto;
+
+  @IsInt()
+  @Min(1)
+  @Max(Number.MAX_SAFE_INTEGER)
+  sequence!: number;
+
+  @IsDateString({ strict: true, strictSeparator: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/)
+  recordedAt!: string;
 }
