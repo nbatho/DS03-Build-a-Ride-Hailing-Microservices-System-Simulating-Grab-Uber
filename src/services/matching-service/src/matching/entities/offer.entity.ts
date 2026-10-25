@@ -1,16 +1,41 @@
-// TODO: Ánh xạ matching_schema.offers bằng ORM và đăng ký với kết nối DB.
-// TODO: một OPEN/CLAIMED mỗi job; assignment unique; CLAIMED không tự expire theo OPEN TTL.
+import { Column, Entity, PrimaryColumn } from 'typeorm';
+import type { OfferStatus, OfferDecisionAction, OfferResolutionResult } from '@app/contracts';
+
+@Entity({ schema: 'matching_schema', name: 'offers' })
 export class OfferEntity {
-  declare id: string;
-  declare jobId: string;
-  declare tripId: string;
-  declare driverId: string;
-  declare status: 'OPEN' | 'CLAIMED' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED' | 'CANCELLED';
-  declare assignmentId: string | null;
-  declare decisionAction: 'ACCEPT' | 'REJECT' | null;
-  declare resolutionResult: 'ASSIGNED' | 'RETRY' | 'CANCELLED' | null;
-  declare expiresAt: Date;
-  declare version: number;
-  declare createdAt: Date;
-  declare updatedAt: Date;
+  @PrimaryColumn({ name: 'id', type: 'uuid' })
+  id!: string;
+
+  @Column({ name: 'job_id', type: 'uuid' })
+  jobId!: string;
+
+  @Column({ name: 'trip_id', type: 'uuid' })
+  tripId!: string;
+
+  @Column({ name: 'driver_id', type: 'uuid' })
+  driverId!: string;
+
+  @Column({ name: 'status', type: 'text' })
+  status!: OfferStatus;
+
+  @Column({ name: 'assignment_id', type: 'uuid', nullable: true })
+  assignmentId!: string | null;
+
+  @Column({ name: 'decision_action', type: 'text', nullable: true })
+  decisionAction!: OfferDecisionAction | null;
+
+  @Column({ name: 'resolution_result', type: 'text', nullable: true })
+  resolutionResult!: OfferResolutionResult | null;
+
+  @Column({ name: 'expires_at', type: 'timestamptz' })
+  expiresAt!: Date;
+
+  @Column({ name: 'version', type: 'integer' })
+  version!: number;
+
+  @Column({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @Column({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
 }

@@ -4,6 +4,10 @@ const { test } = require('node:test');
 const { createEnvironment, start, stop } = require('./helpers/identity-environment.cjs');
 const { createPricingDatabase } = require('./helpers/pricing-environment.cjs');
 const { createDriverDatabase } = require('./helpers/driver-environment.cjs');
+const {
+  createMatchingDatabase,
+  createMatchingBroker,
+} = require('./helpers/matching-environment.cjs');
 const apps = [
   ['api-gateway', 'GATEWAY_PORT'],
   ['identity-user-service', 'IDENTITY_PORT'],
@@ -22,6 +26,8 @@ test(
     const fixture = await createEnvironment(t);
     const pricing = await createPricingDatabase(t);
     const driver = await createDriverDatabase(t);
+    const matching = await createMatchingDatabase(t);
+    const broker = await createMatchingBroker(t);
     const running = [];
 
     for (const [name, portEnv] of apps) {
@@ -33,7 +39,9 @@ test(
             ? pricing.env
             : name === 'driver-vehicle-location-service'
               ? driver.env
-              : {},
+              : name === 'matching-service'
+                ? { ...matching.env, ...broker.env }
+                : {},
         ),
       );
     }
