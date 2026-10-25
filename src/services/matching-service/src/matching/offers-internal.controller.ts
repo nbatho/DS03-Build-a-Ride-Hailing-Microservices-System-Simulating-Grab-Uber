@@ -1,27 +1,40 @@
-import { Controller } from '@nestjs/common';
-import { InternalRoute } from '@app/runtime';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Req } from '@nestjs/common';
+import { CurrentCaller, InternalRoute, type ContextRequest } from '@app/runtime';
+import type { InternalCaller } from '@app/shared-types';
+import type { Offer } from '@app/contracts';
 import { OffersService } from './offers.service';
 import { OfferDecisionDto } from './dto/offer-decision.dto';
 import { OfferResolutionDto } from './dto/offer-resolution.dto';
 
-// TODO: Thêm định tuyến HTTP, xác thực và xử lý dữ liệu đầu vào.
 @InternalRoute('TRIP')
 @Controller('internal/v1/offers')
 export class OffersInternalController {
   constructor(private readonly service: OffersService) {}
 
-  // TODO: Tạo API đọc offer để Trip kiểm tra trước khi xử lý quyết định.
-  getOffer(offerId: string): never {
+  @Get(':offerId')
+  getOffer(@Param('offerId', new ParseUUIDPipe()) offerId: string): Promise<Offer> {
     return this.service.getOffer(offerId);
   }
 
-  // TODO: Tạo API nhận quyết định chấp nhận hoặc từ chối offer từ Trip.
-  decideOffer(offerId: string, dto: OfferDecisionDto): never {
-    return this.service.decideOffer(offerId, dto);
+  @Post(':offerId/decisions')
+  @HttpCode(200)
+  decideOffer(
+    @Param('offerId', new ParseUUIDPipe()) offerId: string,
+    @Body() dto: OfferDecisionDto,
+    @CurrentCaller() caller: InternalCaller,
+    @Req() req: ContextRequest,
+  ): Promise<Offer> {
+    return this.service.decideOffer(offerId.toLowerCase(), dto, caller, req.correlationId);
   }
 
-  // TODO: Tạo API nhận kết quả Saga để kết thúc claim của offer.
-  resolveOffer(offerId: string, dto: OfferResolutionDto): never {
-    return this.service.resolveOffer(offerId, dto);
+  @Post(':offerId/resolution')
+  @HttpCode(200)
+  resolveOffer(
+    @Param('offerId', new ParseUUIDPipe()) offerId: string,
+    @Body() dto: OfferResolutionDto,
+    @CurrentCaller() caller: InternalCaller,
+    @Req() req: ContextRequest,
+  ): Promise<Offer> {
+    return this.service.resolveOffer(offerId.toLowerCase(), dto, caller, req.correlationId);
   }
 }

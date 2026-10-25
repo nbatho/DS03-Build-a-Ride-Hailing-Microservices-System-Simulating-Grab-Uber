@@ -1,31 +1,203 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { Injectable } from '@nestjs/common';
+import { DataSource, EntityManager } from 'typeorm';
+import type { MatchingJob, MatchingFailedReason } from '@app/contracts';
+import type { InternalCaller } from '@app/shared-types';
+import { ApiError, runInTransaction, withCommandResult } from '@app/runtime';
+import { MatchingStateService, throwMatchingError, toJob } from './matching-state.service';
+import { MatchingJobEntity } from './entities/matching-job.entity';
+import { ProcessedEventEntity } from './entities/processed-event.entity';
+import { readTripEvent, type TripRequestedEvent, type TripCancelledEvent } from './event-contracts';
 import { CancelMatchingJobDto } from './dto/cancel-matching-job.dto';
-
 
 @Injectable()
 export class MatchingService {
-  getJobByTripId(tripId: string): never {
-    // TODO: đọc job/version/currentOfferId theo tripId.
-    throw new NotImplementedException('MatchingService.getJobByTripId TODO');
+  constructor(
+    private readonly database: DataSource,
+    private readonly state: MatchingStateService,
+  ) {}
+
+  async getJobByTripId(tripId: string): Promise<MatchingJob> {
+    try {
+      const job = await this.database.getRepository(MatchingJobEntity).findOneBy({ tripId });
+
+      if (!job) {
+        throw new ApiError(404, 'JOB_NOT_FOUND', 'Matching job not found');
+      }
+
+      return toJob(job);
+    } catch (error) {
+      throwMatchingError(error);
+    }
   }
 
-  cancelJob(tripId: string, dto: CancelMatchingJobDto): never {
-    // TODO: command replay; latestTripVersion không lùi; tạo CANCELLED tombstone trước requested.
-    throw new NotImplementedException('MatchingService.cancelJob TODO');
+  async cancelJob(
+    tripId: string,
+    dto: CancelMatchingJobDto,
+    caller: InternalCaller,
+    correlationId: string,
+  ): Promise<MatchingJob> {
+    try {
+      const result = await withCommandResult(
+        this.database,
+        {
+          schema: 'matching_schema',
+          callerService: caller,
+          commandType: 'CANCEL',
+          commandId: dto.commandId,
+          resourceId: tripId,
+          correlationId,
+        },
+        dto,
+        async manager => {
+          const job = await this.ensureJob(manager, tripId, dto.tripVersion, null);
+
+          if (dto.tripVersion < job.latestTripVersion) {
+            throw new ApiError(
+              409,
+              'STALE_TRIP_VERSION',
+              'Trip version is older than the saved version',
+            );
+          }
+
+          job.latestTripVersion = dto.tripVersion;
+          await this.state.cancel(manager, job);
+
+          return { status: 200, body: toJob(job) };
+        },
+      );
+
+      return result.body;
+    } catch (error) {
+      throwMatchingError(error);
+    }
   }
 
-  createJobFromRequested(envelope: unknown): never {
-    // TODO: validate trip.requested; processed event + job cùng transaction; không mở lại tombstone.
-    throw new NotImplementedException('MatchingService.createJobFromRequested TODO');
+  async createJobFromRequested(envelope: unknown): Promise<void> {
+    const event = readTripEvent(envelope);
+
+    if (event.type !== 'trip.requested') {
+      throw new ApiError(400, 'INVALID_EVENT', 'Expected trip.requested');
+    }
+
+    await this.processEvent(event);
   }
 
-  cancelJobFromEvent(envelope: unknown): never {
-    // TODO: validate trip.cancelled; dedup/fence; giữ assignment để Trip cleanup.
-    throw new NotImplementedException('MatchingService.cancelJobFromEvent TODO');
+  async cancelJobFromEvent(envelope: unknown): Promise<void> {
+    const event = readTripEvent(envelope);
+
+    if (event.type !== 'trip.cancelled') {
+      throw new ApiError(400, 'INVALID_EVENT', 'Expected trip.cancelled');
+    }
+
+    await this.processEvent(event);
   }
 
-  failSearch(jobId: string, reason: 'NO_CANDIDATE' | 'SEARCH_TIMEOUT'): never {
-    // TODO: kiểm tra job/version; FAILED + matching.failed outbox cùng transaction; Trip quyết định NO_DRIVER.
-    throw new NotImplementedException('MatchingService.failSearch TODO');
+  async failSearch(jobId: string, reason: MatchingFailedReason): Promise<void> {
+    try {
+      await runInTransaction(this.database, async manager => {
+        const job = await this.state.lockJob(manager, jobId);
+
+        if (job) {
+          await this.state.fail(manager, job, reason);
+        }
+      });
+    } catch (error) {
+      throwMatchingError(error);
+    }
+  }
+
+  private async ensureJob(
+    manager: EntityManager,
+    tripId: string,
+    tripVersion: number,
+    source: TripRequestedEvent | null,
+  ): Promise<MatchingJobEntity> {
+    const now = await this.state.now(manager);
+
+    await manager
+      .createQueryBuilder()
+      .insert()
+      .into(MatchingJobEntity)
+      .values({
+        id: randomUUID(),
+        tripId,
+        latestTripVersion: tripVersion,
+        status: source ? 'SEARCHING' : 'CANCELLED',
+        version: 1,
+        tripSnapshot: source,
+        searchDeadline: source ? new Date(now.getTime() + 60000) : null,
+        currentOfferId: null,
+        nextRetryAt: now,
+        leaseToken: null,
+        leaseUntil: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .orIgnore()
+      .execute();
+
+    return manager
+      .getRepository(MatchingJobEntity)
+      .findOneOrFail({ where: { tripId }, lock: { mode: 'pessimistic_write' } });
+  }
+
+  private async processEvent(event: TripRequestedEvent | TripCancelledEvent): Promise<void> {
+    try {
+      await runInTransaction(this.database, async manager => {
+        const claimed = (await manager.query(
+          `
+          INSERT INTO matching_schema.processed_events
+            (consumer_name,event_id,event_type,aggregate_id,aggregate_version,correlation_id)
+          VALUES ('matching.events',$1,$2,$3,$4,$5) ON CONFLICT DO NOTHING RETURNING event_id
+        `,
+          [
+            event.event_id,
+            event.type,
+            event.aggregate_id,
+            event.aggregate_version,
+            event.correlation_id,
+          ],
+        )) as unknown[];
+
+        if (!claimed.length) {
+          const seen = await manager
+            .getRepository(ProcessedEventEntity)
+            .findOneByOrFail({ consumerName: 'matching.events', eventId: event.event_id });
+
+          if (
+            seen.eventType !== event.type ||
+            seen.aggregateId !== event.aggregate_id ||
+            seen.aggregateVersion !== event.aggregate_version
+          ) {
+            throw new ApiError(400, 'INVALID_EVENT', 'Event ID has conflicting metadata');
+          }
+
+          return;
+        }
+
+        const job = await this.ensureJob(
+          manager,
+          event.payload.tripId,
+          event.payload.tripVersion,
+          event.type === 'trip.requested' ? event : null,
+        );
+
+        if (event.payload.tripVersion < job.latestTripVersion) {
+          return;
+        }
+
+        if (event.type === 'trip.cancelled') {
+          job.latestTripVersion = event.payload.tripVersion;
+          await this.state.cancel(manager, job);
+        } else if (event.payload.tripVersion > job.latestTripVersion) {
+          job.latestTripVersion = event.payload.tripVersion;
+          await this.state.saveJob(manager, job);
+        }
+        // Job đã tồn tại (kể cả CANCELLED) không bị tạo lại, đổi snapshot hay gia hạn deadline.
+      });
+    } catch (error) {
+      throwMatchingError(error);
+    }
   }
 }

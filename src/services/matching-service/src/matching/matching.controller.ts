@@ -1,21 +1,28 @@
-import { Controller } from '@nestjs/common';
-import { InternalRoute } from '@app/runtime';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Req } from '@nestjs/common';
+import { CurrentCaller, InternalRoute, type ContextRequest } from '@app/runtime';
+import type { InternalCaller } from '@app/shared-types';
+import type { MatchingJob } from '@app/contracts';
 import { MatchingService } from './matching.service';
 import { CancelMatchingJobDto } from './dto/cancel-matching-job.dto';
 
-// TODO: Thêm định tuyến HTTP, xác thực và xử lý dữ liệu đầu vào.
 @InternalRoute('TRIP')
 @Controller('internal/v1/matching/jobs')
 export class MatchingController {
   constructor(private readonly service: MatchingService) {}
 
-  // TODO: Tạo API đọc matching job theo tripId, chỉ cho phép Trip gọi.
-  getJobByTripId(tripId: string): never {
+  @Get(':tripId')
+  getJobByTripId(@Param('tripId', new ParseUUIDPipe()) tripId: string): Promise<MatchingJob> {
     return this.service.getJobByTripId(tripId);
   }
 
-  // TODO: Tạo API hủy matching job và kiểm tra phiên bản chuyến.
-  cancelJob(tripId: string, dto: CancelMatchingJobDto): never {
-    return this.service.cancelJob(tripId, dto);
+  @Post(':tripId/cancel')
+  @HttpCode(200)
+  cancelJob(
+    @Param('tripId', new ParseUUIDPipe()) tripId: string,
+    @Body() dto: CancelMatchingJobDto,
+    @CurrentCaller() caller: InternalCaller,
+    @Req() req: ContextRequest,
+  ): Promise<MatchingJob> {
+    return this.service.cancelJob(tripId.toLowerCase(), dto, caller, req.correlationId);
   }
 }

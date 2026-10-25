@@ -1,8 +1,21 @@
-// TODO: đúng assignment đã claim; UUID; result không được mâu thuẫn.
-// TODO: Thêm kiểm tra và chuẩn hóa dữ liệu đầu vào theo contract đã thống nhất.
+import { Transform } from 'class-transformer';
+import { IsIn, IsUUID } from 'class-validator';
+import { OFFER_RESOLUTION_RESULTS, type OfferResolutionResult } from '@app/contracts';
+import { normalizeUuid } from './cancel-matching-job.dto';
+
 export class OfferResolutionDto {
-  declare commandId: string;
-  declare assignmentId: string;
-  declare tripId: string;
-  declare result: 'ASSIGNED' | 'RETRY' | 'CANCELLED';
+  @Transform(normalizeUuid)
+  @IsUUID()
+  commandId!: string;
+
+  @Transform(normalizeUuid)
+  @IsUUID()
+  assignmentId!: string;
+
+  @Transform(normalizeUuid)
+  @IsUUID()
+  tripId!: string;
+
+  @IsIn(OFFER_RESOLUTION_RESULTS)
+  result!: OfferResolutionResult;
 }

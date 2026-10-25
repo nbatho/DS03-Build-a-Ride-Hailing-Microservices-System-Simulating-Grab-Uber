@@ -1,6 +1,16 @@
-// TODO: tripVersion >= 1; tripId lấy từ path; commandId UUID.
-// TODO: Thêm kiểm tra và chuẩn hóa dữ liệu đầu vào theo contract đã thống nhất.
+import { Transform } from 'class-transformer';
+import { IsInt, IsUUID, Max, Min } from 'class-validator';
+
+export const normalizeUuid = ({ value }: { value: unknown }) =>
+  typeof value === 'string' ? value.toLowerCase() : value;
+
 export class CancelMatchingJobDto {
-  declare commandId: string;
-  declare tripVersion: number;
+  @Transform(normalizeUuid)
+  @IsUUID()
+  commandId!: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(2147483647)
+  tripVersion!: number;
 }

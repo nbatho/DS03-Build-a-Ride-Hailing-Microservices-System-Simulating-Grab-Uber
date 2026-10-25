@@ -1,8 +1,21 @@
-// TODO: assignmentId là decision ID; body không có commandId.
-// TODO: Thêm kiểm tra và chuẩn hóa dữ liệu đầu vào theo contract đã thống nhất.
+import { Transform } from 'class-transformer';
+import { IsIn, IsUUID } from 'class-validator';
+import { OFFER_DECISION_ACTIONS, type OfferDecisionAction } from '@app/contracts';
+import { normalizeUuid } from './cancel-matching-job.dto';
+
 export class OfferDecisionDto {
-  declare assignmentId: string;
-  declare tripId: string;
-  declare driverId: string;
-  declare action: 'ACCEPT' | 'REJECT';
+  @Transform(normalizeUuid)
+  @IsUUID()
+  assignmentId!: string;
+
+  @Transform(normalizeUuid)
+  @IsUUID()
+  tripId!: string;
+
+  @Transform(normalizeUuid)
+  @IsUUID()
+  driverId!: string;
+
+  @IsIn(OFFER_DECISION_ACTIONS)
+  action!: OfferDecisionAction;
 }
