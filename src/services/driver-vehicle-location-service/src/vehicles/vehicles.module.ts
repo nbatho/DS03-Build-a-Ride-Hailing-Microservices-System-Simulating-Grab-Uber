@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { VehiclesController } from './vehicles.controller';
 import { VehiclesService } from './vehicles.service';
+import { DriversModule } from '../drivers/drivers.module';
 
 // Đăng ký và xem xe (API-06, 07).
-// TODO: đăng ký entity/repository driver_schema.vehicles khi có DataSource.
 
 @Module({
+  imports: [DriversModule],
   controllers: [VehiclesController],
   providers: [VehiclesService],
 })

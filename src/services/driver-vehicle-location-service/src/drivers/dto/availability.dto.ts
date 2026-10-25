@@ -1,6 +1,11 @@
-// TODO: expectedVersion >= 1; Idempotency-Key bắt buộc.
-// TODO: Thêm kiểm tra và chuẩn hóa dữ liệu đầu vào theo contract đã thống nhất.
+import { IsBoolean, IsInt, Max, Min } from 'class-validator';
+
 export class AvailabilityDto {
-  declare online: boolean;
-  declare expectedVersion: number;
+  @IsBoolean()
+  online!: boolean;
+
+  @IsInt()
+  @Min(1)
+  @Max(2147483647)
+  expectedVersion!: number;
 }

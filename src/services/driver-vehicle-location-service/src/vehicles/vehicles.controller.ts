@@ -1,20 +1,26 @@
-import { Controller } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
+import { CurrentUser, Roles } from '@app/auth';
+import type { Actor, Vehicle } from '@app/contracts';
+import { IdempotencyKey } from '@app/runtime';
 import { VehiclesService } from './vehicles.service';
 import { VehicleDto } from './dto/vehicle.dto';
 
-// TODO: Thêm định tuyến HTTP, xác thực và xử lý dữ liệu đầu vào.
-// TODO: Xác thực JWT, kiểm tra role và lấy actor từ credential.
 @Controller('vehicles')
+@Roles('DRIVER')
 export class VehiclesController {
   constructor(private readonly service: VehiclesService) {}
 
-  // TODO: Tạo API đăng ký xe và kiểm tra khóa chống gửi lặp.
-  registerVehicle(driverId: string, dto: VehicleDto, idempotencyKey: string): never {
-    return this.service.registerVehicle(driverId, dto, idempotencyKey);
+  @Post()
+  registerVehicle(
+    @CurrentUser() actor: Actor,
+    @Body() dto: VehicleDto,
+    @IdempotencyKey() key: string,
+  ): Promise<Vehicle> {
+    return this.service.registerVehicle(actor.userId, dto, key);
   }
 
-  // TODO: Tạo API đọc xe thuộc tài xế đã xác thực.
-  getMyVehicle(driverId: string): never {
-    return this.service.getMyVehicle(driverId);
+  @Get('me')
+  getMyVehicle(@CurrentUser() actor: Actor): Promise<Vehicle> {
+    return this.service.getMyVehicle(actor.userId);
   }
 }

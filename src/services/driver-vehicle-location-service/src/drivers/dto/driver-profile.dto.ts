@@ -1,5 +1,9 @@
-// TODO: licenseNumber 3–40 ký tự; driverId lấy JWT.sub.
-// TODO: Thêm kiểm tra và chuẩn hóa dữ liệu đầu vào theo contract đã thống nhất.
+import { Transform } from 'class-transformer';
+import { IsString, Length } from 'class-validator';
+
 export class DriverProfileDto {
-  declare licenseNumber: string;
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @Length(3, 40)
+  licenseNumber!: string;
 }

@@ -1,7 +1,21 @@
-// TODO: trim/uppercase plate; CAR do server gán; Idempotency-Key bắt buộc.
-// TODO: Thêm kiểm tra và chuẩn hóa dữ liệu đầu vào theo contract đã thống nhất.
+import { Transform } from 'class-transformer';
+import { IsString, Length } from 'class-validator';
+
 export class VehicleDto {
-  declare plateNumber: string;
-  declare model: string;
-  declare color: string;
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsString()
+  @Length(3, 20)
+  plateNumber!: string;
+
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @Length(1, 80)
+  model!: string;
+
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @Length(1, 30)
+  color!: string;
 }
