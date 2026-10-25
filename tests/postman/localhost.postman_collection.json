@@ -2,7 +2,7 @@
   "info": {
     "name": "DS03 localhost - Identity and JWT",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Run all 20 requests in order using Collection Runner or Postman CLI. Starts against already running localhost services. Creates two uniquely named test users on every run and leaves them in the dev database. Tokens/password use run-local pm.variables. Login rate limit is 10 attempts per 60 seconds per IP; wait 60 seconds between repeated runs if receiving 429. Driver onboarding is pending so case 19 expects 404 DRIVER_NOT_ONBOARDED."
+    "description": "Run all 20 requests in order using Collection Runner or Postman CLI. Starts against already running localhost services, including the Driver database and migrations. Creates two uniquely named test users on every run and leaves them in the dev database. Tokens/password use run-local pm.variables. Login rate limit is 10 attempts per 60 seconds per IP; wait 60 seconds between repeated runs if receiving 429. The new Driver account has no profile yet, so case 19 expects 404 DRIVER_NOT_ONBOARDED."
   },
   "variable": [
     {

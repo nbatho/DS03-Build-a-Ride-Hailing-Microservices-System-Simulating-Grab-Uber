@@ -14,6 +14,9 @@ npm ci
 npm run identity:setup:dev
 npm run identity:db:up
 npm run migration:identity:run
+npm run b:setup:dev
+npm run b:db:up -- driver-db
+npm run migration:driver:run
 npm run identity:dev
 ```
 
@@ -219,8 +222,9 @@ PostgreSQL test container riêng, port/key tạm. `npm run test:identity:unit`
 kiểm tra JWT/role/DTO. Docker Engine cần chạy cho integration/smoke.
 
 Đã có register/login/me, bcrypt, JWT RS256, Guard dùng chung, PostgreSQL
-Identity/migration, Gateway allowlist 3 route và Docker dev của A. Driver chỉ
-tích hợp Guard; profile/onboarding của B chưa triển khai. Trip/Saga, RabbitMQ,
+Identity/migration, Gateway allowlist 3 route và Docker dev của A.
+Driver đã có hồ sơ, xe, GPS, bật/tắt, tìm ứng viên, giữ/xác nhận/trả xe và worker hết hạn;
+xem [hướng dẫn Driver](docs/services/driver-vehicle-location-service.md). Trip/Saga, RabbitMQ,
 Payment/Notification/Matching và Compose chung còn cần triển khai. Pricing đã có
 tạo/đọc báo giá, JWT/token nội bộ, DB/readiness và test; xem [hướng dẫn Pricing](docs/services/pricing-service.md).
 
@@ -231,7 +235,7 @@ route internal được giữ ngoài public prefix.
 Phân công theo BA:
 
 - A: [Identity/JWT đã triển khai](docs/identity.md), tiếp theo Trip/Saga.
-- B: Driver, Matching và Pricing.
+- B: Driver và Pricing đã có nghiệp vụ/test riêng; tiếp theo Matching và tích hợp A/C.
 - C: Payment, Notification, messaging, mở rộng Gateway và Compose chung.
 
 Mỗi owner tự làm migration, Dockerfile và test service mình; C tích hợp môi trường chung.
@@ -359,4 +363,4 @@ Hướng dẫn setup PostgreSQL riêng, migration, key, API, Guard B/C, Docker v
 Chạy dev: `npm run identity:dev` sau setup/migration. Gateway dev dùng 8081; PostgreSQL riêng dùng 5541.
 
 `npm test` dùng PostgreSQL test tạm riêng, kiểm tra Identity/JWT qua Gateway/Driver,
-integration Pricing và smoke 8 app. Trip/Saga và nghiệp vụ Driver/Matching/C còn cần triển khai tiếp.
+integration Pricing/Driver và smoke 8 app. Trip/Saga và nghiệp vụ Matching/C còn cần triển khai tiếp.

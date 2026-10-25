@@ -67,7 +67,7 @@ async function main() {
         throw new Error('Driver did not verify the real Identity token');
       }
 
-      console.log('Driver verified DRIVER token; profile onboarding remains owned by B.');
+      console.log('Driver verified DRIVER token; this new account has not been onboarded yet.');
     }
   }
 }
