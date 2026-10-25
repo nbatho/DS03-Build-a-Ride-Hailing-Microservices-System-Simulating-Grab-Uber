@@ -5,6 +5,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { JwtService } = require('@nestjs/jwt');
 const bcrypt = require('bcrypt');
+const { createDriverDatabase } = require('./helpers/driver-environment.cjs');
 const {
   createEnvironment,
   start,
@@ -18,11 +19,16 @@ test(
   { timeout: 300000 },
   async t => {
     const fixture = await createEnvironment(t);
+    const driverDatabase = await createDriverDatabase(t);
     const identity = await fixture.launch('identity-user-service', 'IDENTITY_PORT');
     const gateway = await fixture.launch('api-gateway', 'GATEWAY_PORT', {
       IDENTITY_BASE_URL: identity.url,
     });
-    const driver = await fixture.launch('driver-vehicle-location-service', 'DRIVER_PORT');
+    const driver = await fixture.launch(
+      'driver-vehicle-location-service',
+      'DRIVER_PORT',
+      driverDatabase.env,
+    );
     const records = [];
     const outcomes = [];
 

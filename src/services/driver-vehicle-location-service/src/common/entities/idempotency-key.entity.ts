@@ -1,13 +1,34 @@
-// TODO: Ánh xạ driver_schema.idempotency_keys bằng ORM và đăng ký với kết nối DB.
-// TODO: unique actor/method/path/key, canonical hash; response cùng transaction; giữ >=24h.
+import { Column, CreateDateColumn, Entity, PrimaryColumn } from 'typeorm';
+
+@Entity({ schema: 'driver_schema', name: 'idempotency_keys' })
 export class IdempotencyKeyEntity {
-  declare actorId: string;
-  declare method: string;
-  declare path: string;
-  declare key: string;
-  declare requestHash: string;
-  declare responseStatus: number;
-  declare responseBody: unknown;
-  declare createdAt: Date;
-  declare expiresAt: Date;
+  @PrimaryColumn({ name: 'actor_id', type: 'uuid' })
+  actorId!: string;
+
+  @PrimaryColumn({ type: 'varchar', length: 10 })
+  method!: string;
+
+  @PrimaryColumn({ type: 'varchar', length: 255 })
+  path!: string;
+
+  @PrimaryColumn('uuid')
+  key!: string;
+
+  @Column({ name: 'request_hash', type: 'text' })
+  requestHash!: string;
+
+  @Column({ type: 'text' })
+  status!: 'IN_PROGRESS' | 'COMPLETED';
+
+  @Column({ name: 'response_status', type: 'smallint', nullable: true })
+  responseStatus!: number | null;
+
+  @Column({ name: 'response_body', type: 'jsonb', nullable: true })
+  responseBody!: unknown;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @Column({ name: 'expires_at', type: 'timestamptz' })
+  expiresAt!: Date;
 }

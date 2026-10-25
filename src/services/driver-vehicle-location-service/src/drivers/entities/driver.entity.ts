@@ -1,10 +1,22 @@
-// TODO: Ánh xạ driver_schema.drivers bằng ORM và đăng ký với kết nối DB.
-// TODO: id=userId; không FK sang Identity; version tăng khi availability/reservation thay đổi.
+import { Column, CreateDateColumn, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
+
+@Entity({ schema: 'driver_schema', name: 'drivers' })
 export class DriverEntity {
-  declare id: string;
-  declare licenseNumber: string;
-  declare online: boolean;
-  declare version: number;
-  declare createdAt: Date;
-  declare updatedAt: Date;
+  @PrimaryColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'license_number', type: 'varchar', length: 40 })
+  licenseNumber!: string;
+
+  @Column({ type: 'boolean', default: false })
+  online!: boolean;
+
+  @Column({ type: 'integer', default: 1 })
+  version!: number;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
 }

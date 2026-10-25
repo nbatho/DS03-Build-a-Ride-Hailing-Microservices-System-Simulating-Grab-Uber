@@ -3,6 +3,7 @@ const { once } = require('node:events');
 const { test } = require('node:test');
 const { createEnvironment, start, stop } = require('./helpers/identity-environment.cjs');
 const { createPricingDatabase } = require('./helpers/pricing-environment.cjs');
+const { createDriverDatabase } = require('./helpers/driver-environment.cjs');
 const apps = [
   ['api-gateway', 'GATEWAY_PORT'],
   ['identity-user-service', 'IDENTITY_PORT'],
@@ -20,11 +21,20 @@ test(
   async t => {
     const fixture = await createEnvironment(t);
     const pricing = await createPricingDatabase(t);
+    const driver = await createDriverDatabase(t);
     const running = [];
 
     for (const [name, portEnv] of apps) {
       running.push(
-        await fixture.launch(name, portEnv, name === 'pricing-service' ? pricing.env : {}),
+        await fixture.launch(
+          name,
+          portEnv,
+          name === 'pricing-service'
+            ? pricing.env
+            : name === 'driver-vehicle-location-service'
+              ? driver.env
+              : {},
+        ),
       );
     }
 
