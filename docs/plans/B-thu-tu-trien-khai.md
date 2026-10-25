@@ -65,10 +65,10 @@ B là bên cung cấp, nên phải viết trước để A và C làm bản gi�
 - [x] **Ba DB riêng bằng Docker:** file `deploy/b-dev.compose.yml` gồm ba container `driver-db`, `matching-db`, `pricing-db` (image `postgres:17-bookworm`, cổng như bảng ở trên, chỉ mở `127.0.0.1`, mỗi container một volume). Làm theo mẫu `deploy/identity-dev.compose.yml` của A.
 - [x] **Init SQL, mỗi DB một file:** `deploy/postgres/driver-init.sql`, `matching-init.sql`, `pricing-init.sql`. Mỗi file tạo user ứng dụng (ví dụ `driver_app`, chỉ đọc/ghi dữ liệu) và user migration (ví dụ `driver_migrator`, tạo bảng), rồi tạo schema.
 - [x] **Migration và DataSource:** mỗi service có `src/database/options.ts` (kiểm tra URL đúng DB, đúng user) và `data-source.ts`; tắt `synchronize`; migration bảng trong `migrations/`. Làm theo mẫu Identity của A.
-- [x] **Nối DB vào app:** cả Pricing, Driver và Matching đã có TypeORM và readiness kiểm tra DB (25/10/2026). Matching kiểm tra thêm consumer RabbitMQ.
+- [ ] **Nối DB vào app:** đăng ký TypeORM trong app module, readiness kiểm tra DB (làm khi viết API đầu tiên của từng service). Pricing và Driver đã có (25/10/2026); còn Matching.
 - [x] **Lệnh npm:** `b:setup:dev`, `b:db:up|stop|start|status` (gọi thẳng `docker compose`), `migration:b:run`, `migration:<driver|matching|pricing>:run|revert`, `b:db:verify` (xem README, mục DB của B). Chỉ còn 2 script trong `scripts/b/`: tạo biến `.env` và kiểm tra DB.
-- [x] **Test runner:** cả ba service có `test:<pricing|driver|matching>:unit|integration`; PostgreSQL/RabbitMQ test là container riêng, tách khỏi dev. `npm test` bao gồm Matching.
-- [x] Tạo thư mục `scripts/fakes/` cho các bản giả.
+- [ ] **Test runner:** test đơn vị và test tích hợp chạy trên PostgreSQL thật; DB test là container riêng, tách khỏi DB dev; nối vào script npm. Pricing và Driver đã có `test:<pricing|driver>:unit|integration`; còn Matching.
+- [ ] Tạo thư mục `scripts/fakes/` cho các bản giả.
 - [x] Thêm khối biến của ba service vào `.env.example`: cổng, `*_DATABASE_URL`, `*_MIGRATION_DATABASE_URL`, `*_DB_SCHEMA`, mật khẩu để `<local-only>`. Ví dụ `DRIVER_DATABASE_URL=postgresql://driver_app:<local-only>@127.0.0.1:5542/driver_db`.
 
 **Xong khi:** ba DB chạy riêng, mỗi service nối đúng DB của mình bằng user ứng dụng; tắt `pricing-db` thì chỉ Báo giá báo chưa sẵn sàng, Tài xế và Ghép chuyến vẫn chạy; gọi API nội bộ sai token bị từ chối; test runner chạy được.
@@ -129,27 +129,25 @@ Làm theo thứ tự:
 
 Chuẩn bị bản giả trong `scripts/fakes/`:
 
-- [x] Bản giả Chuyến đi: trả trạng thái chuyến theo file JSON, có kiểm tra token nội bộ (`matching:fake-trip`).
-- [x] Script gửi sự kiện "có chuyến mới" và "chuyến bị hủy" vào RabbitMQ dev (`matching:emit`), có file mẫu theo BA.
+- [ ] Bản giả Chuyến đi: trả trạng thái chuyến theo kịch bản (đang gán, đã có tài xế, đang hủy, đã hủy).
+- [ ] Script gửi sự kiện "có chuyến mới" và "chuyến bị hủy" vào RabbitMQ dev (dùng bộ sự kiện mẫu của C nếu đã có).
 
 Làm theo thứ tự:
 
 - [x] Migration việc tìm, tài xế đã mời, lời mời, sự kiện đã xử lý, sự kiện chờ gửi, kết quả lệnh vào `matching_db` (đã có trong migration; bước này chỉ còn entity/repository).
-- [x] Hàm khóa việc tìm và các hàm đổi trạng thái có kiểm tra, dùng chung cho API và worker.
-- [x] Nhận sự kiện "có chuyến mới": bỏ trùng và tạo việc tìm trong cùng transaction, xác nhận với RabbitMQ sau khi ghi.
-- [x] Nhận sự kiện "chuyến bị hủy": ghi dấu "đã hủy" kể cả khi chưa có việc tìm; sự kiện "có chuyến mới" đến muộn không mở lại.
-- [x] Client gọi Tài xế tìm ứng viên: chờ 2 giây, tối đa 3 lần, gọi ngoài transaction.
-- [x] Worker tìm: tối đa 5 tài xế, tổng 60 giây (hạn tính một lần, không gia hạn); tạo lời mời mở 15 giây và sự kiện chờ gửi trong cùng transaction.
-- [x] Lời mời hết hạn hoặc bị từ chối thì mời người tiếp; hết người hoặc hết giờ thì gửi "không tìm được tài xế" đúng một lần.
-- [x] Gửi sự kiện từ hàng chờ gửi bằng adapter amqplib mỏng trong Matching; sẽ thay bằng `@app/messaging` khi C bàn giao.
-- [x] Xem việc tìm theo mã chuyến; xem lời mời.
-- [x] Hủy việc tìm: theo mã lệnh; phiên bản chuyến không được lùi.
-- [x] Nhận/từ chối lời mời: mã lượt gán làm mã quyết định; "nhận" chuyển lời mời từ đang mở sang đã được giành; "từ chối" chuyển sang đã từ chối rồi mời tiếp.
-- [x] Báo kết quả cuối: đã gán, thử lại, đã hủy; không mở lại việc tìm đã hủy.
-- [x] Đối soát lời mời bị kẹt ở "đã được giành": hỏi trạng thái chuyến (bản giả), không tự cho hết hạn.
-- [x] Test: sự kiện trùng hoặc đảo thứ tự không tạo việc tìm/lời mời lặp; hai yêu cầu nhận cùng lúc chỉ một bên thắng.
-
-**Hiện trạng 25/10/2026:** Matching có DB/readiness, 5 API, consumer/outbox, worker và test riêng; xem [hướng dẫn Matching](../services/matching-service.md). Bộ test chung đạt 65/65; còn nối Trip/Notification thật và thư viện messaging của C.
+- [ ] Hàm khóa việc tìm và các hàm đổi trạng thái có kiểm tra, dùng chung cho API và worker.
+- [ ] Nhận sự kiện "có chuyến mới": bỏ trùng và tạo việc tìm trong cùng transaction, xác nhận với RabbitMQ sau khi ghi.
+- [ ] Nhận sự kiện "chuyến bị hủy": ghi dấu "đã hủy" kể cả khi chưa có việc tìm; sự kiện "có chuyến mới" đến muộn không mở lại.
+- [ ] Client gọi Tài xế tìm ứng viên: chờ 2 giây, tối đa 3 lần, gọi ngoài transaction.
+- [ ] Worker tìm: tối đa 5 tài xế, tổng 60 giây (hạn tính một lần, không gia hạn); tạo lời mời mở 15 giây và sự kiện chờ gửi trong cùng transaction.
+- [ ] Lời mời hết hạn hoặc bị từ chối thì mời người tiếp; hết người hoặc hết giờ thì gửi "không tìm được tài xế" đúng một lần.
+- [ ] Gửi sự kiện từ hàng chờ gửi bằng worker trong `@app/messaging` của C (nếu C chưa xong thì tạm dùng adapter amqplib mỏng, sau đó thay).
+- [ ] Xem việc tìm theo mã chuyến; xem lời mời.
+- [ ] Hủy việc tìm: theo mã lệnh; phiên bản chuyến không được lùi.
+- [ ] Nhận/từ chối lời mời: mã lượt gán làm mã quyết định; "nhận" chuyển lời mời từ đang mở sang đã được giành; "từ chối" chuyển sang đã từ chối rồi mời tiếp.
+- [ ] Báo kết quả cuối: đã gán, thử lại, đã hủy; không mở lại việc tìm đã hủy.
+- [ ] Đối soát lời mời bị kẹt ở "đã được giành": hỏi trạng thái chuyến (bản giả), không tự cho hết hạn.
+- [ ] Test: sự kiện trùng hoặc đảo thứ tự không tạo việc tìm/lời mời lặp; hai yêu cầu nhận cùng lúc chỉ một bên thắng.
 
 **Xong khi:** A gọi được các API việc tìm và lời mời; C nhận được sự kiện "có lời mời mới" (ngày 6).
 
