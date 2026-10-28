@@ -14,10 +14,13 @@ const { generateKeys } = require('../../../../../scripts/identity/generate-keys.
 
 const root = path.resolve(__dirname, '../../../../..');
 const received = [];
+const gateways = [];
 let upstream;
-let gateway;
+let upstreamUrl;
+let deadUrl;
+let keyDir;
 let gatewayUrl;
-let logs = '';
+let mainGateway;
 let token;
 
 function freePort() {
@@ -33,24 +36,67 @@ function freePort() {
   });
 }
 
-async function call(pathname, { method = 'GET', headers = {}, body, auth = true } = {}) {
-  const response = await fetch(gatewayUrl + pathname, {
+async function call(pathname, { method = 'GET', headers = {}, body, raw, auth = true, base = gatewayUrl } = {}) {
+  const response = await fetch(base + pathname, {
     method,
     headers: {
       ...(auth ? { Authorization: 'Bearer ' + token } : {}),
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      ...(body || raw ? { 'Content-Type': 'application/json' } : {}),
       ...headers,
     },
-    body: body ? JSON.stringify(body) : undefined,
+    body: raw ?? (body ? JSON.stringify(body) : undefined),
   });
   const text = await response.text();
 
-  return { status: response.status, body: text ? JSON.parse(text) : undefined };
+  return { status: response.status, headers: response.headers, text, body: text ? JSON.parse(text) : undefined };
+}
+
+/** Chạy một Gateway bản build thật; extraEnv để đổi giới hạn request. */
+async function startGateway(extraEnv = {}) {
+  const port = await freePort();
+  const instance = { logs: '', url: 'http://127.0.0.1:' + port };
+
+  instance.child = spawn(process.execPath, [path.join(root, 'dist/api-gateway/main.js')], {
+    cwd: keyDir, // không đọc .env của máy dev
+    env: {
+      PATH: process.env.PATH,
+      SystemRoot: process.env.SystemRoot,
+      HOST: '127.0.0.1',
+      GATEWAY_PORT: String(port),
+      JWT_ISSUER: 'ride-hailing',
+      JWT_AUDIENCE: 'ride-api',
+      JWT_PUBLIC_KEY_FILE: path.join(keyDir, 'identity-public.pem'),
+      IDENTITY_BASE_URL: upstreamUrl,
+      DRIVER_BASE_URL: upstreamUrl,
+      TRIP_BASE_URL: upstreamUrl,
+      PAYMENT_BASE_URL: upstreamUrl,
+      NOTIFICATION_BASE_URL: upstreamUrl,
+      // Báo giá trỏ vào cổng không có ai nghe để test 502.
+      PRICING_BASE_URL: deadUrl,
+      ...extraEnv,
+    },
+  });
+  instance.child.stdout.on('data', chunk => (instance.logs += chunk));
+  instance.child.stderr.on('data', chunk => (instance.logs += chunk));
+  gateways.push(instance);
+
+  // 30 giây: lần chạy đầu sau khi build, Windows Defender có thể giữ file main.js vài giây để quét.
+  for (let i = 0; i < 300; i++) {
+    try {
+      if ((await fetch(instance.url + '/health/live')).ok) {
+        return instance;
+      }
+    } catch {
+      // chưa lên
+    }
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  throw new Error('Gateway did not start: ' + instance.logs);
 }
 
 before(async () => {
-  const keyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gateway-test-'));
-
+  keyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gateway-test-'));
   generateKeys(keyDir);
   token = await new JwtService().signAsync(
     { sub: randomUUID(), role: 'PASSENGER' },
@@ -65,7 +111,7 @@ before(async () => {
     },
   );
 
-  // Service giả: trả lại request đã nhận; /slow không trả lời, /empty trả 204.
+  // Service giả: trả lại request đã nhận; /operations trả 204.
   upstream = http.createServer((req, res) => {
     let data = '';
 
@@ -84,49 +130,18 @@ before(async () => {
     });
   });
   await new Promise(resolve => upstream.listen(0, '127.0.0.1', resolve));
+  upstreamUrl = 'http://127.0.0.1:' + upstream.address().port;
+  deadUrl = 'http://127.0.0.1:' + (await freePort());
 
-  const upstreamUrl = 'http://127.0.0.1:' + upstream.address().port;
-  const port = await freePort();
-
-  gateway = spawn(process.execPath, [path.join(root, 'dist/api-gateway/main.js')], {
-    cwd: keyDir, // không đọc .env của máy dev
-    env: {
-      PATH: process.env.PATH,
-      SystemRoot: process.env.SystemRoot,
-      HOST: '127.0.0.1',
-      GATEWAY_PORT: String(port),
-      JWT_ISSUER: 'ride-hailing',
-      JWT_AUDIENCE: 'ride-api',
-      JWT_PUBLIC_KEY_FILE: path.join(keyDir, 'identity-public.pem'),
-      IDENTITY_BASE_URL: upstreamUrl,
-      DRIVER_BASE_URL: upstreamUrl,
-      TRIP_BASE_URL: upstreamUrl,
-      PAYMENT_BASE_URL: upstreamUrl,
-      NOTIFICATION_BASE_URL: upstreamUrl,
-      // Báo giá trỏ vào cổng không có ai nghe để test 502.
-      PRICING_BASE_URL: 'http://127.0.0.1:' + (await freePort()),
-    },
-  });
-  gateway.stdout.on('data', chunk => (logs += chunk));
-  gateway.stderr.on('data', chunk => (logs += chunk));
-  gatewayUrl = 'http://127.0.0.1:' + port;
-
-  for (let i = 0; i < 100; i++) {
-    try {
-      if ((await fetch(gatewayUrl + '/health/live')).ok) {
-        return;
-      }
-    } catch {
-      // chưa lên
-    }
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-
-  throw new Error('Gateway did not start:\n' + logs);
+  mainGateway = await startGateway();
+  gatewayUrl = mainGateway.url;
 });
 
 after(async () => {
-  gateway?.kill();
+  for (const instance of gateways) {
+    instance.child.kill();
+  }
+
   await new Promise(resolve => upstream?.close(resolve));
 });
 
@@ -215,4 +230,91 @@ test('upstream down gives 502 with the standard error body; response headers are
   assert.equal(response.headers.get('retry-after'), '1');
   assert.equal(response.headers.get('x-internal-secret'), null);
   assert.equal((await call('/api/v1/operations/' + randomUUID())).status, 204);
+});
+
+// ---------- S03: dữ liệu xấu và giới hạn (BA mục 12.1 test 19) ----------
+
+test('S03: body over 64 KiB is 413 and malformed JSON is 400, neither reaches the upstream', async () => {
+  received.length = 0;
+
+  const big = await call('/api/v1/trips', { method: 'POST', raw: JSON.stringify({ pad: 'x'.repeat(70 * 1024) }) });
+  const broken = await call('/api/v1/trips', { method: 'POST', raw: '{"quoteId":' });
+
+  assert.equal(big.status, 413);
+  assert.equal(big.body.code, 'PAYLOAD_TOO_LARGE');
+  assert.equal(broken.status, 400);
+  assert.equal(broken.body.code, 'VALIDATION_ERROR');
+  assert.ok(big.body.correlationId && broken.body.correlationId);
+  assert.equal(received.length, 0);
+});
+
+test('S03: too many requests per IP get 429 with Retry-After; login has its own stricter limit', async () => {
+  const limited = await startGateway({ GATEWAY_RATE_LIMIT_PER_MINUTE: '5', GATEWAY_AUTH_RATE_LIMIT: '3' });
+  const base = limited.url;
+
+  received.length = 0;
+
+  const statuses = [];
+
+  for (let i = 0; i < 7; i++) {
+    statuses.push((await call('/api/v1/notifications', { base })).status);
+  }
+
+  assert.deepEqual(statuses, [200, 200, 200, 200, 200, 429, 429]);
+  assert.equal(received.length, 5, 'blocked requests are not forwarded');
+
+  const blocked = await call('/api/v1/notifications', { base });
+
+  assert.equal(blocked.body.code, 'RATE_LIMITED');
+  assert.ok(Number(blocked.headers.get('retry-after')) >= 1);
+
+  // Đăng nhập đếm riêng: 3 lần/phút, tính cả khi chưa có token.
+  const logins = [];
+
+  for (let i = 0; i < 4; i++) {
+    logins.push((await call('/api/v1/auth/login', { method: 'POST', body: { email: 'a@b.c' }, auth: false, base })).status);
+  }
+
+  assert.deepEqual(logins, [200, 200, 200, 429]);
+
+  // Request không có token cũng bị đếm (giới hạn chạy trước kiểm tra JWT) và health không bị giới hạn.
+  assert.equal((await call('/api/v1/payments/' + randomUUID(), { auth: false, base })).status, 429);
+
+  for (let i = 0; i < 10; i++) {
+    assert.equal((await fetch(base + '/health/live')).status, 200);
+  }
+});
+
+test('S03: rate limit can be disabled with 0 (load tests from one machine)', async () => {
+  const unlimited = await startGateway({ GATEWAY_RATE_LIMIT_PER_MINUTE: '0', GATEWAY_AUTH_RATE_LIMIT: '0' });
+
+  for (let i = 0; i < 20; i++) {
+    assert.equal((await call('/api/v1/notifications', { base: unlimited.url })).status, 200);
+  }
+});
+
+test('S03: token scan — tokens never appear in Gateway logs or error bodies', async () => {
+  const forged = 'eyJhbGciOiJSUzI1NiJ9.' + 'A'.repeat(40) + '.leak-check-signature';
+  const responses = [
+    await call('/api/v1/payments/' + randomUUID(), { auth: false, headers: { Authorization: 'Bearer ' + forged } }),
+    await call('/api/v1/quotes/' + randomUUID()), // 502 với token thật
+    await call('/internal/v1/payments/' + randomUUID(), { headers: { 'X-Service-Token': 'svc-secret-' + 'z'.repeat(32) } }),
+  ];
+
+  for (const response of responses) {
+    assert.ok(!response.text.includes(forged), 'forged token echoed');
+    assert.ok(!response.text.includes(token), 'real token echoed');
+    assert.ok(!response.text.includes('svc-secret-'), 'service token echoed');
+  }
+
+  await new Promise(resolve => setTimeout(resolve, 200));
+
+  for (const instance of gateways) {
+    assert.ok(!instance.logs.includes(token), 'real token in logs');
+    assert.ok(!instance.logs.includes(forged), 'forged token in logs');
+    assert.ok(!instance.logs.includes('svc-secret-'), 'service token in logs');
+    assert.ok(!/BEGIN [A-Z ]*PRIVATE KEY/.test(instance.logs), 'key material in logs');
+  }
+
+  assert.ok(mainGateway.logs.length > 0, 'logs were captured');
 });

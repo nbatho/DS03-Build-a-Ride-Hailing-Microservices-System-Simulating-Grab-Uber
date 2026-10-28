@@ -58,7 +58,7 @@ export type {
   MatchingOfferCreatedPayload,
   MatchingFailedPayload,
 } from './events/matching';
-export { RIDE_EVENTS_EXCHANGE, EVENT_SCHEMA_VERSION, EVENT_PRODUCERS } from './events/envelope';
+export { RIDE_EVENTS_EXCHANGE, EVENT_SCHEMA_VERSION, EVENT_PRODUCERS, MAX_EVENT_BYTES } from './events/envelope';
 export type { EventEnvelope, EventProducer } from './events/envelope';
 export {
   TRIP_EVENT_PRODUCER, TRIP_EVENT_TYPES, TRIP_NO_DRIVER_REASONS, TRIP_CANCEL_REASONS,
