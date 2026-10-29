@@ -23,14 +23,17 @@ export class InitialNotification1792454400000 implements MigrationInterface {
         CONSTRAINT ck_notifications_payload CHECK (jsonb_typeof(payload) = 'object')
       )
     `);
+
     // Không thông báo trùng: cùng người nhận + cùng sự kiện nguồn + cùng loại.
     await queryRunner.query(
       'CREATE UNIQUE INDEX uq_notifications_dedup ON notification_schema.notifications (recipient_id, source_event_id, type)',
     );
+
     // Polling theo con trỏ: mới nhất trước.
     await queryRunner.query(
       'CREATE INDEX ix_notifications_poll ON notification_schema.notifications (recipient_id, created_at DESC, id DESC)',
     );
+
     await queryRunner.query(
       'CREATE INDEX ix_notifications_unread ON notification_schema.notifications (recipient_id, created_at DESC) WHERE read_at IS NULL',
     );

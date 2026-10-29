@@ -24,15 +24,12 @@ const readabilityRules = {
 };
 
 const notYetAdopted = [
-  'src/apps/',
   'src/packages/contracts/',
   'src/packages/runtime/',
   'src/packages/shared-types/',
   'src/services/driver-vehicle-location-service/',
   'src/services/matching-service/',
   'src/services/pricing-service/',
-  'src/services/simulated-payment-service/',
-  'src/services/notification-service/',
   'scripts/build-all.cjs',
   'webpack.config.js',
 ];

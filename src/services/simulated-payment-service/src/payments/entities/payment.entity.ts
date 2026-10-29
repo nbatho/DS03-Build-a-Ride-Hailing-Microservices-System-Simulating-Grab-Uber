@@ -1,11 +1,6 @@
 import { Column, CreateDateColumn, Entity, OneToMany, PrimaryColumn, UpdateDateColumn } from 'typeorm';
+import type { PaymentStatus } from '@app/contracts';
 import { PaymentAttempt } from './payment-attempt.entity';
-
-export enum PaymentStatus {
-  PENDING = 'PENDING',
-  SUCCEEDED = 'SUCCEEDED',
-  FAILED = 'FAILED',
-}
 
 // Một khoản thanh toán cho mỗi chuyến (unique trip_id); id do Trip cấp, cố định qua mọi lần thử.
 @Entity({ name: 'payments', schema: 'payment_schema' })
@@ -26,7 +21,7 @@ export class Payment {
   @Column('text', { default: 'VND' })
   currency!: 'VND';
 
-  @Column('text', { default: PaymentStatus.PENDING })
+  @Column('text', { default: 'PENDING' })
   status!: PaymentStatus;
 
   @Column('integer', { default: 1 })

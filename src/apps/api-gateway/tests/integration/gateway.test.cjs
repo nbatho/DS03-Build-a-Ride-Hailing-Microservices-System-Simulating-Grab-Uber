@@ -76,6 +76,7 @@ async function startGateway(extraEnv = {}) {
       ...extraEnv,
     },
   });
+
   instance.child.stdout.on('data', chunk => (instance.logs += chunk));
   instance.child.stderr.on('data', chunk => (instance.logs += chunk));
   gateways.push(instance);
@@ -89,6 +90,7 @@ async function startGateway(extraEnv = {}) {
     } catch {
       // chưa lên
     }
+
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 
@@ -129,6 +131,7 @@ before(async () => {
       res.end(JSON.stringify({ upstreamPath: req.url }));
     });
   });
+
   await new Promise(resolve => upstream.listen(0, '127.0.0.1', resolve));
   upstreamUrl = 'http://127.0.0.1:' + upstream.address().port;
   deadUrl = 'http://127.0.0.1:' + (await freePort());
@@ -156,6 +159,7 @@ test('allowed routes are forwarded with path and query, to the right upstream', 
     (await call('/api/v1/notifications/' + paymentId + '/read', { method: 'PATCH', body: { read: true } })).status,
     200,
   );
+
   assert.equal(JSON.parse(received.at(-1).body).read, true);
   assert.equal((await call('/api/v1/trips/' + paymentId + '/accept', { method: 'POST', body: {} })).status, 200);
 });

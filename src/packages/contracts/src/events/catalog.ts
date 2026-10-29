@@ -21,6 +21,7 @@ export const EVENT_QUEUES = {
   PAYMENT: 'payment.events',
   NOTIFICATION: 'notification.events',
 } as const;
+
 export type EventQueue = typeof EVENT_QUEUES[keyof typeof EVENT_QUEUES];
 
 export interface EventPayloads {
@@ -36,6 +37,7 @@ export interface EventPayloads {
   'payment.succeeded': PaymentSucceededPayload;
   'payment.failed': PaymentFailedPayload;
 }
+
 export type EventType = keyof EventPayloads;
 
 /** Envelope đã kiểm tra, payload đúng kiểu theo `type`. */

@@ -1,4 +1,5 @@
 import { randomInt } from 'node:crypto';
+import type { AttemptOutcome } from './payment.types';
 
 // Mô phỏng cổng thanh toán (BA mục 2.1, 9.2 "mô phỏng thanh toán lỗi"). Không thu tiền thật.
 // PAYMENT_SIMULATION_MODE:
@@ -10,8 +11,6 @@ import { randomInt } from 'node:crypto';
 
 export const PAYMENT_SIMULATION_MODES = ['SUCCEED', 'FAIL_ONCE', 'TEMPORARY', 'FINAL', 'RANDOM'] as const;
 export type PaymentSimulationMode = (typeof PAYMENT_SIMULATION_MODES)[number];
-
-export type SimulatedOutcome = 'SUCCESS' | 'TEMPORARY_FAILURE' | 'FINAL_FAILURE';
 
 export interface SimulatorConfig {
   mode: PaymentSimulationMode;
@@ -38,7 +37,7 @@ export function simulateCharge(
   config: SimulatorConfig,
   attemptNo: number,
   random: () => number = () => randomInt(1_000_000) / 1_000_000,
-): SimulatedOutcome {
+): AttemptOutcome {
   switch (config.mode) {
     case 'SUCCEED':
       return 'SUCCESS';

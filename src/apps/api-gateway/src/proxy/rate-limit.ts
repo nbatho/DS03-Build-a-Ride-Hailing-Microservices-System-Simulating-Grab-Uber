@@ -2,7 +2,7 @@ import { Injectable, type NestMiddleware } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NextFunction, Request, Response } from 'express';
 import { ApiError } from '@app/runtime';
-import { API_PREFIX } from './routes';
+import { API_PREFIX, requestTarget } from './routes';
 
 // Giới hạn số request theo IP tại Gateway (BA mục 4.1: 429 gọi quá nhiều; mục 10.1; test S03).
 // Chạy trước kiểm tra JWT để request rác cũng bị chặn sớm. Đếm trong RAM của một instance Gateway:
@@ -49,6 +49,7 @@ interface Window {
 /** Cửa sổ cố định 60 giây theo (nhóm, IP). Trả về số giây phải chờ nếu vượt, undefined nếu còn lượt. */
 export class FixedWindowLimiter {
   private readonly windows = new Map<string, Window>();
+
   private lastSweep = 0;
 
   constructor(private readonly now: () => number = Date.now) {}
@@ -93,6 +94,7 @@ export class FixedWindowLimiter {
 @Injectable()
 export class RateLimitMiddleware implements NestMiddleware {
   private readonly config: RateLimitConfig;
+
   private readonly limiter = new FixedWindowLimiter();
 
   constructor(_config: ConfigService) {
@@ -112,7 +114,7 @@ export class RateLimitMiddleware implements NestMiddleware {
 
     marked[COUNTED] = true;
 
-    const pathname = new URL(req.originalUrl, 'http://gateway.local').pathname;
+    const { pathname } = requestTarget(req.originalUrl);
 
     // Chỉ giới hạn đường chuyển tiếp; /health/* phải luôn trả lời được để kiểm tra sống/sẵn sàng.
     if (!pathname.startsWith(API_PREFIX + '/')) {

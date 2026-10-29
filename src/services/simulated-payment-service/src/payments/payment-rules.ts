@@ -1,15 +1,20 @@
-import { MAX_PAYMENT_ATTEMPTS, type PaymentRequestedPayload } from '@app/contracts';
-import type { SimulatedOutcome } from './payment-simulator';
+import {
+  MAX_PAYMENT_ATTEMPTS,
+  type PaymentFailedReason,
+  type PaymentRequestedPayload,
+  type PaymentStatus,
+} from '@app/contracts';
+import type { AttemptOutcome } from './payment.types';
 
 // Quy tắc xử lý "yêu cầu thanh toán" (BA mục 5.6, 8.3; Phụ lục C EVT-09..11), tách khỏi DB để test được.
 
+/** Phần của khoản thanh toán đã lưu mà quy tắc cần; entity Payment khớp sẵn kiểu này. */
 export interface PaymentState {
   id: string;
   tripId: string;
   passengerId: string;
   amount: string;
-  status: 'PENDING' | 'SUCCEEDED' | 'FAILED';
-  version: number;
+  status: PaymentStatus;
   attemptNo: number;
   retryable: boolean;
 }
@@ -60,14 +65,13 @@ export function decideAttempt(state: PaymentState, request: PaymentRequestedPayl
   return { kind: 'CHARGE' };
 }
 
-export interface AttemptResult {
-  status: 'SUCCEEDED' | 'FAILED';
-  retryable: boolean;
-  reason: 'SIMULATED_TEMPORARY_FAILURE' | 'SIMULATED_FINAL_FAILURE' | null;
-}
+/** Thành công không có lý do; thất bại luôn có lý do và cờ thử lại. */
+export type AttemptResult =
+  | { status: 'SUCCEEDED'; retryable: false; reason: null }
+  | { status: 'FAILED'; retryable: boolean; reason: PaymentFailedReason };
 
 /** Lỗi tạm thời ở lần thử cuối cùng thì không còn thử lại được. */
-export function attemptResult(outcome: SimulatedOutcome, attemptNo: number): AttemptResult {
+export function attemptResult(outcome: AttemptOutcome, attemptNo: number): AttemptResult {
   if (outcome === 'SUCCESS') {
     return { status: 'SUCCEEDED', retryable: false, reason: null };
   }

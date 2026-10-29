@@ -8,7 +8,12 @@ const root = path.resolve(__dirname, '../..');
 // Hai DB của C: container, database, cổng trên máy, tiền tố biến môi trường.
 const services = {
   payment: { container: 'payment-db', database: 'payment_db', port: 5544, prefix: 'PAYMENT' },
-  notification: { container: 'notification-db', database: 'notification_db', port: 5545, prefix: 'NOTIFICATION' },
+  notification: {
+    container: 'notification-db',
+    database: 'notification_db',
+    port: 5545,
+    prefix: 'NOTIFICATION',
+  },
 };
 
 const envFile = path.join(root, '.env');
@@ -58,7 +63,14 @@ if (!fs.existsSync(envFile)) {
       [p + '_MIGRATION_DATABASE_URL', 'postgresql://' + name + '_migrator:' + migrator + localUrl],
     ];
 
-    appended.push('', '# ' + name + ': DB riêng ' + service.container + ' (deploy/c-dev.compose.yml), tạo bởi npm run c:setup:dev');
+    appended.push(
+      '',
+      '# ' +
+        name +
+        ': DB riêng ' +
+        service.container +
+        ' (deploy/c-dev.compose.yml), tạo bởi npm run c:setup:dev',
+    );
 
     for (const [key, value] of wanted) {
       if (current.get(key) === value) {

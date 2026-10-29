@@ -325,6 +325,71 @@ async function createCEnvironment({ prefix = 'ds03-c' } = {}) {
   };
 }
 
+/**
+ * Ghi kết quả từng kịch bản cho file bằng chứng (BA mục 12.2). `skip()` trả lý do skip nếu hạ tầng không có.
+ * Dùng: const { scenario, outcomes } = scenarioRecorder(test, () => skipReason);
+ */
+function scenarioRecorder(test, skip) {
+  const outcomes = [];
+
+  function scenario(name, fn) {
+    test(name, async t => {
+      const reason = skip();
+
+      if (reason) {
+        return t.skip(reason);
+      }
+
+      const started = Date.now();
+
+      try {
+        const details = await fn();
+
+        outcomes.push({
+          name,
+          status: 'PASS',
+          durationMs: Date.now() - started,
+          ...(details ? { details } : {}),
+        });
+      } catch (error) {
+        outcomes.push({
+          name,
+          status: 'FAIL',
+          durationMs: Date.now() - started,
+          error: error.message,
+        });
+
+        throw error;
+      }
+    });
+  }
+
+  return { scenario, outcomes };
+}
+
+/** Ghi docs/test-evidence/c/<file> với trạng thái tổng, commit và kết quả từng kịch bản; không ghi bí mật. */
+function writeEvidence(file, outcomes, meta) {
+  const directory = path.join(root, 'docs/test-evidence/c');
+
+  fs.mkdirSync(directory, { recursive: true });
+  fs.writeFileSync(
+    path.join(directory, file),
+    JSON.stringify(
+      {
+        executedAt: new Date().toISOString(),
+        status:
+          outcomes.length > 0 && outcomes.every(item => item.status === 'PASS') ? 'PASS' : 'FAIL',
+        commit: commitId(),
+        ...meta,
+        outcomes,
+        secrets: '[REDACTED]',
+      },
+      null,
+      2,
+    ) + '\n',
+  );
+}
+
 function commitId() {
   return (
     spawnSync('git', ['rev-parse', '--short', 'HEAD'], {
@@ -334,4 +399,12 @@ function commitId() {
   );
 }
 
-module.exports = { root, createCEnvironment, dockerAvailable, waitFor, freePort, commitId };
+module.exports = {
+  root,
+  createCEnvironment,
+  dockerAvailable,
+  waitFor,
+  freePort,
+  scenarioRecorder,
+  writeEvidence,
+};

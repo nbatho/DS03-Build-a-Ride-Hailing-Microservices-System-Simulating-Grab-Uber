@@ -3,24 +3,22 @@
 // Chạy: npm run test:c:security     Bằng chứng: docs/test-evidence/c/security.json
 const assert = require('node:assert/strict');
 const { test, before, after } = require('node:test');
-const fs = require('node:fs');
-const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { setTimeout: sleep } = require('node:timers/promises');
 const { connect } = require('amqplib');
 const { RabbitConnection, EventPublisher, loadMessagingConfig } = require('@app/messaging');
 const {
-  root,
   createCEnvironment,
   dockerAvailable,
   waitFor,
-  commitId,
+  scenarioRecorder,
+  writeEvidence,
 } = require('../helpers/c-environment.cjs');
 
-const outcomes = [];
 const bodies = [];
 const tokens = [];
 let skipReason;
+const { scenario, outcomes } = scenarioRecorder(test, () => skipReason);
 let envC;
 let connection;
 let publisher;
@@ -65,35 +63,6 @@ function expectError(response, status, code, label) {
     response.body.code && response.body.message && response.body.correlationId,
     label + ' error shape',
   );
-}
-
-function scenario(name, fn) {
-  test(name, async t => {
-    if (skipReason) {
-      return t.skip(skipReason);
-    }
-
-    const started = Date.now();
-
-    try {
-      const details = await fn();
-
-      outcomes.push({
-        name,
-        status: 'PASS',
-        durationMs: Date.now() - started,
-        ...(details ? { details } : {}),
-      });
-    } catch (error) {
-      outcomes.push({
-        name,
-        status: 'FAIL',
-        durationMs: Date.now() - started,
-        error: error.message,
-      });
-      throw error;
-    }
-  });
 }
 
 before(async () => {
@@ -159,29 +128,13 @@ after(async () => {
   }
 
   if (!skipReason) {
-    const directory = path.join(root, 'docs/test-evidence/c');
-
-    fs.mkdirSync(directory, { recursive: true });
-    fs.writeFileSync(
-      path.join(directory, 'security.json'),
-      JSON.stringify(
-        {
-          executedAt: new Date().toISOString(),
-          status:
-            outcomes.length > 0 && outcomes.every(item => item.status === 'PASS') ? 'PASS' : 'FAIL',
-          commit: commitId(),
-          infrastructure:
-            'disposable PostgreSQL 17 + RabbitMQ 4.1 (deploy/c-test.compose.yml), project ' +
-            envC?.project,
-          path: 'client -> dist/api-gateway -> dist/simulated-payment-service | dist/notification-service',
-          cases: ['S03 (C part)', 'S02 (Payment/Notification/Gateway subset)'],
-          outcomes,
-          secrets: '[REDACTED]',
-        },
-        null,
-        2,
-      ) + '\n',
-    );
+    writeEvidence('security.json', outcomes, {
+      infrastructure:
+        'disposable PostgreSQL 17 + RabbitMQ 4.1 (deploy/c-test.compose.yml), project ' +
+        envC?.project,
+      path: 'client -> dist/api-gateway -> dist/simulated-payment-service | dist/notification-service',
+      cases: ['S03 (C part)', 'S02 (Payment/Notification/Gateway subset)'],
+    });
   }
 });
 
@@ -257,6 +210,7 @@ scenario('S03: body over 64 KiB is 413 at the Gateway and at the service itself'
     'PAYLOAD_TOO_LARGE',
     'gateway',
   );
+
   // Service tự giới hạn, không chỉ trông vào Gateway (BA mục 10.1).
   expectError(
     await call(envC.apps.notification.url, pathname, {
@@ -268,6 +222,7 @@ scenario('S03: body over 64 KiB is 413 at the Gateway and at the service itself'
     'PAYLOAD_TOO_LARGE',
     'service',
   );
+
   expectError(
     await call(gateway, pathname, { method: 'PATCH', token: passengerToken, raw: '{"read":' }),
     400,
@@ -283,18 +238,21 @@ scenario('S02: cross-user access, wrong role and internal routes are refused', a
     'RESOURCE_FORBIDDEN',
     'other passenger payment',
   );
+
   expectError(
     await call(gateway, '/api/v1/payments?tripId=' + tripId, { token: otherToken }),
     403,
     'RESOURCE_FORBIDDEN',
     'other passenger by trip',
   );
+
   expectError(
     await call(gateway, '/api/v1/payments/' + paymentId, { token: driverToken }),
     403,
     'ROLE_FORBIDDEN',
     'driver role',
   );
+
   expectError(
     await call(gateway, '/api/v1/notifications/' + notificationId + '/read', {
       method: 'PATCH',
@@ -305,6 +263,7 @@ scenario('S02: cross-user access, wrong role and internal routes are refused', a
     'RESOURCE_FORBIDDEN',
     'mark other user notification',
   );
+
   assert.equal(
     (await call(gateway, '/api/v1/notifications', { token: otherToken })).body.items.length,
     0,
@@ -318,6 +277,7 @@ scenario('S02: cross-user access, wrong role and internal routes are refused', a
     undefined,
     'internal via gateway',
   );
+
   expectError(
     await call(envC.apps.payment.url, '/internal/v1/payments/' + paymentId, {
       token: passengerToken,
@@ -326,6 +286,7 @@ scenario('S02: cross-user access, wrong role and internal routes are refused', a
     'INTERNAL_CALLER_FORBIDDEN',
     'internal without service token',
   );
+
   expectError(
     await call(envC.apps.payment.url, '/internal/v1/payments/' + paymentId, {
       headers: { 'X-Service-Token': 'f'.repeat(48) },
@@ -361,6 +322,7 @@ scenario('S02: bad JWTs are refused at the Gateway and at the service', async ()
       'INVALID_TOKEN',
       'gateway ' + label,
     );
+
     expectError(
       await call(envC.apps.payment.url, '/api/v1/payments/' + paymentId, { token }),
       401,

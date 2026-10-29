@@ -16,6 +16,7 @@ export class NotificationEventsConsumer implements OnModuleInit {
     const handle = async (event: NotificationEvent): Promise<void> => {
       await this.notifications.handleEvent(event);
     };
+
     const handlers = Object.fromEntries(NOTIFICATION_EVENT_TYPES.map(type => [type, handle])) as EventHandlers;
 
     await this.consumer.subscribe(EVENT_QUEUES.NOTIFICATION, handlers);

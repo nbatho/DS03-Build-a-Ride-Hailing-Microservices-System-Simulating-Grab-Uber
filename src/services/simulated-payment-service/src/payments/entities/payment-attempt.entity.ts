@@ -1,11 +1,6 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import type { AttemptOutcome } from '../payment.types';
 import { Payment } from './payment.entity';
-
-export enum PaymentAttemptResult {
-  SUCCESS = 'SUCCESS',
-  TEMPORARY_FAILURE = 'TEMPORARY_FAILURE',
-  FINAL_FAILURE = 'FINAL_FAILURE',
-}
 
 // Lịch sử từng lần thử, chỉ thêm (app không có quyền UPDATE/DELETE). Khóa (payment_id, attempt_no).
 @Entity({ name: 'payment_attempts', schema: 'payment_schema' })
@@ -17,7 +12,7 @@ export class PaymentAttempt {
   attemptNo!: number;
 
   @Column('text')
-  result!: PaymentAttemptResult;
+  result!: AttemptOutcome;
 
   @Column('boolean')
   retryable!: boolean;

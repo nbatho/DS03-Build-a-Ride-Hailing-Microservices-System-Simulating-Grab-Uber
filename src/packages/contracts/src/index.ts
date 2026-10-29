@@ -88,4 +88,4 @@ export type {
 export {
   validateRideEvent, assertRideEvent, EventValidationError, buildEventsJsonSchema,
 } from './events/schema';
-export type { EventValidationResult, PayloadOf } from './events/schema';
+export type { EventValidationResult } from './events/schema';

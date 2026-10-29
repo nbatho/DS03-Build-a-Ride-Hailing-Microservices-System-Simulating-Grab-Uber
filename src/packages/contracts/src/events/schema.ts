@@ -1,6 +1,6 @@
 import { CURRENCIES, ZONE_IDS } from '../dtos/common';
 import { OFFER_STATUSES } from '../dtos/matching';
-import { EVENT_CATALOG, EVENT_TYPES, isEventType, type EventPayloads, type EventType, type RideEvent } from './catalog';
+import { EVENT_CATALOG, EVENT_TYPES, isEventType, type EventType, type RideEvent } from './catalog';
 import { EVENT_PRODUCERS, EVENT_SCHEMA_VERSION, RIDE_EVENTS_EXCHANGE } from './envelope';
 import { MATCHING_FAILED_REASONS } from './matching';
 import { PAYMENT_FAILED_REASONS } from './payment';
@@ -119,43 +119,53 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 function checkField(spec: FieldSpec, value: unknown, path: string, errors: string[]): void {
   switch (spec.kind) {
     case 'uuid':
-      if (typeof value !== 'string' || !UUID_PATTERN.test(value)) errors.push(path + ' must be a UUID');
+      if (typeof value !== 'string' || !UUID_PATTERN.test(value)) {errors.push(path + ' must be a UUID');}
+
       return;
     case 'uuid[]':
-      if (!Array.isArray(value)) errors.push(path + ' must be an array');
-      else value.forEach((item, index) => checkField({ kind: 'uuid' }, item, path + '[' + index + ']', errors));
+      if (!Array.isArray(value)) {errors.push(path + ' must be an array');}
+      else {value.forEach((item, index) => checkField({ kind: 'uuid' }, item, path + '[' + index + ']', errors));}
+
       return;
     case 'integer':
       if (!Number.isInteger(value) || (value as number) < spec.minimum) {
         errors.push(path + ' must be an integer >= ' + spec.minimum);
       }
+
       return;
     case 'number':
       if (typeof value !== 'number' || !Number.isFinite(value) || value < spec.minimum || value > spec.maximum) {
         errors.push(path + ' must be a number in [' + spec.minimum + ', ' + spec.maximum + ']');
       }
+
       return;
     case 'money':
-      if (typeof value !== 'string' || !MONEY_PATTERN.test(value)) errors.push(path + ' must be a VND integer string');
+      if (typeof value !== 'string' || !MONEY_PATTERN.test(value)) {errors.push(path + ' must be a VND integer string');}
+
       return;
     case 'boolean':
-      if (typeof value !== 'boolean') errors.push(path + ' must be a boolean');
+      if (typeof value !== 'boolean') {errors.push(path + ' must be a boolean');}
+
       return;
     case 'string':
-      if (typeof value !== 'string' || value.length === 0) errors.push(path + ' must be a non-empty string');
+      if (typeof value !== 'string' || value.length === 0) {errors.push(path + ' must be a non-empty string');}
+
       return;
     case 'datetime':
       if (typeof value !== 'string' || !DATETIME_PATTERN.test(value) || Number.isNaN(Date.parse(value))) {
         errors.push(path + ' must be an ISO-8601 date-time');
       }
+
       return;
     case 'enum':
       if (typeof value !== 'string' || !spec.values.includes(value)) {
         errors.push(path + ' must be one of ' + spec.values.join(', '));
       }
+
       return;
     case 'object':
       checkObject(spec.fields, value, path, errors);
+
       return;
   }
 }
@@ -163,19 +173,25 @@ function checkField(spec: FieldSpec, value: unknown, path: string, errors: strin
 function checkObject(fields: Fields, value: unknown, path: string, errors: string[]): void {
   if (!isPlainObject(value)) {
     errors.push(path + ' must be an object');
+
     return;
   }
+
   for (const [name, field] of Object.entries(fields)) {
     const fieldPath = path + '.' + name;
+
     if (value[name] === undefined) {
-      if (!field.optional) errors.push(fieldPath + ' is required');
+      if (!field.optional) {errors.push(fieldPath + ' is required');}
+
       continue;
     }
+
     checkField(field, value[name], fieldPath, errors);
   }
+
   // Shape cố định theo schema_version; thêm field là thay đổi contract, không âm thầm nhận.
   for (const name of Object.keys(value)) {
-    if (!(name in fields)) errors.push(path + '.' + name + ' is not allowed');
+    if (!(name in fields)) {errors.push(path + '.' + name + ' is not allowed');}
   }
 }
 
@@ -185,6 +201,7 @@ function checkAggregate(event: RideEvent, errors: string[]): void {
   const { aggregate } = EVENT_CATALOG[event.type];
   let expectedId: unknown;
   let expectedVersion: unknown;
+
   if (aggregate === 'trip') {
     expectedId = payload.tripId;
     expectedVersion = payload.tripVersion;
@@ -197,9 +214,11 @@ function checkAggregate(event: RideEvent, errors: string[]): void {
     expectedId = payload.jobId;
     expectedVersion = payload.jobVersion;
   }
+
   if (expectedId !== undefined && expectedId !== event.aggregate_id) {
     errors.push('$.aggregate_id must equal the ' + aggregate + ' id in payload');
   }
+
   if (expectedVersion !== undefined && expectedVersion !== event.aggregate_version) {
     errors.push('$.aggregate_version must equal the ' + aggregate + ' version in payload');
   }
@@ -211,20 +230,29 @@ export type EventValidationResult =
 
 export function validateRideEvent(input: unknown): EventValidationResult {
   const errors: string[] = [];
-  if (!isPlainObject(input)) return { ok: false, errors: ['$ must be an object'] };
+
+  if (!isPlainObject(input)) {return { ok: false, errors: ['$ must be an object'] };}
+
   const { payload, ...envelope } = input;
+
   checkObject(ENVELOPE_FIELDS, { ...envelope, payload: {} }, '$', errors);
   if (envelope.schema_version !== undefined && envelope.schema_version !== EVENT_SCHEMA_VERSION) {
     errors.push('$.schema_version must be ' + EVENT_SCHEMA_VERSION);
   }
-  if (!isEventType(envelope.type)) return { ok: false, errors };
+
+  if (!isEventType(envelope.type)) {return { ok: false, errors };}
+
   if (envelope.producer !== undefined && envelope.producer !== EVENT_CATALOG[envelope.type].producer) {
     errors.push('$.producer must be ' + EVENT_CATALOG[envelope.type].producer + ' for ' + envelope.type);
   }
+
   checkObject(PAYLOAD_FIELDS[envelope.type], payload, '$.payload', errors);
-  if (errors.length > 0) return { ok: false, errors };
+  if (errors.length > 0) {return { ok: false, errors };}
+
   const event = input as unknown as RideEvent;
+
   checkAggregate(event, errors);
+
   return errors.length > 0 ? { ok: false, errors } : { ok: true, event };
 }
 
@@ -237,17 +265,18 @@ export class EventValidationError extends Error {
 
 export function assertRideEvent(input: unknown): RideEvent;
 export function assertRideEvent<T extends EventType>(input: unknown, type: T): RideEvent<T>;
+
 export function assertRideEvent(input: unknown, type?: EventType): RideEvent {
   const result = validateRideEvent(input);
-  if (!result.ok) throw new EventValidationError(result.errors);
+
+  if (!result.ok) {throw new EventValidationError(result.errors);}
+
   if (type !== undefined && result.event.type !== type) {
     throw new EventValidationError(['$.type must be ' + type]);
   }
+
   return result.event;
 }
-
-/** Field của payload dùng cho kiểu tham số generic, ví dụ khi dựng envelope ở bên gửi. */
-export type PayloadOf<T extends EventType> = EventPayloads[T];
 
 function toJsonSchema(spec: FieldSpec): Record<string, unknown> {
   switch (spec.kind) {
@@ -287,6 +316,7 @@ function objectSchema(fields: Fields): Record<string, unknown> {
 export function buildEventsJsonSchema(): Record<string, unknown> {
   const envelope = objectSchema(ENVELOPE_FIELDS);
   const envelopeProperties = envelope.properties as Record<string, unknown>;
+
   return {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     $id: 'https://ds03.local/events.schema.json',
@@ -296,6 +326,7 @@ export function buildEventsJsonSchema(): Record<string, unknown> {
     oneOf: EVENT_TYPES.map(type => ({ $ref: '#/$defs/' + type })),
     $defs: Object.fromEntries(EVENT_TYPES.map(type => {
       const definition = EVENT_CATALOG[type];
+
       return [type, {
         ...envelope,
         title: definition.code + ' ' + type,

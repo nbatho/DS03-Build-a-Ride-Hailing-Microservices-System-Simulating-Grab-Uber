@@ -13,6 +13,7 @@ export const TRIP_EVENT_TYPES = {
   CANCELLED: 'trip.cancelled',
   PAYMENT_REQUESTED: 'payment.requested',
 } as const;
+
 export type TripEventType = typeof TRIP_EVENT_TYPES[keyof typeof TRIP_EVENT_TYPES];
 
 export const TRIP_NO_DRIVER_REASONS = ['NO_CANDIDATE', 'SEARCH_TIMEOUT'] as const;

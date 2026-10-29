@@ -23,6 +23,7 @@ const sample = (type, changes = {}) => {
     payload: { ...event.payload, ...(changes.payload ?? {}) },
   };
 };
+
 const TRIP = 'a1031bdc-44d7-5c67-93ff-7f11b2987aa4';
 const PASSENGER = 'c15878c4-5fc0-5082-a243-691c58a8c3f3';
 const DRIVER = 'e7c02766-ce0d-553f-b18a-3860ac1be699';

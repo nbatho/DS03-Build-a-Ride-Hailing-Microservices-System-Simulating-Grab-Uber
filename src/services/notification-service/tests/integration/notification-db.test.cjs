@@ -38,6 +38,7 @@ before(async () => {
       ...databaseOptions(process.env),
       entities: [Notification, TripProjection, ProcessedEvent],
     });
+
     await dataSource.initialize();
     await dataSource.query('SELECT 1 FROM notification_schema.notifications LIMIT 0');
     service = new NotificationsService(dataSource);

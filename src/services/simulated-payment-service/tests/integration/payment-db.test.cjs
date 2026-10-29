@@ -58,6 +58,7 @@ before(async () => {
       ...databaseOptions(process.env),
       entities: [Payment, PaymentAttempt, ProcessedEvent, OutboxEvent],
     });
+
     await dataSource.initialize();
     await dataSource.query('SELECT 1 FROM payment_schema.payments LIMIT 0');
   } catch (error) {
