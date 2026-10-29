@@ -14,6 +14,7 @@ export async function bootstrap(appModule: Type<unknown>, serviceName: ServiceNa
     const service = SERVICE_CONFIG[serviceName];
     const rawPort = String(config.get<string>(service.portEnv) ?? service.defaultPort);
     const port = Number(rawPort);
+
     if (!/^\d+$/.test(rawPort) || !Number.isInteger(port) || port < 1 || port > 65535) {
       throw new Error(service.portEnv + ' must be an integer between 1 and 65535');
     }
@@ -24,13 +25,18 @@ export async function bootstrap(appModule: Type<unknown>, serviceName: ServiceNa
       { path: 'health/ready', method: RequestMethod.GET },
       { path: 'internal/v1/{*path}', method: RequestMethod.ALL },
     ] });
+
     app.useGlobalPipes(new ValidationPipe({
       whitelist: true, forbidNonWhitelisted: true, transform: true,
     }));
+
     app.useGlobalFilters(new ApiExceptionFilter());
+
     const trusted = serviceName === 'identity-user-service' ? config.get<string>('IDENTITY_TRUSTED_PROXY_CIDRS') : undefined;
+
     app.set('trust proxy', trusted ? trusted.split(',').map(value => value.trim()) : false);
     app.enableShutdownHooks();
+    
     await app.listen(port, config.get<string>('HOST') ?? '127.0.0.1');
     Logger.log(serviceName + ' listening at ' + await app.getUrl(), 'Bootstrap');
   } catch (error) {
