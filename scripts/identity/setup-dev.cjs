@@ -46,10 +46,10 @@ if (fs.existsSync(envFile)) {
       'IDENTITY_MIGRATOR_PASSWORD=' + migration,
       'IDENTITY_DATABASE_URL=postgresql://identity_app:' +
         application +
-        '@127.0.0.1:5541/ride_hailing',
+        '@127.0.0.1:5541/identity_db',
       'IDENTITY_MIGRATION_DATABASE_URL=postgresql://identity_migrator:' +
         migration +
-        '@127.0.0.1:5541/ride_hailing',
+        '@127.0.0.1:5541/identity_db',
       'JWT_ISSUER=ride-hailing',
       'JWT_AUDIENCE=ride-api',
       'JWT_ACCESS_TTL_SECONDS=3600',
