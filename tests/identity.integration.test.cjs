@@ -23,6 +23,7 @@ test(
     const identity = await fixture.launch('identity-user-service', 'IDENTITY_PORT');
     const gateway = await fixture.launch('api-gateway', 'GATEWAY_PORT', {
       IDENTITY_BASE_URL: identity.url,
+      GATEWAY_AUTH_RATE_LIMIT: '0',
     });
     const driver = await fixture.launch(
       'driver-vehicle-location-service',
