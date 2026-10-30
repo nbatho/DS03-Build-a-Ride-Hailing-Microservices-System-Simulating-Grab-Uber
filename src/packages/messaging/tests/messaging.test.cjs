@@ -20,6 +20,8 @@ const {
   createRideEvent,
   handleDelivery,
   NonRetryableEventError,
+  assertEventSize,
+  DLQ_TRUNCATED_BYTES,
   loadMessagingConfig,
   redactUrl,
 } = require('@app/messaging');
@@ -383,4 +385,33 @@ test('if the retry copy cannot be published the original is not ACKed but requeu
   assert.equal(outcome, 'REQUEUED');
   assert.equal(state.acks, 0);
   assert.deepEqual(state.nacks, [{ all: false, requeue: true }]);
+});
+
+test('events over 128 KiB are refused by the sender and dead-lettered (truncated) by the receiver', async () => {
+  const event = sample('trip.cancelled');
+
+  assert.ok(assertEventSize(event).length < 128 * 1024);
+  assert.throws(
+    () => assertEventSize({ ...event, padding: 'x'.repeat(130 * 1024) }),
+    /limit 131072/,
+  );
+
+  const { state, channel, sender } = harness();
+  let handled = false;
+  const huge = Buffer.from(JSON.stringify({ ...event, padding: 'x'.repeat(130 * 1024) }));
+  const outcome = await handleDelivery(
+    channel,
+    sender,
+    'notification.events',
+    { 'trip.cancelled': async () => (handled = true) },
+    delivery(huge),
+    silent,
+  );
+
+  assert.equal(outcome, 'DEAD_LETTERED');
+  assert.equal(handled, false);
+  assert.equal(state.published[0].headers['x-error-code'], 'EVENT_TOO_LARGE');
+  assert.equal(state.published[0].headers['x-original-size'], huge.length);
+  assert.equal(state.published[0].content.length, DLQ_TRUNCATED_BYTES);
+  assert.equal(state.acks, 1);
 });

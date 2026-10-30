@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import { CurrentUser } from '@app/auth';
 import type { Actor, Notification, NotificationsPage } from '@app/contracts';
-import { ApiError } from '@app/runtime';
+import { uuidParam } from '@app/runtime';
 import { ListNotificationsQueryDto, ReadNotificationDto } from './dto/notifications.dto';
 import { NotificationsService } from './notifications.service';
 
@@ -18,13 +18,7 @@ export class NotificationsController {
   @Patch(':notificationId/read')
   markRead(
     @CurrentUser() actor: Actor,
-    @Param(
-      'notificationId',
-      new ParseUUIDPipe({
-        exceptionFactory: () => new ApiError(400, 'VALIDATION_ERROR', 'notificationId must be a UUID'),
-      }),
-    )
-    notificationId: string,
+    @Param('notificationId', uuidParam('notificationId')) notificationId: string,
     @Body() _body: ReadNotificationDto,
   ): Promise<Notification> {
     return this.notifications.markRead(actor.userId, notificationId);

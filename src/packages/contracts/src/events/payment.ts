@@ -8,6 +8,7 @@ export const PAYMENT_EVENT_TYPES = {
   SUCCEEDED: 'payment.succeeded',
   FAILED: 'payment.failed',
 } as const;
+
 export type PaymentEventType = typeof PAYMENT_EVENT_TYPES[keyof typeof PAYMENT_EVENT_TYPES];
 
 export const PAYMENT_FAILED_REASONS = ['SIMULATED_TEMPORARY_FAILURE', 'SIMULATED_FINAL_FAILURE'] as const;

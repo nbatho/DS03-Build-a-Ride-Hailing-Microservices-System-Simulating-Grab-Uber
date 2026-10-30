@@ -4,11 +4,11 @@ import type { Notification, NotificationsPage } from '@app/contracts';
 import { processEventOnce } from '@app/messaging';
 import { ApiError } from '@app/runtime';
 import { decodeCursor, encodeCursor } from './cursor';
-//khoi tao
 import {
   applyEvent,
   toNotificationDto,
   tripIdOf,
+  type NewNotification,
   type NotificationEvent,
   type StoredNotification,
   type TripProjectionState,
@@ -154,75 +154,87 @@ export class NotificationsService {
   }
 
   private async applyInTransaction(manager: EntityManager, event: NotificationEvent): Promise<number> {
-    const tripId = tripIdOf(event);
+    const current = await lockProjection(manager, tripIdOf(event));
+    const { projection, notifications } = applyEvent(current, event);
 
-    await manager.query(
-      'INSERT INTO notification_schema.trip_projection (trip_id) VALUES ($1) ON CONFLICT (trip_id) DO NOTHING',
-      [tripId],
-    );
+    await saveProjection(manager, projection);
 
-    const [row] = await manager.query(
-      `SELECT trip_id, trip_version, trip_status, terminal_state, terminal_event_id, known_driver_ids,
-              passenger_id, payment_id, payment_version, payment_status
-         FROM notification_schema.trip_projection WHERE trip_id = $1 FOR UPDATE`,
-      [tripId],
-    );
-    const current: TripProjectionState = {
-      tripId: row.trip_id,
-      tripVersion: row.trip_version,
-      tripStatus: row.trip_status,
-      terminalState: row.terminal_state,
-      terminalEventId: row.terminal_event_id,
-      knownDriverIds: row.known_driver_ids ?? [],
-      passengerId: row.passenger_id,
-      paymentId: row.payment_id,
-      paymentVersion: row.payment_version,
-      paymentStatus: row.payment_status,
-    };
-    const { projection: next, notifications } = applyEvent(current, event);
+    return insertNotifications(manager, notifications);
+  }
+}
 
-    await manager.query(
-      `UPDATE notification_schema.trip_projection
-          SET trip_version = $2, trip_status = $3, terminal_state = $4, terminal_event_id = $5,
-              known_driver_ids = $6::uuid[], passenger_id = $7, payment_id = $8, payment_version = $9,
-              payment_status = $10, updated_at = now()
-        WHERE trip_id = $1`,
+/** Khóa bản sao của chuyến (tạo dòng rỗng nếu chưa có) để các sự kiện cùng chuyến xử lý lần lượt. */
+async function lockProjection(manager: EntityManager, tripId: string): Promise<TripProjectionState> {
+  await manager.query(
+    'INSERT INTO notification_schema.trip_projection (trip_id) VALUES ($1) ON CONFLICT (trip_id) DO NOTHING',
+    [tripId],
+  );
+
+  const [row] = await manager.query(
+    `SELECT trip_id, trip_version, trip_status, terminal_state, terminal_event_id, known_driver_ids,
+            passenger_id, payment_id, payment_version, payment_status
+       FROM notification_schema.trip_projection WHERE trip_id = $1 FOR UPDATE`,
+    [tripId],
+  );
+
+  return {
+    tripId: row.trip_id,
+    tripVersion: row.trip_version,
+    tripStatus: row.trip_status,
+    terminalState: row.terminal_state,
+    terminalEventId: row.terminal_event_id,
+    knownDriverIds: row.known_driver_ids ?? [],
+    passengerId: row.passenger_id,
+    paymentId: row.payment_id,
+    paymentVersion: row.payment_version,
+    paymentStatus: row.payment_status,
+  };
+}
+
+async function saveProjection(manager: EntityManager, projection: TripProjectionState): Promise<void> {
+  await manager.query(
+    `UPDATE notification_schema.trip_projection
+        SET trip_version = $2, trip_status = $3, terminal_state = $4, terminal_event_id = $5,
+            known_driver_ids = $6::uuid[], passenger_id = $7, payment_id = $8, payment_version = $9,
+            payment_status = $10, updated_at = now()
+      WHERE trip_id = $1`,
+    [
+      projection.tripId,
+      projection.tripVersion,
+      projection.tripStatus,
+      projection.terminalState,
+      projection.terminalEventId,
+      projection.knownDriverIds,
+      projection.passengerId,
+      projection.paymentId,
+      projection.paymentVersion,
+      projection.paymentStatus,
+    ],
+  );
+}
+
+/** Chèn thông báo, bỏ qua bản trùng (recipient, source_event, type); trả về số thông báo mới. */
+async function insertNotifications(manager: EntityManager, notifications: NewNotification[]): Promise<number> {
+  let created = 0;
+
+  for (const notification of notifications) {
+    const inserted: unknown[] = await manager.query(
+      `INSERT INTO notification_schema.notifications (recipient_id, source_event_id, trip_id, type, title, payload)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+       ON CONFLICT (recipient_id, source_event_id, type) DO NOTHING
+       RETURNING id`,
       [
-        tripId,
-        next.tripVersion,
-        next.tripStatus,
-        next.terminalState,
-        next.terminalEventId,
-        next.knownDriverIds,
-        next.passengerId,
-        next.paymentId,
-        next.paymentVersion,
-        next.paymentStatus,
+        notification.recipientId,
+        notification.sourceEventId,
+        notification.tripId,
+        notification.type,
+        notification.title,
+        JSON.stringify(notification.payload),
       ],
     );
 
-    let created = 0;
-
-    for (const notification of notifications) {
-      const inserted: unknown[] = await manager.query(
-        `INSERT INTO notification_schema.notifications
-           (recipient_id, source_event_id, trip_id, type, title, payload)
-         VALUES ($1, $2, $3, $4, $5, $6::jsonb)
-         ON CONFLICT (recipient_id, source_event_id, type) DO NOTHING
-         RETURNING id`,
-        [
-          notification.recipientId,
-          notification.sourceEventId,
-          notification.tripId,
-          notification.type,
-          notification.title,
-          JSON.stringify(notification.payload),
-        ],
-      );
-
-      created += inserted.length;
-    }
-
-    return created;
+    created += inserted.length;
   }
+
+  return created;
 }

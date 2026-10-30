@@ -22,7 +22,7 @@ export {
 } from './rabbit-connection';
 
 export type { ConnectionSetup } from './rabbit-connection';
-export { EventPublisher, createRideEvent } from './event-publisher';
+export { EventPublisher, createRideEvent, assertEventSize } from './event-publisher';
 export type { CreateEventInput } from './event-publisher';
 
 export {
@@ -32,6 +32,7 @@ export {
   RETRY_COUNT_HEADER,
   ERROR_CODE_HEADER,
   ERROR_MESSAGE_HEADER,
+  DLQ_TRUNCATED_BYTES,
 } from './event-consumer';
 
 export type {

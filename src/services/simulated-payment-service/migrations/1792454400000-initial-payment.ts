@@ -88,6 +88,7 @@ export class InitialPayment1792454400000 implements MigrationInterface {
         CONSTRAINT ck_outbox_events_lease CHECK ((lease_token IS NULL) = (lease_until IS NULL))
       )
     `);
+
     await queryRunner.query(
       "CREATE INDEX ix_outbox_events_dispatch ON payment_schema.outbox_events (next_retry_at) WHERE status IN ('PENDING', 'PUBLISHING')",
     );

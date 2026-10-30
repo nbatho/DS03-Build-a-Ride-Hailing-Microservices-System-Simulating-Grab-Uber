@@ -187,6 +187,9 @@ Các module chính là `users`, `drivers`, `trips`, `payments`, `notifications`,
   người nhận. API: `GET /api/v1/notifications?limit&cursor&unreadOnly`, `PATCH /api/v1/notifications/{id}/read`.
 - **Gateway** (`:8080`): chỉ chuyển tiếp các cặp method + đường dẫn trong `src/apps/api-gateway/src/proxy/routes.ts`,
   chặn `/internal/...`, bỏ header giả (`X-Service-Token`, `X-User-Id`, `X-Role`), chờ tối đa 10 giây.
+  Giới hạn theo IP: đăng ký/đăng nhập `GATEWAY_AUTH_RATE_LIMIT` (mặc định 10/phút), còn lại
+  `GATEWAY_RATE_LIMIT_PER_MINUTE` (mặc định 300/phút); vượt thì 429 `RATE_LIMITED` + `Retry-After`; `0` = tắt.
+- Sự kiện tối đa 128 KiB (BA mục 10.1): bên gửi từ chối, bên nhận đưa vào DLQ với `EVENT_TOO_LARGE`, chỉ giữ 1 KiB đầu.
 - **DB của C**: `npm run c:setup:dev` (mật khẩu DB + RabbitMQ vào `.env`), `c:db:up`, `migration:c:run`, `c:db:verify`.
 - **Cả hệ thống**: `npm run stack:up` dựng 7 DB, RabbitMQ, migration và 8 app (`deploy/docker-compose.yml`,
   `deploy/node-service.Dockerfile`); chỉ mở `127.0.0.1:8080`. `stack:ps`, `stack:logs`, `stack:down`.
@@ -195,6 +198,9 @@ Các module chính là `users`, `drivers`, `trips`, `payments`, `notifications`,
 - Test phục hồi `npm run test:c:recovery` (cần Docker, tự dựng và xóa hạ tầng riêng qua `deploy/c-test.compose.yml`):
   R01 Payment tắt/bật, R03 gửi trùng / tin hỏng / kill giữa chừng / RabbitMQ khởi động lại, F09 thử lại thanh toán,
   F10 lời mời đến sau khi hủy. Bằng chứng ghi vào `docs/test-evidence/c/recovery.json`.
+- Test bảo mật `npm run test:c:security` (cần Docker): S03 field lạ / sai miền / body > 64 KiB / sự kiện > 128 KiB /
+  quét lộ token và mật khẩu trong log, S02 truy cập chéo, sai vai trò, JWT hỏng, API nội bộ — qua Gateway thật tới
+  Payment/Notification thật. Bằng chứng: `docs/test-evidence/c/security.json`. Giới hạn 429 test trong `npm run test:gateway`.
 
 ### Sự kiện và RabbitMQ (Phụ lục C)
 

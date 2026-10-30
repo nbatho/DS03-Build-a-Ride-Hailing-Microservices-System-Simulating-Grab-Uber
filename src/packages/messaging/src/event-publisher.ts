@@ -3,6 +3,8 @@ import { Injectable } from '@nestjs/common';
 import {
   EVENT_CATALOG,
   EVENT_SCHEMA_VERSION,
+  EventValidationError,
+  MAX_EVENT_BYTES,
   RIDE_EVENTS_EXCHANGE,
   assertRideEvent,
   type EventPayloads,
@@ -23,12 +25,25 @@ export interface CreateEventInput<T extends EventType> {
   occurredAt?: Date;
 }
 
+/** Sự kiện đã mã hóa vượt MAX_EVENT_BYTES (128 KiB): bên gửi từ chối, không ghi outbox hay gửi đi. */
+export function assertEventSize(event: unknown): Buffer {
+  const body = Buffer.from(JSON.stringify(event));
+
+  if (body.length > MAX_EVENT_BYTES) {
+    throw new EventValidationError([
+      'event is ' + body.length + ' bytes, limit ' + MAX_EVENT_BYTES + ' (BA 10.1)',
+    ]);
+  }
+
+  return body;
+}
+
 /** Dựng envelope đúng Phụ lục C (producer lấy từ catalog) và kiểm tra trước khi ghi outbox. */
 export function createRideEvent<T extends EventType>(
   type: T,
   input: CreateEventInput<T>,
 ): RideEvent<T> {
-  return assertRideEvent(
+  const event = assertRideEvent(
     {
       event_id: input.eventId ?? randomUUID(),
       type,
@@ -43,6 +58,10 @@ export function createRideEvent<T extends EventType>(
     },
     type,
   );
+
+  assertEventSize(event);
+
+  return event;
 }
 
 /**
@@ -58,21 +77,18 @@ export class EventPublisher {
   }
 
   async publish(input: unknown): Promise<RideEvent> {
+    // Cỡ trước, cấu trúc sau: tin quá cỡ bị từ chối mà không phải duyệt hết nội dung.
+    const body = assertEventSize(input);
     const event = assertRideEvent(input);
 
-    await this.connection.publishConfirmed(
-      RIDE_EVENTS_EXCHANGE,
-      event.type,
-      Buffer.from(JSON.stringify(event)),
-      {
-        messageId: event.event_id,
-        correlationId: event.correlation_id,
-        type: event.type,
-        appId: event.producer,
-        timestamp: Math.floor(Date.parse(event.occurred_at) / 1000),
-        headers: { 'x-schema-version': event.schema_version },
-      },
-    );
+    await this.connection.publishConfirmed(RIDE_EVENTS_EXCHANGE, event.type, body, {
+      messageId: event.event_id,
+      correlationId: event.correlation_id,
+      type: event.type,
+      appId: event.producer,
+      timestamp: Math.floor(Date.parse(event.occurred_at) / 1000),
+      headers: { 'x-schema-version': event.schema_version },
+    });
 
     return event;
   }

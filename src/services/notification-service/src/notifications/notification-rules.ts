@@ -19,6 +19,7 @@ export const NOTIFICATION_EVENT_TYPES = [
   'payment.succeeded',
   'payment.failed',
 ] as const;
+
 export type NotificationEventType = (typeof NOTIFICATION_EVENT_TYPES)[number];
 export type NotificationEvent = RideEvent<NotificationEventType>;
 

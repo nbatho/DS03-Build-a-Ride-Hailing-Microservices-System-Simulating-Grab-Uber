@@ -17,6 +17,7 @@ export const TRIP_STATUSES = [
   'CANCELLED',
   'NO_DRIVER',
 ] as const;
+
 export type TripStatus = typeof TRIP_STATUSES[number];
 
 /**

@@ -2,7 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { ApiError, type ContextRequest } from '@app/runtime';
-import { UPSTREAMS, matchRoute, pathAllowsOtherMethod, type GatewayRoute, type Upstream } from './routes';
+import {
+  UPSTREAMS,
+  matchRoute,
+  pathAllowsOtherMethod,
+  requestTarget,
+  type GatewayRoute,
+  type Upstream,
+} from './routes';
 
 /** Chờ service phía sau tối đa 10 giây (BA mục 4.2); không tự gửi lại request. */
 export const UPSTREAM_TIMEOUT_MS = 10_000;
@@ -49,18 +56,18 @@ export class ProxyService {
 
   /** Tìm route trong danh sách cho phép; không có thì 404 (hoặc 405 nếu chỉ sai method). */
   resolve(req: Request): { route: GatewayRoute; pathname: string; search: string } {
-    const url = new URL(req.originalUrl, 'http://gateway.local');
-    const route = matchRoute(req.method, url.pathname);
+    const { pathname, search } = requestTarget(req.originalUrl);
+    const route = matchRoute(req.method, pathname);
 
     if (!route) {
-      if (pathAllowsOtherMethod(url.pathname)) {
+      if (pathAllowsOtherMethod(pathname)) {
         throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Method not allowed for this route');
       }
 
       throw new ApiError(404, 'NOT_FOUND', 'Route not found');
     }
 
-    return { route, pathname: url.pathname, search: url.search };
+    return { route, pathname, search };
   }
 
   async forward(raw: Request, res: Response): Promise<void> {

@@ -9,6 +9,7 @@ export const UPSTREAMS = {
   NOTIFICATION: { env: 'NOTIFICATION_BASE_URL', fallback: 'http://127.0.0.1:3005' },
   PRICING: { env: 'PRICING_BASE_URL', fallback: 'http://127.0.0.1:3007' },
 } as const;
+
 export type Upstream = keyof typeof UPSTREAMS;
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH';
@@ -51,6 +52,13 @@ export const GATEWAY_ROUTES: readonly GatewayRoute[] = [
 ];
 
 export const API_PREFIX = '/api/v1';
+
+/** Tách pathname và query của request; không bao giờ lấy host từ client. */
+export function requestTarget(originalUrl: string): { pathname: string; search: string } {
+  const { pathname, search } = new URL(originalUrl, 'http://gateway.local');
+
+  return { pathname, search };
+}
 
 // Một đoạn mã: chữ, số, gạch ngang; không có '/', '%', '.' để không lách sang đường khác.
 const ID_SEGMENT = '[A-Za-z0-9-]{1,64}';

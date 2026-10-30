@@ -125,7 +125,8 @@
     "stack:down": "docker compose --env-file .env -f deploy/docker-compose.yml down",
     "stack:ps": "docker compose --env-file .env -f deploy/docker-compose.yml ps",
     "stack:logs": "docker compose --env-file .env -f deploy/docker-compose.yml logs -f --tail 100",
-    "test:c:recovery": "npm run build:simulated-payment-service && npm run build:notification-service && node --test --test-timeout=600000 -r ts-node/register -r tsconfig-paths/register tests/fault-tolerance/c-recovery.test.cjs"
+    "test:c:recovery": "npm run build:simulated-payment-service && npm run build:notification-service && node --test --test-timeout=600000 -r ts-node/register -r tsconfig-paths/register tests/fault-tolerance/c-recovery.test.cjs",
+    "test:c:security": "npm run build:simulated-payment-service && npm run build:notification-service && npm run build:api-gateway && node --test --test-timeout=600000 -r ts-node/register -r tsconfig-paths/register tests/security/c-security.test.cjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.2.7",

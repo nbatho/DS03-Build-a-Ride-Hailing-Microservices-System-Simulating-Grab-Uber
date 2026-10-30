@@ -49,6 +49,7 @@ test('a re-sent request for an attempt already run does not create a new attempt
     kind: 'SKIP',
     reason: 'ATTEMPT_ALREADY_PROCESSED',
   });
+
   assert.deepEqual(decideAttempt(failed, { ...request, attemptNo: 2 }), { kind: 'CHARGE' });
 });
 
@@ -80,6 +81,7 @@ test('temporary failure is retryable only before the 3rd attempt', () => {
     retryable: true,
     reason: 'SIMULATED_TEMPORARY_FAILURE',
   });
+
   assert.equal(attemptResult('TEMPORARY_FAILURE', 3).retryable, false);
   assert.deepEqual(attemptResult('FINAL_FAILURE', 1), {
     status: 'FAILED',

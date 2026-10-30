@@ -1,7 +1,13 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { Channel, ChannelModel, ConsumeMessage, MessagePropertyHeaders } from 'amqplib';
-import { validateRideEvent, type EventQueue, type EventType, type RideEvent } from '@app/contracts';
+import {
+  MAX_EVENT_BYTES,
+  validateRideEvent,
+  type EventQueue,
+  type EventType,
+  type RideEvent,
+} from '@app/contracts';
 import { MESSAGING_CONFIG, type MessagingConfig } from './config';
 import { RabbitConnection } from './rabbit-connection';
 import { MAX_DELIVERY_RETRIES, deadLetterQueueName, retryQueueName } from './topology';
@@ -9,6 +15,8 @@ import { MAX_DELIVERY_RETRIES, deadLetterQueueName, retryQueueName } from './top
 export const RETRY_COUNT_HEADER = 'x-retry-count';
 export const ERROR_CODE_HEADER = 'x-error-code';
 export const ERROR_MESSAGE_HEADER = 'x-error-message';
+/** Tin quá cỡ chỉ giữ phần đầu trong DLQ (BA mục 10.1), không chép toàn bộ. */
+export const DLQ_TRUNCATED_BYTES = 1024;
 
 export interface DeliveryContext {
   queue: EventQueue;
@@ -123,7 +131,12 @@ export async function handleDelivery(
 ): Promise<DeliveryOutcome> {
   const retries = retryCount(message.properties.headers);
 
-  const deadLetter = async (code: string, reason: string): Promise<DeliveryOutcome> => {
+  const deadLetter = async (
+    code: string,
+    reason: string,
+    content: Buffer = message.content,
+    extraHeaders: MessagePropertyHeaders = {},
+  ): Promise<DeliveryOutcome> => {
     logger.error(
       queue +
         ' -> DLQ ' +
@@ -139,8 +152,9 @@ export async function handleDelivery(
       await sender.publishConfirmed(
         '',
         deadLetterQueueName(queue),
-        message.content,
+        content,
         copyOptions(message, {
+          ...extraHeaders,
           [RETRY_COUNT_HEADER]: retries,
           [ERROR_CODE_HEADER]: code,
           [ERROR_MESSAGE_HEADER]: reason,
@@ -172,6 +186,16 @@ export async function handleDelivery(
 
     return 'REQUEUED';
   };
+
+  // Kiểm tra cỡ trước khi đọc JSON: tin quá cỡ vào DLQ ngay, chỉ giữ phần đầu đã cắt.
+  if (message.content.length > MAX_EVENT_BYTES) {
+    return deadLetter(
+      'EVENT_TOO_LARGE',
+      'Event is ' + message.content.length + ' bytes, limit ' + MAX_EVENT_BYTES,
+      message.content.subarray(0, DLQ_TRUNCATED_BYTES),
+      { 'x-original-size': message.content.length, 'x-truncated': true },
+    );
+  }
 
   let parsed: unknown;
 
