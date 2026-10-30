@@ -31,15 +31,14 @@ services:
   identity-db:
     image: postgres:17-bookworm
     environment:
-      # Tài khoản chưa đổi tên DB sang identity_db (BA mục 3.2); giữ ride_hailing cho khớp identity-init.sql.
-      POSTGRES_DB: ride_hailing
+      POSTGRES_DB: identity_db
       POSTGRES_PASSWORD: ${IDENTITY_BOOTSTRAP_PASSWORD:?Run npm run identity:setup:dev}
       IDENTITY_APP_PASSWORD: ${IDENTITY_APP_PASSWORD:?Run npm run identity:setup:dev}
       IDENTITY_MIGRATOR_PASSWORD: ${IDENTITY_MIGRATOR_PASSWORD:?Run npm run identity:setup:dev}
     volumes:
       - identity-db-data:/var/lib/postgresql/data
       - ./postgres/identity-init.sql:/docker-entrypoint-initdb.d/001-identity.sql:ro
-    healthcheck: { test: ['CMD-SHELL', 'pg_isready -U postgres -d ride_hailing'], <<: *db-health }
+    healthcheck: { test: ['CMD-SHELL', 'pg_isready -U postgres -d identity_db'], <<: *db-health }
 
   driver-db:
     image: postgres:17-bookworm
@@ -130,7 +129,7 @@ services:
     depends_on: { identity-db: { condition: service_healthy } }
     environment:
       IDENTITY_DB_SCHEMA: identity_schema
-      IDENTITY_MIGRATION_DATABASE_URL: postgresql://identity_migrator:${IDENTITY_MIGRATOR_PASSWORD}@identity-db:5432/ride_hailing
+      IDENTITY_MIGRATION_DATABASE_URL: postgresql://identity_migrator:${IDENTITY_MIGRATOR_PASSWORD}@identity-db:5432/identity_db
     command: ['node', 'scripts/identity/migrate.cjs', 'run', '--compiled']
 
   driver-migrate:
@@ -181,7 +180,7 @@ services:
       <<: *jwt-env
       IDENTITY_PORT: '3001'
       IDENTITY_DB_SCHEMA: identity_schema
-      IDENTITY_DATABASE_URL: postgresql://identity_app:${IDENTITY_APP_PASSWORD}@identity-db:5432/ride_hailing
+      IDENTITY_DATABASE_URL: postgresql://identity_app:${IDENTITY_APP_PASSWORD}@identity-db:5432/identity_db
       JWT_ACCESS_TTL_SECONDS: '3600'
       JWT_PRIVATE_KEY_FILE: /run/secrets/identity-private.pem
       BCRYPT_ROUNDS: '10'
