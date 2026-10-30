@@ -191,6 +191,7 @@ Các module chính là `users`, `drivers`, `trips`, `payments`, `notifications`,
   `GATEWAY_RATE_LIMIT_PER_MINUTE` (mặc định 300/phút); vượt thì 429 `RATE_LIMITED` + `Retry-After`; `0` = tắt.
 - Sự kiện tối đa 128 KiB (BA mục 10.1): bên gửi từ chối, bên nhận đưa vào DLQ với `EVENT_TOO_LARGE`, chỉ giữ 1 KiB đầu.
 - **DB của C**: `npm run c:setup:dev` (mật khẩu DB + RabbitMQ vào `.env`), `c:db:up`, `migration:c:run`, `c:db:verify`.
+- **DB của Trip**: `npm run trip:setup:dev` (mật khẩu DB vào `.env`, bắt buộc trước `stack:up`), `trip:db:up`, `migration:trip:run`.
 - **Cả hệ thống**: `npm run stack:up` dựng 7 DB, RabbitMQ, migration và 8 app (`deploy/docker-compose.yml`,
   `deploy/node-service.Dockerfile`); chỉ mở `127.0.0.1:8080`. `stack:ps`, `stack:logs`, `stack:down`.
 - Test: `npm run test:c:unit` (không cần Docker); `test:payment:integration`, `test:notification:integration`,

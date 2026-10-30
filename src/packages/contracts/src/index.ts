@@ -51,6 +51,23 @@ export type {
   NotificationsPage,
   ReadNotificationRequest,
 } from './dtos/notification';
+export {
+  TRIP_PAYMENT_STATUSES, OPERATION_TYPES, OPERATION_STATUSES, REJECT_REASONS,
+} from './dtos/trip';
+export type {
+  TripPaymentStatus,
+  OperationType,
+  OperationStatus,
+  RejectReason,
+  Trip,
+  TripsPage,
+  Operation,
+  CreateTripRequest,
+  AcceptRequest,
+  RejectRequest,
+  CancelRequest,
+  RetryOperationRequest,
+} from './dtos/trip';
 export { MATCHING_EVENT_PRODUCER, MATCHING_EVENT_TYPES, MATCHING_FAILED_REASONS } from './events/matching';
 export type {
   MatchingEventType,

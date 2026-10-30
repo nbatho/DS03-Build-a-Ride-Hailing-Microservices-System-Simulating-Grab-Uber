@@ -1,6 +1,6 @@
 # Compose chung của cả hệ thống (BA mục 3.2, 9.1–9.3): 7 PostgreSQL riêng + RabbitMQ + migration + 8 app.
 # Chạy qua npm: stack:up, stack:down, stack:ps, stack:logs. Cần .env do các lệnh setup tạo
-# (identity:setup:dev, b:setup:dev, c:setup:dev, svc:tokens) và khóa JWT trong deploy/secrets.
+# (identity:setup:dev, b:setup:dev, c:setup:dev, trip:setup:dev, svc:tokens) và khóa JWT trong deploy/secrets.
 # Bản demo chỉ mở cổng 8080 của Gateway; DB, RabbitMQ và 3001–3007 chỉ đi trong mạng của Compose.
 # Mỗi app chỉ nhận địa chỉ/mật khẩu DB của chính nó và token nội bộ của các cặp nó tham gia.
 name: ds03
@@ -54,13 +54,14 @@ services:
 
   trip-db:
     image: postgres:17-bookworm
-    profiles: ['trip-db']
-    # TODO(A): bật khi có deploy/postgres/trip-init.sql và migration của Chuyến đi.
     environment:
       POSTGRES_DB: trip_db
-      POSTGRES_PASSWORD: ${TRIP_BOOTSTRAP_PASSWORD:-unset}
+      POSTGRES_PASSWORD: ${TRIP_BOOTSTRAP_PASSWORD:?Run npm run trip:setup:dev}
+      TRIP_APP_PASSWORD: ${TRIP_APP_PASSWORD:?Run npm run trip:setup:dev}
+      TRIP_MIGRATOR_PASSWORD: ${TRIP_MIGRATOR_PASSWORD:?Run npm run trip:setup:dev}
     volumes:
       - trip-db-data:/var/lib/postgresql/data
+      - ./postgres/trip-init.sql:/docker-entrypoint-initdb.d/001-trip.sql:ro
     healthcheck: { test: ['CMD-SHELL', 'pg_isready -U postgres -d trip_db'], <<: *db-health }
 
   payment-db:
@@ -157,6 +158,13 @@ services:
       NOTIFICATION_DB_SCHEMA: notification_schema
       NOTIFICATION_MIGRATION_DATABASE_URL: postgresql://notification_migrator:${NOTIFICATION_MIGRATOR_PASSWORD}@notification-db:5432/notification_db
 
+  trip-migrate:
+    build: { <<: *build-driver-migrate, args: { SERVICE: trip-booking-service } }
+    depends_on: { trip-db: { condition: service_healthy } }
+    environment:
+      TRIP_DB_SCHEMA: trip_schema
+      TRIP_MIGRATION_DATABASE_URL: postgresql://trip_migrator:${TRIP_MIGRATOR_PASSWORD}@trip-db:5432/trip_db
+
   matching-migrate:
     build: { <<: *build-driver-migrate, args: { SERVICE: matching-service } }
     depends_on: { matching-db: { condition: service_healthy } }
@@ -214,11 +222,14 @@ services:
 
   trip:
     build: { <<: *build-runtime, args: { SERVICE: trip-booking-service } }
-    depends_on: { rabbitmq: { condition: service_healthy } }
+    depends_on:
+      trip-migrate: { condition: service_completed_successfully }
+      rabbitmq: { condition: service_healthy }
     environment:
       <<: [*jwt-env, *rabbit-env]
       TRIP_PORT: '3003'
-      # TODO(A): TRIP_DATABASE_URL khi Chuyến đi có DB riêng (trip-db).
+      TRIP_DB_SCHEMA: trip_schema
+      TRIP_DATABASE_URL: postgresql://trip_app:${TRIP_APP_PASSWORD}@trip-db:5432/trip_db
       PRICING_BASE_URL: http://pricing:3007
       DRIVER_BASE_URL: http://driver:3002
       MATCHING_BASE_URL: http://matching:3006

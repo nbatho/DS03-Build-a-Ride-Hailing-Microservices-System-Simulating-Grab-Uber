@@ -8,6 +8,7 @@ const {
   createMatchingDatabase,
   createMatchingBroker,
 } = require('./helpers/matching-environment.cjs');
+const { createTripDatabase } = require('./helpers/trip-environment.cjs');
 const apps = [
   ['api-gateway', 'GATEWAY_PORT'],
   ['identity-user-service', 'IDENTITY_PORT'],
@@ -28,6 +29,7 @@ test(
     const driver = await createDriverDatabase(t);
     const matching = await createMatchingDatabase(t);
     const broker = await createMatchingBroker(t);
+    const trip = await createTripDatabase(t);
     const running = [];
 
     for (const [name, portEnv] of apps) {
@@ -41,7 +43,9 @@ test(
               ? driver.env
               : name === 'matching-service'
                 ? { ...matching.env, ...broker.env }
-                : {},
+                : name === 'trip-booking-service'
+                  ? { ...trip.env, ...broker.env }
+                  : {},
         ),
       );
     }
