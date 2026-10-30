@@ -11,7 +11,6 @@ import { driverStatus, isLocationFresh } from './driver-status';
 @Injectable()
 export class DriverStateService {
   async now(manager: EntityManager): Promise<Date> {
-    // clock_timestamp() lấy giờ thực tại lúc kiểm tra, kể cả sau khi chờ khóa.
     const [row] = (await manager.query('SELECT clock_timestamp() AS now')) as Array<{ now: Date }>;
 
     return row.now;
