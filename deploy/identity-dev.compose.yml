@@ -3,7 +3,7 @@ services:
   postgres:
     image: postgres:17-bookworm
     environment:
-      POSTGRES_DB: ride_hailing
+      POSTGRES_DB: identity_db
       POSTGRES_PASSWORD: ${IDENTITY_BOOTSTRAP_PASSWORD:?Run npm run identity:setup:dev}
       IDENTITY_APP_PASSWORD: ${IDENTITY_APP_PASSWORD:?Run npm run identity:setup:dev}
       IDENTITY_MIGRATOR_PASSWORD: ${IDENTITY_MIGRATOR_PASSWORD:?Run npm run identity:setup:dev}
@@ -13,7 +13,7 @@ services:
       - identity-data:/var/lib/postgresql/data
       - ./postgres/identity-init.sql:/docker-entrypoint-initdb.d/001-identity.sql:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d ride_hailing']
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d identity_db']
       interval: 2s
       timeout: 2s
       retries: 30
@@ -28,7 +28,7 @@ services:
         condition: service_healthy
     environment:
       IDENTITY_DB_SCHEMA: identity_schema
-      IDENTITY_MIGRATION_DATABASE_URL: postgresql://identity_migrator:${IDENTITY_MIGRATOR_PASSWORD}@postgres:5432/ride_hailing
+      IDENTITY_MIGRATION_DATABASE_URL: postgresql://identity_migrator:${IDENTITY_MIGRATOR_PASSWORD}@postgres:5432/identity_db
     command: ['node', 'scripts/identity/migrate.cjs', 'run', '--compiled']
   identity:
     profiles: ['app']
@@ -43,7 +43,7 @@ services:
       HOST: 0.0.0.0
       IDENTITY_PORT: '3001'
       IDENTITY_DB_SCHEMA: identity_schema
-      IDENTITY_DATABASE_URL: postgresql://identity_app:${IDENTITY_APP_PASSWORD}@postgres:5432/ride_hailing
+      IDENTITY_DATABASE_URL: postgresql://identity_app:${IDENTITY_APP_PASSWORD}@postgres:5432/identity_db
       JWT_ISSUER: ride-hailing
       JWT_AUDIENCE: ride-api
       JWT_ACCESS_TTL_SECONDS: '3600'

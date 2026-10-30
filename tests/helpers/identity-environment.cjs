@@ -166,7 +166,7 @@ async function createEnvironment(t) {
     '-e',
     'POSTGRES_PASSWORD=' + secret,
     '-e',
-    'POSTGRES_DB=ride_hailing',
+    'POSTGRES_DB=identity_db',
     '-e',
     'IDENTITY_APP_PASSWORD=' + secret,
     '-e',
@@ -182,7 +182,7 @@ async function createEnvironment(t) {
   const published = docker(['port', name, '5432/tcp']);
   const dbPort = published.split(':').at(-1);
   const url = role =>
-    'postgresql://' + role + ':' + secret + '@127.0.0.1:' + dbPort + '/ride_hailing';
+    'postgresql://' + role + ':' + secret + '@127.0.0.1:' + dbPort + '/identity_db';
   const adminUrl = url('postgres');
   const env = {
     IDENTITY_DATABASE_URL: url('identity_app'),
