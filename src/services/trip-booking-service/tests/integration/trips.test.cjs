@@ -267,8 +267,8 @@ test('Trip APIs, outbox and consumer with real PostgreSQL, RabbitMQ and Pricing'
 
     await db.appQuery(
       `INSERT INTO trip_schema.operations
-         (id, trip_id, actor_id, type, status, assignment_id, current_step, error_code, correlation_id)
-       VALUES ($1, $2, $3, 'ACCEPT', $4, $5, 'CLAIM_OFFER', $6, $7)`,
+         (id, trip_id, actor_id, type, status, assignment_id, current_step, error_code, correlation_id, next_retry_at)
+       VALUES ($1, $2, $3, 'ACCEPT', $4, $5, 'CLAIM_OFFER', $6, $7, now() + interval '1 hour')`,
       [id, tripId, actorId, status, fields.assignmentId ?? null, fields.errorCode ?? null, randomUUID()],
     );
 

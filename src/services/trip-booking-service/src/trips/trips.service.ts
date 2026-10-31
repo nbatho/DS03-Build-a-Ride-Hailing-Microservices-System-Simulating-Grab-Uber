@@ -32,7 +32,7 @@ export const TRIP_OUTBOX_TABLE = 'trip_schema.outbox_events';
 const TRIP_INBOX = { table: 'trip_schema.processed_events', consumerName: 'trip-booking-service' };
 const DEFAULT_PAGE_LIMIT = 20;
 
-function isUniqueViolation(error: unknown, constraint: string): boolean {
+export function isUniqueViolation(error: unknown, constraint: string): boolean {
   const failure = error as { driverError?: { code?: string; constraint?: string } };
 
   return failure.driverError?.code === '23505' && failure.driverError.constraint === constraint;

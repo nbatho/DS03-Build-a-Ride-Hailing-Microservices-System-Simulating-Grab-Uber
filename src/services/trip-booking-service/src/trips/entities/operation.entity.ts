@@ -22,8 +22,35 @@ export class Operation {
   @Column('uuid', { name: 'assignment_id', nullable: true })
   assignmentId!: string | null;
 
+  @Column('uuid', { name: 'offer_id', nullable: true })
+  offerId!: string | null;
+
+  @Column('uuid', { name: 'driver_id', nullable: true })
+  driverId!: string | null;
+
+  @Column('text', { name: 'current_step' })
+  currentStep!: string;
+
+  @Column('integer', { name: 'attempt_count' })
+  attemptCount!: number;
+
+  @Column('timestamptz', { name: 'next_retry_at' })
+  nextRetryAt!: Date;
+
+  @Column('uuid', { name: 'lease_token', nullable: true })
+  leaseToken!: string | null;
+
+  @Column('timestamptz', { name: 'lease_until', nullable: true })
+  leaseUntil!: Date | null;
+
   @Column('text', { name: 'error_code', nullable: true })
   errorCode!: string | null;
+
+  @Column('uuid', { name: 'correlation_id' })
+  correlationId!: string;
+
+  @Column('timestamptz', { name: 'created_at' })
+  createdAt!: Date;
 
   @Column('timestamptz', { name: 'updated_at' })
   updatedAt!: Date;

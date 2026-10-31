@@ -8,6 +8,8 @@ export interface TripTransition {
   tripId: string;
   from: TripStatus[];
   to: TripStatus;
+  assignmentId?: string;
+  set?: { driverId?: string; assignmentId?: string | null };
   actorId: string | null;
   commandId: string;
   correlationId: string;
@@ -23,8 +25,10 @@ export async function transitionTrip(
   input: TripTransition,
 ): Promise<TransitionedTrip | null> {
   const [previous] = (await manager.query(
-    'SELECT status FROM trip_schema.trips WHERE id = $1 AND status = ANY($2) FOR UPDATE',
-    [input.tripId, input.from],
+    `SELECT status FROM trip_schema.trips
+      WHERE id = $1 AND status = ANY($2) AND ($3::uuid IS NULL OR assignment_id = $3)
+      FOR UPDATE`,
+    [input.tripId, input.from, input.assignmentId ?? null],
   )) as Array<{ status: TripStatus }>;
 
   if (!previous) {
@@ -34,7 +38,7 @@ export async function transitionTrip(
   const result = await manager
     .createQueryBuilder()
     .update(Trip)
-    .set({ status: input.to, version: () => 'version + 1', updatedAt: () => 'now()' })
+    .set({ ...input.set, status: input.to, version: () => 'version + 1', updatedAt: () => 'now()' })
     .where({ id: input.tripId })
     .returning('*')
     .execute();

@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import type { MatchingJob } from '@app/contracts';
+import type {
+  MatchingJob,
+  Offer,
+  OfferDecisionRequest,
+  OfferResolutionRequest,
+} from '@app/contracts';
 import { ApiError, InternalHttpClient } from '@app/runtime';
-import { readJob } from './upstream-contracts';
+import { readJob, readOffer, readResult, type UpstreamResult } from './upstream-contracts';
 
 @Injectable()
 export class MatchingClient {
@@ -24,5 +29,56 @@ export class MatchingClient {
     }
 
     return readJob(response.body, tripId);
+  }
+
+  async getOffer(offerId: string, correlationId: string): Promise<Offer> {
+    const response = await this.http.request('MATCHING', {
+      method: 'GET',
+      path: '/internal/v1/offers/' + offerId,
+      correlationId,
+      retry: true,
+    });
+
+    if (response.status === 404) {
+      throw new ApiError(404, 'OFFER_NOT_FOUND', 'Offer not found');
+    }
+
+    if (response.status !== 200) {
+      throw new ApiError(503, 'DEPENDENCY_UNAVAILABLE', 'Matching is unavailable');
+    }
+
+    return readOffer(response.body, offerId);
+  }
+
+  async decideOffer(
+    offerId: string,
+    body: OfferDecisionRequest,
+    correlationId: string,
+  ): Promise<UpstreamResult<Offer>> {
+    const response = await this.http.request('MATCHING', {
+      method: 'POST',
+      path: '/internal/v1/offers/' + offerId + '/decisions',
+      correlationId,
+      body,
+      retry: true,
+    });
+
+    return readResult('Matching', response, value => readOffer(value, offerId));
+  }
+
+  async resolveOffer(
+    offerId: string,
+    body: OfferResolutionRequest,
+    correlationId: string,
+  ): Promise<UpstreamResult<Offer>> {
+    const response = await this.http.request('MATCHING', {
+      method: 'POST',
+      path: '/internal/v1/offers/' + offerId + '/resolution',
+      correlationId,
+      body,
+      retry: true,
+    });
+
+    return readResult('Matching', response, value => readOffer(value, offerId));
   }
 }

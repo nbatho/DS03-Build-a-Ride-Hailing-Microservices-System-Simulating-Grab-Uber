@@ -1,14 +1,20 @@
-import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/common';
 import { CurrentUser, Roles } from '@app/auth';
-import type { Actor, Trip, TripsPage } from '@app/contracts';
+import type { Actor, Operation, Trip, TripsPage } from '@app/contracts';
 import { IdempotencyKey, uuidParam, type ContextRequest } from '@app/runtime';
+import { AcceptTripDto } from './dto/accept-trip.dto';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { ListTripsQueryDto } from './dto/list-trips.query.dto';
+import { RejectTripDto } from './dto/reject-trip.dto';
+import { TripCommandsService } from './trip-commands.service';
 import { TripsService } from './trips.service';
 
 @Controller('trips')
 export class TripsController {
-  constructor(private readonly trips: TripsService) {}
+  constructor(
+    private readonly trips: TripsService,
+    private readonly commands: TripCommandsService,
+  ) {}
 
   @Post()
   @Roles('PASSENGER')
@@ -31,5 +37,31 @@ export class TripsController {
   @Roles('PASSENGER', 'DRIVER')
   getOne(@CurrentUser() actor: Actor, @Param('tripId', uuidParam('tripId')) tripId: string): Promise<Trip> {
     return this.trips.getTrip(actor, tripId);
+  }
+
+  @Post(':tripId/accept')
+  @Roles('DRIVER')
+  @HttpCode(202)
+  accept(
+    @CurrentUser() actor: Actor,
+    @Param('tripId', uuidParam('tripId')) tripId: string,
+    @Body() dto: AcceptTripDto,
+    @IdempotencyKey() idempotencyKey: string,
+    @Req() req: ContextRequest,
+  ): Promise<Operation> {
+    return this.commands.accept(actor, tripId.toLowerCase(), dto, idempotencyKey, req.correlationId);
+  }
+
+  @Post(':tripId/reject')
+  @Roles('DRIVER')
+  @HttpCode(202)
+  reject(
+    @CurrentUser() actor: Actor,
+    @Param('tripId', uuidParam('tripId')) tripId: string,
+    @Body() dto: RejectTripDto,
+    @IdempotencyKey() idempotencyKey: string,
+    @Req() req: ContextRequest,
+  ): Promise<Operation> {
+    return this.commands.reject(actor, tripId.toLowerCase(), dto, idempotencyKey, req.correlationId);
   }
 }
