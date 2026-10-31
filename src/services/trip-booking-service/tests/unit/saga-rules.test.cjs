@@ -3,6 +3,7 @@ const { randomUUID } = require('node:crypto');
 const { test } = require('node:test');
 const {
   ACCEPT_STEPS,
+  COMPLETE_STEPS,
   MAX_CYCLES,
   REJECT_STEPS,
   backoffMs,
@@ -30,7 +31,7 @@ test('exhausting a step before the commit compensates; after it needs review', (
     assert.equal(onExhausted(step), 'RELEASE_DRIVER');
   }
 
-  const others = [...ACCEPT_STEPS, ...REJECT_STEPS].filter(
+  const others = [...ACCEPT_STEPS, ...REJECT_STEPS, ...COMPLETE_STEPS].filter(
     step => !['CLAIM_OFFER', 'RESERVE_DRIVER', 'CONFIRM_DRIVER'].includes(step),
   );
 

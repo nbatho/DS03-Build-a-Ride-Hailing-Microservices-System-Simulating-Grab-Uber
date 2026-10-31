@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { EntityManager } from 'typeorm';
-import type { TripStatus } from '@app/contracts';
+import type { TripPaymentStatus, TripStatus } from '@app/contracts';
 import { StateHistory } from './entities/state-history.entity';
 import { Trip } from './entities/trip.entity';
 
@@ -9,7 +9,12 @@ export interface TripTransition {
   from: TripStatus[];
   to: TripStatus;
   assignmentId?: string;
-  set?: { driverId?: string; assignmentId?: string | null };
+  set?: {
+    driverId?: string;
+    assignmentId?: string | null;
+    paymentId?: string;
+    paymentStatus?: TripPaymentStatus;
+  };
   actorId: string | null;
   commandId: string;
   correlationId: string;

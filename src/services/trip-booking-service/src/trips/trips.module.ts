@@ -15,6 +15,7 @@ import { SagaWorker } from './saga/saga.worker';
 import { TripCommandsService } from './trip-commands.service';
 import { TripEventsConsumer } from './trip-events.consumer';
 import { TripOutboxRelay } from './trip-outbox.relay';
+import { TripPaymentsService } from './trip-payments.service';
 import { TripsInternalController } from './trips-internal.controller';
 import { TripsController } from './trips.controller';
 import { TripsService } from './trips.service';
@@ -28,6 +29,7 @@ import { TripsService } from './trips.service';
     DriverClient,
     TripsService,
     TripCommandsService,
+    TripPaymentsService,
     TripEventsConsumer,
     TripOutboxRelay,
     SagaStore,

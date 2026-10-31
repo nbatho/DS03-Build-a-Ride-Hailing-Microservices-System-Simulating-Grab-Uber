@@ -1,0 +1,34 @@
+{
+  "executedAt": "2026-10-31T09:42:05.828Z",
+  "status": "PASS",
+  "commit": "de9bc68",
+  "gateway": "http://127.0.0.1:8080",
+  "outcomes": [
+    {
+      "name": "E2E-1: a full trip from quote to paid",
+      "status": "PASS",
+      "tripId": "8fd6aa23-a821-496a-aedb-149458182866",
+      "operationId": "b6689d36-377a-4d31-90bb-412f24ef898d",
+      "paymentId": "ef35b3e9-cfb2-489c-9b07-285cf357c1a8",
+      "correlationId": "20a7d68b-4bef-4e45-be5f-f72609c0d9fd",
+      "durationMs": 8001
+    },
+    {
+      "name": "E2E-2: the first driver rejects, the next one completes the trip",
+      "status": "PASS",
+      "tripId": "ee619873-bc0b-4fa4-aacc-12b662565b56",
+      "operationId": "b8ccaf75-de9e-491b-8950-f1adcf6fbb56",
+      "paymentId": "53fb06d2-d314-4db8-b3be-5c8fc80bbec8",
+      "correlationId": "2cf61d8e-88c9-431a-a75c-8669eec609c0",
+      "durationMs": 7596
+    },
+    {
+      "name": "E2E-3: without a driver the trip ends in NO_DRIVER and nothing is charged",
+      "status": "PASS",
+      "tripId": "24e617e9-c430-4b7f-b482-16bbc82fb72a",
+      "correlationId": "4571a194-1777-4541-8922-ca1708015c18",
+      "durationMs": 2162
+    }
+  ],
+  "tokens": "[REDACTED]"
+}

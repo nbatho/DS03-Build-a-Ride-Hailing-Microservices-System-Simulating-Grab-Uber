@@ -4,9 +4,10 @@ import { createRideEvent, enqueueOutboxEvent } from '@app/messaging';
 import { DriverClient } from '../driver.client';
 import { Trip } from '../entities/trip.entity';
 import { MatchingClient } from '../matching.client';
+import { paymentRequestedEvent } from '../trip-payment-rules';
 import { transitionTrip } from '../trip-transition';
 import { TRIP_OUTBOX_TABLE, isUniqueViolation } from '../trips.service';
-import { isClosedResolution } from './saga-rules';
+import { isClosedResolution, type SagaStepName } from './saga-rules';
 import { SagaStore, type ClaimedOperation, type StepOutcome } from './saga.store';
 
 export type StepResult = StepOutcome | ((manager: EntityManager) => Promise<StepOutcome>);
@@ -49,7 +50,7 @@ export class SagaSteps {
       case 'FINALIZE_MATCHING':
         return this.finalizeMatching(operation);
       case 'PUBLISH_AND_FINISH':
-        return this.publishAndFinish(operation);
+        return this.finishWhenPublished(operation, 'COMMIT_ASSIGNMENT');
       case 'RELEASE_DRIVER':
         return this.releaseDriver(operation);
       case 'RESOLVE_RETRY':
@@ -58,6 +59,12 @@ export class SagaSteps {
         return this.returnToMatching(operation);
       case 'CHECK_JOB':
         return this.checkJob(operation);
+      case 'RELEASE_COMPLETED_DRIVER':
+        return this.releaseCompletedDriver(operation);
+      case 'REQUEST_PAYMENT':
+        return this.requestPayment(operation);
+      case 'PUBLISH_PAYMENT':
+        return this.finishWhenPublished(operation, 'REQUEST_PAYMENT');
     }
   }
 
@@ -71,7 +78,7 @@ export class SagaSteps {
 
   private async rejectOffer(operation: ClaimedOperation): Promise<StepResult> {
     const result = await this.matching.decideOffer(
-      operation.offerId,
+      operation.offerId!,
       {
         assignmentId: await this.store.commandId(operation, 'REJECT_OFFER'),
         tripId: operation.tripId,
@@ -92,7 +99,7 @@ export class SagaSteps {
     }
 
     const result = await this.matching.decideOffer(
-      operation.offerId,
+      operation.offerId!,
       {
         assignmentId: operation.assignmentId!,
         tripId: operation.tripId,
@@ -112,7 +119,7 @@ export class SagaSteps {
 
     const result = await this.drivers.reserve(
       operation.assignmentId!,
-      { tripId: operation.tripId, driverId: operation.driverId, offerId: operation.offerId },
+      { tripId: operation.tripId, driverId: operation.driverId, offerId: operation.offerId! },
       operation.correlationId,
     );
 
@@ -187,7 +194,7 @@ export class SagaSteps {
 
   private async finalizeMatching(operation: ClaimedOperation): Promise<StepResult> {
     const result = await this.matching.resolveOffer(
-      operation.offerId,
+      operation.offerId!,
       {
         commandId: await this.store.commandId(operation, 'FINALIZE_MATCHING'),
         assignmentId: operation.assignmentId!,
@@ -200,10 +207,13 @@ export class SagaSteps {
     return result.ok ? next('PUBLISH_AND_FINISH') : needsReview(result.code);
   }
 
-  private async publishAndFinish(operation: ClaimedOperation): Promise<StepResult> {
+  private async finishWhenPublished(
+    operation: ClaimedOperation,
+    eventStep: SagaStepName,
+  ): Promise<StepResult> {
     const [event] = (await this.database.query(
       'SELECT status FROM trip_schema.outbox_events WHERE event_id = $1',
-      [await this.store.commandId(operation, 'COMMIT_ASSIGNMENT')],
+      [await this.store.commandId(operation, eventStep)],
     )) as Array<{ status: string }>;
 
     if (event?.status === 'PUBLISHED') {
@@ -234,7 +244,7 @@ export class SagaSteps {
     const trip = await this.findTrip(operation);
     const cancelled = trip.status === 'CANCELLING' || trip.status === 'CANCELLED';
     const result = await this.matching.resolveOffer(
-      operation.offerId,
+      operation.offerId!,
       {
         commandId: await this.store.commandId(operation, 'RESOLVE_RETRY'),
         assignmentId: operation.assignmentId!,
@@ -313,6 +323,46 @@ export class SagaSteps {
       }
 
       return COMPENSATED;
+    };
+  }
+
+  private async releaseCompletedDriver(operation: ClaimedOperation): Promise<StepResult> {
+    const result = await this.drivers.release(
+      operation.assignmentId!,
+      {
+        commandId: await this.store.commandId(operation, 'RELEASE_COMPLETED_DRIVER'),
+        tripId: operation.tripId,
+        driverId: operation.driverId,
+        reason: 'TRIP_COMPLETED',
+      },
+      operation.correlationId,
+    );
+
+    return result.ok ? next('REQUEST_PAYMENT') : needsReview(result.code);
+  }
+
+  private async requestPayment(operation: ClaimedOperation): Promise<StepResult> {
+    const commandId = await this.store.commandId(operation, 'REQUEST_PAYMENT');
+
+    return async manager => {
+      const trips = manager.getRepository(Trip);
+      const trip = await trips.findOneOrFail({
+        where: { id: operation.tripId },
+        relations: { fare: true },
+      });
+
+      await trips.update({ id: trip.id }, { paymentAttemptNo: 1 });
+      await enqueueOutboxEvent(
+        manager,
+        TRIP_OUTBOX_TABLE,
+        paymentRequestedEvent(trip, trip.fare, 1, {
+          eventId: commandId,
+          correlationId: operation.correlationId,
+          causationId: operation.id,
+        }),
+      );
+
+      return next('PUBLISH_PAYMENT');
     };
   }
 

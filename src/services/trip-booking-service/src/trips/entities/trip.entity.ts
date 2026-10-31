@@ -34,6 +34,12 @@ export class Trip {
   @Column('text', { name: 'payment_status' })
   paymentStatus!: TripPaymentStatus;
 
+  @Column('smallint', { name: 'payment_attempt_no' })
+  paymentAttemptNo!: number;
+
+  @Column('integer', { name: 'payment_version' })
+  paymentVersion!: number;
+
   @Column('integer')
   version!: number;
 
@@ -67,7 +73,6 @@ export function toTrip(trip: Trip): TripDto {
   };
 }
 
-// API-20: tài xế chưa được gán chỉ xem tiến độ, không thấy mã của người được gán hay thanh toán.
 export function toTripProgress(trip: Trip): TripDto {
   return toTrip({ ...trip, driverId: null, assignmentId: null, paymentId: null });
 }

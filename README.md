@@ -194,6 +194,8 @@ Các module chính là `users`, `drivers`, `trips`, `payments`, `notifications`,
 - **DB của Trip**: `npm run trip:setup:dev` (mật khẩu DB vào `.env`, bắt buộc trước `stack:up`), `trip:db:up`, `migration:trip:run`.
 - **Cả hệ thống**: `npm run stack:up` dựng 7 DB, RabbitMQ, migration và 8 app (`deploy/docker-compose.yml`,
   `deploy/node-service.Dockerfile`); chỉ mở `127.0.0.1:8080`. `stack:ps`, `stack:logs`, `stack:down`.
+- **E2E luồng chính**: `npm run test:e2e` (cần `stack:up` và `PAYMENT_SIMULATION_MODE=SUCCEED`), đi hết chuỗi báo giá → đặt chuyến →
+  nhận → bắt đầu → hoàn thành → thanh toán qua Gateway; bằng chứng ghi vào `docs/test-evidence/e2e/happy-path.json`.
 - Test: `npm run test:c:unit` (không cần Docker); `test:payment:integration`, `test:notification:integration`,
   `test:messaging:integration` cần DB/RabbitMQ đang chạy.
 - Test phục hồi `npm run test:c:recovery` (cần Docker, tự dựng và xóa hạ tầng riêng qua `deploy/c-test.compose.yml`):

@@ -21,7 +21,6 @@ export class RuntimeModule {
         {
           provide: INBOUND_SERVICE_TOKENS,
           inject: [ConfigService],
-          // ConfigService được inject để chắc .env đã nạp vào process.env; token sai định dạng thì dừng khi khởi động.
           useFactory: (_config: ConfigService) => loadInboundTokens(process.env, SERVICE_CALLER_NAME[serviceName]),
         },
         { provide: APP_GUARD, useClass: InternalCallerGuard },

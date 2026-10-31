@@ -1,16 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
-import type { Actor, Operation as OperationDto, TripStatus } from '@app/contracts';
+import type { Actor, Operation as OperationDto, Trip as TripDto, TripStatus } from '@app/contracts';
+import { createRideEvent, enqueueOutboxEvent } from '@app/messaging';
 import { ApiError, withIdempotencyKey } from '@app/runtime';
 import { AcceptTripDto } from './dto/accept-trip.dto';
 import { RejectTripDto } from './dto/reject-trip.dto';
 import { toOperation, type Operation } from './entities/operation.entity';
-import { Trip } from './entities/trip.entity';
+import { Trip, toTrip } from './entities/trip.entity';
 import { findCompletedResponse } from './idempotency-replay';
 import { MatchingClient } from './matching.client';
 import { SagaStore } from './saga/saga.store';
 import { transitionTrip } from './trip-transition';
+import { TRIP_OUTBOX_TABLE } from './trips.service';
 
 interface OfferCommand<TRequest> {
   actor: Actor;
@@ -24,7 +26,7 @@ interface OfferCommand<TRequest> {
 }
 
 function invalidState(): ApiError {
-  return new ApiError(409, 'INVALID_STATE', 'Trip is not waiting for a driver');
+  return new ApiError(409, 'INVALID_STATE', 'Trip state does not allow this action');
 }
 
 function respond(operation: Operation, tripStatus: TripStatus): OperationDto {
@@ -128,6 +130,133 @@ export class TripCommandsService {
     });
   }
 
+  start(actor: Actor, tripId: string, key: string, correlationId: string): Promise<TripDto> {
+    return this.runDriverCommand(actor, tripId, 'start', key, 200, async manager => {
+      const updated = await transitionTrip(manager, {
+        tripId,
+        from: ['ASSIGNED'],
+        to: 'IN_PROGRESS',
+        actorId: actor.userId,
+        commandId: key,
+        correlationId,
+      });
+
+      if (!updated) {
+        throw invalidState();
+      }
+
+      await enqueueOutboxEvent(
+        manager,
+        TRIP_OUTBOX_TABLE,
+        createRideEvent('trip.started', {
+          aggregateId: tripId,
+          aggregateVersion: updated.version,
+          correlationId,
+          causationId: key,
+          payload: {
+            tripId,
+            passengerId: updated.passengerId,
+            driverId: actor.userId,
+            tripVersion: updated.version,
+            status: 'IN_PROGRESS',
+          },
+        }),
+      );
+
+      const trip = await manager
+        .getRepository(Trip)
+        .findOneOrFail({ where: { id: tripId }, relations: { fare: true } });
+
+      return toTrip(trip);
+    });
+  }
+
+  complete(actor: Actor, tripId: string, key: string, correlationId: string): Promise<OperationDto> {
+    return this.runDriverCommand(actor, tripId, 'complete', key, 202, async (manager, trip) => {
+      const updated = await transitionTrip(manager, {
+        tripId,
+        from: ['IN_PROGRESS'],
+        to: 'COMPLETED',
+        set: { paymentId: randomUUID(), paymentStatus: 'PENDING' },
+        actorId: actor.userId,
+        commandId: key,
+        correlationId,
+      });
+
+      if (!updated) {
+        throw invalidState();
+      }
+
+      await enqueueOutboxEvent(
+        manager,
+        TRIP_OUTBOX_TABLE,
+        createRideEvent('trip.completed', {
+          aggregateId: tripId,
+          aggregateVersion: updated.version,
+          correlationId,
+          causationId: key,
+          payload: {
+            tripId,
+            passengerId: updated.passengerId,
+            driverId: actor.userId,
+            tripVersion: updated.version,
+            status: 'COMPLETED',
+          },
+        }),
+      );
+
+      const [{ now }] = (await manager.query('SELECT now() AS now')) as Array<{ now: Date }>;
+      const operation = await this.store.createOperation(manager, {
+        tripId,
+        actorId: actor.userId,
+        type: 'COMPLETE',
+        assignmentId: trip.assignmentId,
+        offerId: null,
+        correlationId,
+        now,
+      });
+
+      return respond(operation, 'COMPLETED');
+    });
+  }
+
+  private async runDriverCommand<T>(
+    actor: Actor,
+    tripId: string,
+    action: 'start' | 'complete',
+    key: string,
+    status: number,
+    work: (manager: EntityManager, trip: Trip) => Promise<T>,
+  ): Promise<T> {
+    const scope = {
+      schema: 'trip_schema',
+      actorId: actor.userId,
+      method: 'POST',
+      path: '/api/v1/trips/' + tripId + '/' + action,
+      key,
+    };
+
+    try {
+      const result = await withIdempotencyKey(this.database, scope, {}, async manager => {
+        const trip = await manager.getRepository(Trip).findOneBy({ id: tripId });
+
+        if (!trip) {
+          throw new ApiError(404, 'TRIP_NOT_FOUND', 'Trip not found');
+        }
+
+        if (trip.driverId !== actor.userId) {
+          throw new ApiError(403, 'RESOURCE_FORBIDDEN', 'This trip is assigned to another driver');
+        }
+
+        return { status, body: await work(manager, trip) };
+      });
+
+      return result.body;
+    } catch (error) {
+      throw this.toApiError(error);
+    }
+  }
+
   private async runOfferCommand<TRequest>(command: OfferCommand<TRequest>): Promise<OperationDto> {
     const { actor, tripId, offerId, action, request, key, correlationId, create } = command;
     const scope = {
@@ -173,13 +302,17 @@ export class TripCommandsService {
 
       return result.body;
     } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-
-      this.logger.error(error instanceof Error ? error.message : String(error));
-
-      throw new ApiError(503, 'DEPENDENCY_UNAVAILABLE', 'Trip database unavailable');
+      throw this.toApiError(error);
     }
+  }
+
+  private toApiError(error: unknown): ApiError {
+    if (error instanceof ApiError) {
+      return error;
+    }
+
+    this.logger.error(error instanceof Error ? error.message : String(error));
+
+    return new ApiError(503, 'DEPENDENCY_UNAVAILABLE', 'Trip database unavailable');
   }
 }

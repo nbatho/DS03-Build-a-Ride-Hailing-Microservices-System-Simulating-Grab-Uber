@@ -13,7 +13,12 @@ export const ACCEPT_STEPS = [
 
 export const REJECT_STEPS = ['REJECT_OFFER'] as const;
 
-export type SagaStepName = (typeof ACCEPT_STEPS)[number] | (typeof REJECT_STEPS)[number];
+export const COMPLETE_STEPS = ['RELEASE_COMPLETED_DRIVER', 'REQUEST_PAYMENT', 'PUBLISH_PAYMENT'] as const;
+
+export type SagaStepName =
+  | (typeof ACCEPT_STEPS)[number]
+  | (typeof REJECT_STEPS)[number]
+  | (typeof COMPLETE_STEPS)[number];
 
 export const MAX_CYCLES = 5;
 export const LEASE_SECONDS = 15;

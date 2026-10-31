@@ -826,7 +826,7 @@ test('Trip APIs, outbox and consumer with real PostgreSQL, RabbitMQ and Pricing'
       }),
     );
 
-    await eventually(() => assert.equal(dlqCode(payment.event_id), 'UNHANDLED_EVENT_TYPE'));
+    await eventually(() => assert.equal(dlqCode(payment.event_id), 'TRIP_NOT_FOUND'));
   });
 
   await t.test('API-29 failures are retried, then the event goes to the DLQ', async () => {

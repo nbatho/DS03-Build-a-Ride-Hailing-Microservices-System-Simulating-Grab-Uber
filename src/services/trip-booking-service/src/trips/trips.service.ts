@@ -29,7 +29,7 @@ import { PricingClient } from './pricing.client';
 import { transitionTrip } from './trip-transition';
 
 export const TRIP_OUTBOX_TABLE = 'trip_schema.outbox_events';
-const TRIP_INBOX = { table: 'trip_schema.processed_events', consumerName: 'trip-booking-service' };
+export const TRIP_INBOX = { table: 'trip_schema.processed_events', consumerName: 'trip-booking-service' };
 const DEFAULT_PAGE_LIMIT = 20;
 
 export function isUniqueViolation(error: unknown, constraint: string): boolean {
@@ -286,6 +286,8 @@ export class TripsService {
       status: 'MATCHING',
       paymentId: null,
       paymentStatus: 'NOT_REQUESTED',
+      paymentAttemptNo: 0,
+      paymentVersion: 0,
       version: 1,
       createdAt: now,
       updatedAt: now,

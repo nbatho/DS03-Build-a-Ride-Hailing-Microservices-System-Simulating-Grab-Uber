@@ -6,10 +6,17 @@ import { Operation } from '../entities/operation.entity';
 import { SagaStep } from '../entities/saga-step.entity';
 import {
   ACCEPT_STEPS,
+  COMPLETE_STEPS,
   LEASE_SECONDS,
   REJECT_STEPS,
   type SagaStepName,
 } from './saga-rules';
+
+const STEPS_BY_TYPE = {
+  ACCEPT: ACCEPT_STEPS,
+  REJECT: REJECT_STEPS,
+  COMPLETE: COMPLETE_STEPS,
+} as const;
 
 export type StepOutcome =
   | { kind: 'next'; step: SagaStepName; errorCode?: string }
@@ -22,7 +29,7 @@ export interface ClaimedOperation {
   actorId: string;
   type: OperationType;
   assignmentId: string | null;
-  offerId: string;
+  offerId: string | null;
   driverId: string;
   currentStep: SagaStepName;
   attemptCount: number;
@@ -33,9 +40,9 @@ export interface ClaimedOperation {
 export interface NewOperation {
   tripId: string;
   actorId: string;
-  type: 'ACCEPT' | 'REJECT';
+  type: keyof typeof STEPS_BY_TYPE;
   assignmentId: string | null;
-  offerId: string;
+  offerId: string | null;
   correlationId: string;
   now: Date;
 }
@@ -46,7 +53,7 @@ interface OperationRow {
   actor_id: string;
   type: OperationType;
   assignment_id: string | null;
-  offer_id: string;
+  offer_id: string | null;
   driver_id: string;
   current_step: SagaStepName;
   attempt_count: number;
@@ -66,7 +73,7 @@ export class SagaStore {
   constructor(private readonly database: DataSource) {}
 
   async createOperation(manager: EntityManager, input: NewOperation): Promise<Operation> {
-    const steps = input.type === 'ACCEPT' ? ACCEPT_STEPS : REJECT_STEPS;
+    const steps: readonly SagaStepName[] = STEPS_BY_TYPE[input.type];
     const operations = manager.getRepository(Operation);
     const operation = operations.create({
       id: randomUUID(),
