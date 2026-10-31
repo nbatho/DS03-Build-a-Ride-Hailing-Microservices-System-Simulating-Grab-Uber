@@ -1,5 +1,10 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn, type Relation } from 'typeorm';
-import type { Operation as OperationDto, OperationStatus, OperationType } from '@app/contracts';
+import type {
+  Operation as OperationDto,
+  OperationStatus,
+  OperationType,
+  TripCancelReason,
+} from '@app/contracts';
 import { Trip } from './trip.entity';
 
 @Entity({ name: 'operations', schema: 'trip_schema' })
@@ -45,6 +50,9 @@ export class Operation {
 
   @Column('text', { name: 'error_code', nullable: true })
   errorCode!: string | null;
+
+  @Column('text', { nullable: true })
+  reason!: TripCancelReason | null;
 
   @Column('uuid', { name: 'correlation_id' })
   correlationId!: string;

@@ -196,6 +196,11 @@ Các module chính là `users`, `drivers`, `trips`, `payments`, `notifications`,
   `deploy/node-service.Dockerfile`); chỉ mở `127.0.0.1:8080`. `stack:ps`, `stack:logs`, `stack:down`.
 - **E2E luồng chính**: `npm run test:e2e` (cần `stack:up` và `PAYMENT_SIMULATION_MODE=SUCCEED`), đi hết chuỗi báo giá → đặt chuyến →
   nhận → bắt đầu → hoàn thành → thanh toán qua Gateway; bằng chứng ghi vào `docs/test-evidence/e2e/happy-path.json`.
+- **Đồng thời và phục hồi của Trip**: `npm run test:trip:concurrency` (tài xế bị đặt trùng, start và cancel cùng lúc) và `npm run test:trip:recovery` (Payment tắt, mất phản hồi hoặc chết giữa Saga nhận chuyến) cần `stack:up`,
+  chạy lần lượt, bằng chứng ghi vào `docs/test-evidence/trip/`. Test Payment tắt dừng service `payment` của stack rồi bật lại.
+- **Vận hành**: operation kẹt ở `FAILED_NEEDS_REVIEW` thì sau khi dependency hồi phục chạy
+  `npm run ops:retry -- <operationId> "<lý do>"`; gửi lại cùng `commandId` (đối số thứ ba) không chạy lại lần nữa. Tìm operation cần xử lý:
+  `docker compose --env-file .env -f deploy/docker-compose.yml exec -T trip-db psql -U postgres -d trip_db -c "SELECT id, trip_id, type, current_step, error_code FROM trip_schema.operations WHERE status = 'FAILED_NEEDS_REVIEW'"`.
 - Test: `npm run test:c:unit` (không cần Docker); `test:payment:integration`, `test:notification:integration`,
   `test:messaging:integration` cần DB/RabbitMQ đang chạy.
 - Test phục hồi `npm run test:c:recovery` (cần Docker, tự dựng và xóa hạ tầng riêng qua `deploy/c-test.compose.yml`):

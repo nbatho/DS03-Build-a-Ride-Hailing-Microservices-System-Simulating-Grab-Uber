@@ -82,7 +82,7 @@ test('Trip migration, constraints and role permissions on real PostgreSQL', { ti
     });
 
   await t.test('migration can run twice, revert and run again', async () => {
-    const expected = [
+    const initial = [
       'fare_snapshots',
       'idempotency_keys',
       'operations',
@@ -93,13 +93,17 @@ test('Trip migration, constraints and role permissions on real PostgreSQL', { ti
       'state_history',
       'trips',
     ];
+    const expected = [...initial, 'command_results', 'operation_retries'].sort();
 
     assert.deepEqual(await tableNames(), expected);
     trip.migrate();
     assert.equal(
       (await trip.query('SELECT count(*)::int AS n FROM trip_schema.schema_migrations')).rows[0].n,
-      1,
+      2,
     );
+
+    trip.revert();
+    assert.deepEqual(await tableNames(), initial);
 
     trip.revert();
     assert.deepEqual(await tableNames(), ['schema_migrations']);
@@ -209,6 +213,9 @@ test('Trip migration, constraints and role permissions on real PostgreSQL', { ti
     for (const sql of [
       'UPDATE trip_schema.fare_snapshots SET amount = 1',
       "UPDATE trip_schema.state_history SET to_status = 'CANCELLED'",
+      "UPDATE trip_schema.operation_retries SET reason = 'changed'",
+      'DELETE FROM trip_schema.operation_retries',
+      'DELETE FROM trip_schema.command_results',
       'DELETE FROM trip_schema.trips',
       'DELETE FROM trip_schema.outbox_events',
       'DELETE FROM trip_schema.state_history',

@@ -65,6 +65,14 @@ export class SagaSteps {
         return this.requestPayment(operation);
       case 'PUBLISH_PAYMENT':
         return this.finishWhenPublished(operation, 'REQUEST_PAYMENT');
+      case 'CANCEL_JOB':
+        return this.cancelJob(operation);
+      case 'RELEASE_CANCELLED_DRIVER':
+        return this.releaseCancelledDriver(operation);
+      case 'COMMIT_CANCELLED':
+        return this.commitCancelled(operation);
+      case 'PUBLISH_CANCELLED':
+        return this.finishWhenPublished(operation, 'COMMIT_CANCELLED');
     }
   }
 
@@ -82,7 +90,7 @@ export class SagaSteps {
       {
         assignmentId: await this.store.commandId(operation, 'REJECT_OFFER'),
         tripId: operation.tripId,
-        driverId: operation.driverId,
+        driverId: operation.driverId!,
         action: 'REJECT',
       },
       operation.correlationId,
@@ -103,7 +111,7 @@ export class SagaSteps {
       {
         assignmentId: operation.assignmentId!,
         tripId: operation.tripId,
-        driverId: operation.driverId,
+        driverId: operation.driverId!,
         action: 'ACCEPT',
       },
       operation.correlationId,
@@ -117,9 +125,15 @@ export class SagaSteps {
       return next('RELEASE_DRIVER', 'TRIP_STATE_CHANGED');
     }
 
+    const known = await this.lookupReservation(operation);
+
+    if (known) {
+      return known;
+    }
+
     const result = await this.drivers.reserve(
       operation.assignmentId!,
-      { tripId: operation.tripId, driverId: operation.driverId, offerId: operation.offerId! },
+      { tripId: operation.tripId, driverId: operation.driverId!, offerId: operation.offerId! },
       operation.correlationId,
     );
 
@@ -131,12 +145,18 @@ export class SagaSteps {
       return next('RELEASE_DRIVER', 'TRIP_STATE_CHANGED');
     }
 
+    const known = await this.lookupReservation(operation);
+
+    if (known) {
+      return known;
+    }
+
     const result = await this.drivers.confirm(
       operation.assignmentId!,
       {
         commandId: await this.store.commandId(operation, 'CONFIRM_DRIVER'),
         tripId: operation.tripId,
-        driverId: operation.driverId,
+        driverId: operation.driverId!,
       },
       operation.correlationId,
     );
@@ -159,7 +179,7 @@ export class SagaSteps {
         from: ['ASSIGNING'],
         to: 'ASSIGNED',
         assignmentId: operation.assignmentId!,
-        set: { driverId: operation.driverId },
+        set: { driverId: operation.driverId! },
         actorId: operation.actorId,
         commandId,
         correlationId: operation.correlationId,
@@ -181,7 +201,7 @@ export class SagaSteps {
           payload: {
             tripId: operation.tripId,
             passengerId: updated.passengerId,
-            driverId: operation.driverId,
+            driverId: operation.driverId!,
             tripVersion: updated.version,
             status: 'ASSIGNED',
           },
@@ -204,7 +224,16 @@ export class SagaSteps {
       operation.correlationId,
     );
 
-    return result.ok ? next('PUBLISH_AND_FINISH') : needsReview(result.code);
+    if (result.ok) {
+      return next('PUBLISH_AND_FINISH');
+    }
+
+    const trip = await this.findTrip(operation);
+
+    // Khách hủy đúng lúc này nên job đã CANCELLED; xe do Saga hủy trả, không cần vận hành can thiệp.
+    return trip.status === 'CANCELLING' || trip.status === 'CANCELLED'
+      ? { kind: 'finish', status: 'FAILED_COMPENSATED', errorCode: result.code }
+      : needsReview(result.code);
   }
 
   private async finishWhenPublished(
@@ -231,7 +260,7 @@ export class SagaSteps {
       {
         commandId: await this.store.commandId(operation, 'RELEASE_DRIVER'),
         tripId: operation.tripId,
-        driverId: operation.driverId,
+        driverId: operation.driverId!,
         reason: 'ASSIGNMENT_FAILED',
       },
       operation.correlationId,
@@ -332,7 +361,7 @@ export class SagaSteps {
       {
         commandId: await this.store.commandId(operation, 'RELEASE_COMPLETED_DRIVER'),
         tripId: operation.tripId,
-        driverId: operation.driverId,
+        driverId: operation.driverId!,
         reason: 'TRIP_COMPLETED',
       },
       operation.correlationId,
@@ -364,6 +393,106 @@ export class SagaSteps {
 
       return next('PUBLISH_PAYMENT');
     };
+  }
+
+  private async cancelJob(operation: ClaimedOperation): Promise<StepResult> {
+    const trip = await this.findTrip(operation);
+    const result = await this.matching.cancelJob(
+      operation.tripId,
+      {
+        commandId: await this.store.commandId(operation, 'CANCEL_JOB'),
+        tripVersion: trip.version,
+      },
+      operation.correlationId,
+    );
+
+    return result.ok ? next('RELEASE_CANCELLED_DRIVER') : needsReview(result.code);
+  }
+
+  private async releaseCancelledDriver(operation: ClaimedOperation): Promise<StepResult> {
+    if (!operation.assignmentId || !operation.driverId) {
+      return next('COMMIT_CANCELLED');
+    }
+
+    const result = await this.drivers.release(
+      operation.assignmentId,
+      {
+        commandId: await this.store.commandId(operation, 'RELEASE_CANCELLED_DRIVER'),
+        tripId: operation.tripId,
+        driverId: operation.driverId,
+        reason: 'TRIP_CANCELLED',
+      },
+      operation.correlationId,
+    );
+
+    return result.ok ? next('COMMIT_CANCELLED') : needsReview(result.code);
+  }
+
+  private async commitCancelled(operation: ClaimedOperation): Promise<StepResult> {
+    const commandId = await this.store.commandId(operation, 'COMMIT_CANCELLED');
+
+    return async manager => {
+      const updated = await transitionTrip(manager, {
+        tripId: operation.tripId,
+        from: ['CANCELLING'],
+        to: 'CANCELLED',
+        actorId: operation.actorId,
+        commandId,
+        correlationId: operation.correlationId,
+      });
+
+      if (!updated) {
+        return needsReview('TRIP_STATE_CHANGED');
+      }
+
+      await enqueueOutboxEvent(
+        manager,
+        TRIP_OUTBOX_TABLE,
+        createRideEvent('trip.cancelled', {
+          eventId: commandId,
+          aggregateId: operation.tripId,
+          aggregateVersion: updated.version,
+          correlationId: operation.correlationId,
+          causationId: operation.id,
+          payload: {
+            tripId: operation.tripId,
+            passengerId: updated.passengerId,
+            affectedDriverIds: operation.driverId ? [operation.driverId] : [],
+            tripVersion: updated.version,
+            reason: operation.reason!,
+          },
+        }),
+      );
+
+      return next('PUBLISH_CANCELLED');
+    };
+  }
+
+  // 404 không kết luận lệnh cũ sẽ không đến, nên vẫn gửi lại và dựa vào mã lệnh cùng tombstone.
+  private async lookupReservation(operation: ClaimedOperation): Promise<StepOutcome | null> {
+    if (!operation.uncertain) {
+      return null;
+    }
+
+    const result = await this.drivers.getReservation(
+      operation.assignmentId!,
+      operation.tripId,
+      operation.driverId!,
+      operation.correlationId,
+    );
+
+    if (!result.ok) {
+      return null;
+    }
+
+    switch (result.body.status) {
+      case 'CONFIRMED':
+        return next('COMMIT_ASSIGNMENT');
+      case 'HELD':
+        return operation.currentStep === 'RESERVE_DRIVER' ? next('CONFIRM_DRIVER') : null;
+      default:
+        return next('RELEASE_DRIVER', 'RESERVATION_' + result.body.status);
+    }
   }
 
   private async isAssigning(operation: ClaimedOperation): Promise<boolean> {

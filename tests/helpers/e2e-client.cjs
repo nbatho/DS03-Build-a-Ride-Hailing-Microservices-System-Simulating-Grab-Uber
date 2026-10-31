@@ -22,7 +22,26 @@ async function call(route, { method = 'GET', body, token, key, correlationId } =
   });
   const text = await response.text();
 
-  return { status: response.status, body: text ? JSON.parse(text) : undefined };
+  return {
+    status: response.status,
+    body: text ? JSON.parse(text) : undefined,
+    retryAfter: Number(response.headers.get('retry-after')) || 5,
+  };
+}
+
+// Gateway giới hạn register + login theo IP; nhiều file test chạy liền nhau thì chờ đúng thời gian Gateway báo.
+async function authCall(route, body, status) {
+  for (;;) {
+    const result = await call(route, { method: 'POST', body });
+
+    if (result.status !== 429) {
+      assert.equal(result.status, status, JSON.stringify(result.body));
+
+      return result.body;
+    }
+
+    await sleep(result.retryAfter * 1000);
+  }
 }
 
 async function expectStatus(promise, status) {
@@ -53,17 +72,8 @@ async function poll(read, done, timeoutMs, label) {
 async function account(role) {
   const email = role.toLowerCase() + '-' + randomUUID() + '@e2e.test';
   const password = 'E2e-' + randomUUID();
-  const user = await expectStatus(
-    call('/auth/register', {
-      method: 'POST',
-      body: { email, password, displayName: 'E2E', role },
-    }),
-    201,
-  );
-  const login = await expectStatus(
-    call('/auth/login', { method: 'POST', body: { email, password } }),
-    200,
-  );
+  const user = await authCall('/auth/register', { email, password, displayName: 'E2E', role }, 201);
+  const login = await authCall('/auth/login', { email, password }, 200);
 
   return { id: user.id, role: user.role, token: login.accessToken, sequence: 0 };
 }
@@ -150,27 +160,11 @@ const finishedOperation = (user, operationId) =>
     'operation ' + operationId,
   );
 
-function queryDb(service, database, sql) {
+function compose(args, timeout = 60000) {
   const result = spawnSync(
     'docker',
-    [
-      'compose',
-      '--env-file',
-      '.env',
-      '-f',
-      'deploy/docker-compose.yml',
-      'exec',
-      '-T',
-      service,
-      'psql',
-      '-U',
-      'postgres',
-      '-d',
-      database,
-      '-tAc',
-      sql,
-    ],
-    { cwd: ROOT, encoding: 'utf8', timeout: 30000 },
+    ['compose', '--env-file', '.env', '-f', 'deploy/docker-compose.yml', ...args],
+    { cwd: ROOT, encoding: 'utf8', timeout },
   );
 
   assert.equal(result.status, 0, result.stderr);
@@ -178,12 +172,31 @@ function queryDb(service, database, sql) {
   return result.stdout.trim();
 }
 
+const queryDb = (service, database, sql) =>
+  compose(['exec', '-T', service, 'psql', '-U', 'postgres', '-d', database, '-tAc', sql], 30000);
+
+async function acceptOffer(driver, tripId, offerId) {
+  const accepted = await expectStatus(
+    call('/trips/' + tripId + '/accept', {
+      method: 'POST',
+      token: driver.token,
+      key: randomUUID(),
+      body: { offerId },
+    }),
+    202,
+  );
+
+  return { accepted, final: await finishedOperation(driver, accepted.id) };
+}
+
 module.exports = {
   ROOT,
   GATEWAY,
+  acceptOffer,
   account,
   bringOnline,
   call,
+  compose,
   createQuote,
   driverProfile,
   expectStatus,

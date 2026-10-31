@@ -3,6 +3,7 @@ import { CurrentUser, Roles } from '@app/auth';
 import type { Actor, Operation, Trip, TripsPage } from '@app/contracts';
 import { IdempotencyKey, uuidParam, type ContextRequest } from '@app/runtime';
 import { AcceptTripDto } from './dto/accept-trip.dto';
+import { CancelTripDto } from './dto/cancel-trip.dto';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { EmptyRequestDto } from './dto/empty-request.dto';
 import { ListTripsQueryDto } from './dto/list-trips.query.dto';
@@ -64,6 +65,19 @@ export class TripsController {
     @Req() req: ContextRequest,
   ): Promise<Operation> {
     return this.commands.reject(actor, tripId.toLowerCase(), dto, idempotencyKey, req.correlationId);
+  }
+
+  @Post(':tripId/cancel')
+  @Roles('PASSENGER')
+  @HttpCode(202)
+  cancel(
+    @CurrentUser() actor: Actor,
+    @Param('tripId', uuidParam('tripId')) tripId: string,
+    @Body() dto: CancelTripDto,
+    @IdempotencyKey() idempotencyKey: string,
+    @Req() req: ContextRequest,
+  ): Promise<Operation> {
+    return this.commands.cancel(actor, tripId.toLowerCase(), dto, idempotencyKey, req.correlationId);
   }
 
   @Post(':tripId/start')

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type {
+  CancelJobRequest,
   MatchingJob,
   Offer,
   OfferDecisionRequest,
@@ -29,6 +30,22 @@ export class MatchingClient {
     }
 
     return readJob(response.body, tripId);
+  }
+
+  async cancelJob(
+    tripId: string,
+    body: CancelJobRequest,
+    correlationId: string,
+  ): Promise<UpstreamResult<MatchingJob>> {
+    const response = await this.http.request('MATCHING', {
+      method: 'POST',
+      path: '/internal/v1/matching/jobs/' + tripId + '/cancel',
+      correlationId,
+      body,
+      retry: true,
+    });
+
+    return readResult('Matching', response, value => readJob(value, tripId));
   }
 
   async getOffer(offerId: string, correlationId: string): Promise<Offer> {

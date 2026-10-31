@@ -14,6 +14,24 @@ const PATH = '/internal/v1/reservations/';
 export class DriverClient {
   constructor(private readonly http: InternalHttpClient) {}
 
+  async getReservation(
+    reservationId: string,
+    tripId: string,
+    driverId: string,
+    correlationId: string,
+  ): Promise<UpstreamResult<Reservation>> {
+    const response = await this.http.request('DRIVER', {
+      method: 'GET',
+      path: PATH + reservationId,
+      correlationId,
+      retry: true,
+    });
+
+    return readResult('Driver', response, value =>
+      readReservation(value, reservationId, tripId, driverId),
+    );
+  }
+
   async reserve(
     reservationId: string,
     body: ReservationRequest,

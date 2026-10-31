@@ -5,8 +5,9 @@ import type { Actor, Operation as OperationDto, Trip as TripDto, TripStatus } fr
 import { createRideEvent, enqueueOutboxEvent } from '@app/messaging';
 import { ApiError, withIdempotencyKey } from '@app/runtime';
 import { AcceptTripDto } from './dto/accept-trip.dto';
+import { CancelTripDto } from './dto/cancel-trip.dto';
 import { RejectTripDto } from './dto/reject-trip.dto';
-import { toOperation, type Operation } from './entities/operation.entity';
+import { Operation, toOperation } from './entities/operation.entity';
 import { Trip, toTrip } from './entities/trip.entity';
 import { findCompletedResponse } from './idempotency-replay';
 import { MatchingClient } from './matching.client';
@@ -31,6 +32,12 @@ function invalidState(): ApiError {
 
 function respond(operation: Operation, tripStatus: TripStatus): OperationDto {
   return toOperation({ ...operation, trip: { status: tripStatus } as Trip });
+}
+
+function assertAssignedDriver(trip: Trip, actor: Actor): void {
+  if (trip.driverId !== actor.userId) {
+    throw new ApiError(403, 'RESOURCE_FORBIDDEN', 'This trip is assigned to another driver');
+  }
 }
 
 @Injectable()
@@ -131,7 +138,9 @@ export class TripCommandsService {
   }
 
   start(actor: Actor, tripId: string, key: string, correlationId: string): Promise<TripDto> {
-    return this.runDriverCommand(actor, tripId, 'start', key, 200, async manager => {
+    return this.runTripCommand(actor, tripId, 'start', key, 200, {}, async (manager, trip) => {
+      assertAssignedDriver(trip, actor);
+
       const updated = await transitionTrip(manager, {
         tripId,
         from: ['ASSIGNED'],
@@ -163,16 +172,18 @@ export class TripCommandsService {
         }),
       );
 
-      const trip = await manager
+      const started = await manager
         .getRepository(Trip)
         .findOneOrFail({ where: { id: tripId }, relations: { fare: true } });
 
-      return toTrip(trip);
+      return toTrip(started);
     });
   }
 
   complete(actor: Actor, tripId: string, key: string, correlationId: string): Promise<OperationDto> {
-    return this.runDriverCommand(actor, tripId, 'complete', key, 202, async (manager, trip) => {
+    return this.runTripCommand(actor, tripId, 'complete', key, 202, {}, async (manager, trip) => {
+      assertAssignedDriver(trip, actor);
+
       const updated = await transitionTrip(manager, {
         tripId,
         from: ['IN_PROGRESS'],
@@ -220,12 +231,67 @@ export class TripCommandsService {
     });
   }
 
-  private async runDriverCommand<T>(
+  cancel(
     actor: Actor,
     tripId: string,
-    action: 'start' | 'complete',
+    dto: CancelTripDto,
+    key: string,
+    correlationId: string,
+  ): Promise<OperationDto> {
+    const request = { reason: dto.reason };
+
+    return this.runTripCommand(actor, tripId, 'cancel', key, 202, request, async (manager, trip) => {
+      if (trip.passengerId !== actor.userId) {
+        throw new ApiError(403, 'RESOURCE_FORBIDDEN', 'This trip belongs to another passenger');
+      }
+
+      const updated = await transitionTrip(manager, {
+        tripId,
+        from: ['MATCHING', 'ASSIGNING', 'ASSIGNED'],
+        to: 'CANCELLING',
+        actorId: actor.userId,
+        commandId: key,
+        correlationId,
+      });
+
+      if (!updated) {
+        // Đọc lại vì CAS có thể vừa thua API-24: trạng thái đọc trước đó đã cũ.
+        const current = await manager.getRepository(Trip).findOneByOrFail({ id: tripId });
+
+        throw current.status === 'IN_PROGRESS'
+          ? new ApiError(409, 'TRIP_ALREADY_STARTED', 'A started trip cannot be cancelled')
+          : invalidState();
+      }
+
+      const accept = updated.assignmentId
+        ? await manager
+            .getRepository(Operation)
+            .findOneBy({ tripId, assignmentId: updated.assignmentId, type: 'ACCEPT' })
+        : null;
+      const [{ now }] = (await manager.query('SELECT now() AS now')) as Array<{ now: Date }>;
+      const operation = await this.store.createOperation(manager, {
+        tripId,
+        actorId: actor.userId,
+        type: 'CANCEL',
+        assignmentId: updated.assignmentId,
+        offerId: null,
+        driverId: accept?.driverId ?? null,
+        reason: dto.reason,
+        correlationId,
+        now,
+      });
+
+      return respond(operation, 'CANCELLING');
+    });
+  }
+
+  private async runTripCommand<T>(
+    actor: Actor,
+    tripId: string,
+    action: 'start' | 'complete' | 'cancel',
     key: string,
     status: number,
+    request: unknown,
     work: (manager: EntityManager, trip: Trip) => Promise<T>,
   ): Promise<T> {
     const scope = {
@@ -237,15 +303,11 @@ export class TripCommandsService {
     };
 
     try {
-      const result = await withIdempotencyKey(this.database, scope, {}, async manager => {
+      const result = await withIdempotencyKey(this.database, scope, request, async manager => {
         const trip = await manager.getRepository(Trip).findOneBy({ id: tripId });
 
         if (!trip) {
           throw new ApiError(404, 'TRIP_NOT_FOUND', 'Trip not found');
-        }
-
-        if (trip.driverId !== actor.userId) {
-          throw new ApiError(403, 'RESOURCE_FORBIDDEN', 'This trip is assigned to another driver');
         }
 
         return { status, body: await work(manager, trip) };

@@ -1,0 +1,79 @@
+{
+  "test": "concurrency-start-vs-cancel-trip",
+  "purpose": "Khi start và cancel cùng lúc trên một chuyến, bên commit chuyển trạng thái trước sẽ thắng, chuyến không thể vừa chạy vừa bị hủy",
+  "setup": "Chuyến ASSIGNED thật, stack Compose đầy đủ",
+  "steps": "Gửi POST /api/v1/trips/{tripId}/start và POST /api/v1/trips/{tripId}/cancel đồng thời bằng Promise.all, lặp 6 vòng",
+  "expected": "Start thắng: IN_PROGRESS, CONFIRMED, cancel 409 TRIP_ALREADY_STARTED. Cancel thắng: CANCELLED, RELEASED, start 409 INVALID_STATE",
+  "actual": [
+    {
+      "round": 1,
+      "tripId": "f5d7c063-08a9-499a-bc85-5948a3b7becf",
+      "assignmentId": "17620e17-25a5-47d2-8607-e608a40e8d89",
+      "winner": "start",
+      "startStatus": 200,
+      "cancelStatus": 409,
+      "cancelCode": "TRIP_ALREADY_STARTED",
+      "reservation": "CONFIRMED"
+    },
+    {
+      "round": 2,
+      "tripId": "f0ca8855-5f7d-4add-8492-078a5589b1db",
+      "assignmentId": "d5f5f17f-7ab8-42a8-9b36-b5543d3e1f3b",
+      "winner": "cancel",
+      "startStatus": 409,
+      "startCode": "INVALID_STATE",
+      "cancelStatus": 202,
+      "reservation": "RELEASED"
+    },
+    {
+      "round": 3,
+      "tripId": "c28141c0-8db7-4d1c-aeca-0fa4d2ec5a3b",
+      "assignmentId": "e717570d-0747-4cee-9c09-f026a988ea9c",
+      "winner": "start",
+      "startStatus": 200,
+      "cancelStatus": 409,
+      "cancelCode": "TRIP_ALREADY_STARTED",
+      "reservation": "CONFIRMED"
+    },
+    {
+      "round": 4,
+      "tripId": "0f3bfaa5-cdac-42e0-8dfc-9537898ee7de",
+      "assignmentId": "8d689913-d3a4-47aa-9000-57adb490bbf6",
+      "winner": "cancel",
+      "startStatus": 409,
+      "startCode": "INVALID_STATE",
+      "cancelStatus": 202,
+      "reservation": "RELEASED"
+    },
+    {
+      "round": 5,
+      "tripId": "6e91136d-bb3e-40cf-9708-5ed8f67362b1",
+      "assignmentId": "7d454001-bb37-4197-a7c9-b7b8c38e53c5",
+      "winner": "start",
+      "startStatus": 200,
+      "cancelStatus": 409,
+      "cancelCode": "TRIP_ALREADY_STARTED",
+      "reservation": "CONFIRMED"
+    },
+    {
+      "round": 6,
+      "tripId": "7f610b85-e8d1-4ce7-9248-dbeec0e1657d",
+      "assignmentId": "0630a61c-218a-4a7b-8f6d-ba95e9834396",
+      "winner": "cancel",
+      "startStatus": 409,
+      "startCode": "INVALID_STATE",
+      "cancelStatus": 202,
+      "reservation": "RELEASED"
+    }
+  ],
+  "summary": "Start thắng 3 vòng, cancel thắng 3 vòng, không vòng nào cả hai cùng thắng",
+  "wins": {
+    "start": 3,
+    "cancel": 3
+  },
+  "status": "PASS",
+  "commit": "b45ab9e",
+  "executedAt": "2026-10-31T11:30:56.315Z",
+  "durationMs": 38160,
+  "tokens": "[REDACTED]"
+}

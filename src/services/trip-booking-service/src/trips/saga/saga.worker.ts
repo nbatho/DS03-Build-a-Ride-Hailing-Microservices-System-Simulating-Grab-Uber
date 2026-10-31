@@ -95,7 +95,7 @@ export class SagaWorker implements OnApplicationBootstrap, OnModuleDestroy {
           return;
         }
 
-        current = { ...current, currentStep: outcome.step, attemptCount: 0 };
+        current = { ...current, currentStep: outcome.step, attemptCount: 0, uncertain: false };
       }
     } catch (error) {
       const message = 'Operation ' + operation.id + ' stopped: ' + describe(error);

@@ -28,7 +28,7 @@ const TERMINAL = ['SUCCEEDED', 'FAILED_COMPENSATED', 'FAILED_NEEDS_REVIEW'];
 
 const conflict = code => ({ status: 409, body: { code } });
 
-test('Accept and reject saga against scripted Matching and Driver', { timeout: 540000 }, async t => {
+test('Accept and reject saga against scripted Matching and Driver', { timeout: 780000 }, async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'ds03-saga-test-'));
   const running = new Set();
   let pricingApp, monitorConnection, server;
@@ -78,6 +78,8 @@ test('Accept and reject saga against scripted Matching and Driver', { timeout: 5
     pricing: serviceToken(),
     matching: serviceToken(),
     driver: serviceToken(),
+    ops: serviceToken(),
+    matchingCaller: serviceToken(),
   };
   const jwtEnv = {
     JWT_PUBLIC_KEY: '',
@@ -89,6 +91,7 @@ test('Accept and reject saga against scripted Matching and Driver', { timeout: 5
   const offers = new Map();
   const jobIds = new Map();
   const scripts = new Map();
+  const assignments = new Map();
   const calls = [];
 
   // Phản hồi theo kịch bản: mỗi lời gọi lấy một mục; hết kịch bản thì trả mặc định đúng contract.
@@ -125,6 +128,11 @@ test('Accept and reject saga against scripted Matching and Driver', { timeout: 5
       status: 200,
       body: { id: jobIds.get(tripId) ?? randomUUID(), tripId, status: 'SEARCHING', version: 2 },
     }),
+    cancelJob: ({ tripId }) => ({
+      status: 200,
+      body: { id: jobIds.get(tripId) ?? randomUUID(), tripId, status: 'CANCELLED', version: 3 },
+    }),
+    lookup: () => ({ status: 404, body: { code: 'RESERVATION_NOT_FOUND' } }),
     reserve: ({ id, body }) => ({
       status: 200,
       body: { id, ...body, status: 'HELD', version: 1 },
@@ -150,11 +158,15 @@ test('Accept and reject saga against scripted Matching and Driver', { timeout: 5
     }
 
     if (url.startsWith('/internal/v1/matching/jobs/')) {
-      return { name: 'job', id: parts[4], token: tokens.matching };
+      return { name: parts[5] === 'cancel' ? 'cancelJob' : 'job', id: parts[4], token: tokens.matching };
     }
 
     if (url.startsWith('/internal/v1/reservations/')) {
-      return { name: parts[4] ?? 'reserve', id, token: tokens.driver };
+      return {
+        name: parts[4] ?? (method === 'GET' ? 'lookup' : 'reserve'),
+        id,
+        token: tokens.driver,
+      };
     }
 
     return null;
@@ -178,8 +190,9 @@ test('Accept and reject saga against scripted Matching and Driver', { timeout: 5
     }
 
     const body = raw ? JSON.parse(raw) : undefined;
-    const tripId =
-      target.name === 'job' ? target.id : (body?.tripId ?? offers.get(target.id)?.tripId);
+    const tripId = ['job', 'cancelJob'].includes(target.name)
+      ? target.id
+      : (body?.tripId ?? offers.get(target.id)?.tripId ?? assignments.get(target.id));
     const context = { id: target.id, body, tripId };
 
     calls.push({ name: target.name, ...context });
@@ -219,6 +232,8 @@ test('Accept and reject saga against scripted Matching and Driver', { timeout: 5
       SVC_TOKEN_TRIP_PRICING: tokens.pricing,
       SVC_TOKEN_TRIP_MATCHING: tokens.matching,
       SVC_TOKEN_TRIP_DRIVER: tokens.driver,
+      SVC_TOKEN_OPS_TRIP: tokens.ops,
+      SVC_TOKEN_MATCHING_TRIP: tokens.matchingCaller,
     });
 
     running.add(app);
@@ -235,6 +250,7 @@ test('Accept and reject saga against scripted Matching and Driver', { timeout: 5
 
   const noDriver = [];
   const accepted = [];
+  const cancelled = [];
 
   monitorConnection = await amqp.connect(broker.url);
   monitorConnection.on('error', () => {});
@@ -248,6 +264,7 @@ test('Accept and reject saga against scripted Matching and Driver', { timeout: 5
 
       if (event.type === 'trip.no_driver') noDriver.push(event);
       if (event.type === 'trip.accepted') accepted.push(event);
+      if (event.type === 'trip.cancelled') cancelled.push(event);
       monitor.ack(message);
     }
   });
@@ -323,6 +340,7 @@ test('Accept and reject saga against scripted Matching and Driver', { timeout: 5
     const result = await command('accept', trip.id, driverId, { offerId: offer.id }, key);
 
     assert.equal(result.status, 202, JSON.stringify(result.body));
+    assignments.set(result.body.assignmentId, trip.id);
 
     return result.body;
   }
@@ -972,5 +990,370 @@ test('Accept and reject saga against scripted Matching and Driver', { timeout: 5
       await stop(other);
       running.delete(other);
     }
+  });
+
+  const cancelTrip = (trip, { key = randomUUID(), reason = 'CHANGE_PLAN', actor = trip.passengerId, role = 'PASSENGER' } = {}) =>
+    command('cancel', trip.id, actor, { reason }, key, role);
+
+  async function cancelled202(trip, options) {
+    const result = await cancelTrip(trip, options);
+
+    assert.equal(result.status, 202, JSON.stringify(result.body));
+
+    return result.body;
+  }
+
+  async function assignedBooking() {
+    const booking = await book();
+    const operation = await accept(booking);
+
+    assert.equal((await finished(operation.id, booking.driverId)).status, 'SUCCEEDED');
+
+    return { ...booking, assignmentId: operation.assignmentId };
+  }
+
+  const setTripStatus = (tripId, status) =>
+    db.appQuery(
+      'UPDATE trip_schema.trips SET status = $2, driver_id = $3, assignment_id = $4 WHERE id = $1',
+      [tripId, status, randomUUID(), randomUUID()],
+    );
+
+  await t.test('API-23 enforces the owner, the reason and the trip state', async () => {
+    const trip = await createTrip();
+
+    assert.equal((await cancelTrip(trip, { actor: randomUUID() })).status, 403);
+    assert.equal((await cancelTrip(trip, { role: 'DRIVER' })).status, 403);
+    assert.equal((await cancelTrip(trip, { reason: 'BORED' })).status, 400);
+    assert.equal((await cancelTrip({ ...trip, id: randomUUID() })).status, 404);
+    assert.equal((await tripRow(trip.id)).status, 'MATCHING');
+
+    const key = randomUUID();
+    const first = await cancelled202(trip, { key });
+
+    assert.equal(first.type, 'CANCEL');
+    assert.equal(first.status, 'PENDING');
+    assert.equal(first.tripStatus, 'CANCELLING');
+    assert.deepEqual(await cancelled202(trip, { key }), first);
+
+    const started = await createTrip();
+
+    await setTripStatus(started.id, 'IN_PROGRESS');
+
+    const late = await cancelTrip(started);
+
+    assert.equal(late.status, 409);
+    assert.equal(late.body.code, 'TRIP_ALREADY_STARTED');
+
+    for (const status of ['COMPLETED', 'NO_DRIVER', 'CANCELLING', 'CANCELLED']) {
+      const other = await createTrip();
+
+      await setTripStatus(other.id, status);
+
+      const refused = await cancelTrip(other);
+
+      assert.equal(refused.status, 409, status);
+      assert.equal(refused.body.code, 'INVALID_STATE', status);
+    }
+  });
+
+  await t.test('cancelling a searching trip cancels the job without touching a driver', async () => {
+    const trip = await createTrip();
+    const operation = await cancelled202(trip, { reason: 'WAIT_TOO_LONG' });
+    const final = await finished(operation.id, trip.passengerId);
+
+    assert.equal(final.status, 'SUCCEEDED');
+    assert.equal(final.tripStatus, 'CANCELLED');
+
+    const [job] = callsOf('cancelJob', trip.id);
+
+    assert.equal(job.body.tripVersion, 2);
+    assert.equal(callsOf('release', trip.id).length, 0);
+    assert.deepEqual(await history(trip.id), ['MATCHING', 'CANCELLING', 'CANCELLED']);
+
+    await eventually(() =>
+      assert.equal(cancelled.filter(event => event.payload.tripId === trip.id).length, 1),
+    );
+    assert.deepEqual(cancelled.find(event => event.payload.tripId === trip.id).payload, {
+      tripId: trip.id,
+      passengerId: trip.passengerId,
+      affectedDriverIds: [],
+      tripVersion: 3,
+      reason: 'WAIT_TOO_LONG',
+    });
+  });
+
+  await t.test('cancelling an assigned trip releases the driver before CANCELLED', async () => {
+    const { trip, driverId, assignmentId } = await assignedBooking();
+    let statusAtRelease;
+
+    on('release', trip.id, async () => {
+      statusAtRelease = (await tripRow(trip.id)).status;
+    });
+
+    const operation = await cancelled202(trip);
+
+    assert.equal(operation.assignmentId, assignmentId);
+
+    const final = await finished(operation.id, trip.passengerId);
+
+    assert.equal(final.status, 'SUCCEEDED');
+    assert.equal(statusAtRelease, 'CANCELLING');
+
+    const [release] = callsOf('release', trip.id);
+
+    assert.equal(release.id, assignmentId);
+    assert.equal(release.body.reason, 'TRIP_CANCELLED');
+    assert.equal(release.body.driverId, driverId);
+
+    await eventually(() =>
+      assert.equal(cancelled.filter(event => event.payload.tripId === trip.id).length, 1),
+    );
+    assert.deepEqual(
+      cancelled.find(event => event.payload.tripId === trip.id).payload.affectedDriverIds,
+      [driverId],
+    );
+  });
+
+  await t.test('cancelling during the accept saga never assigns the driver', async () => {
+    for (const name of ['decide', 'reserve', 'confirm']) {
+      const booking = await book();
+      const { trip, driverId } = booking;
+      let operation;
+
+      on(name, trip.id, async () => {
+        operation = await cancelled202(trip);
+      });
+
+      const accepting = await accept(booking);
+      const acceptance = await finished(accepting.id, driverId);
+
+      assert.equal(acceptance.status, 'FAILED_COMPENSATED', name);
+      assert.equal(acceptance.errorCode, 'TRIP_STATE_CHANGED', name);
+      assert.equal((await finished(operation.id, trip.passengerId)).status, 'SUCCEEDED', name);
+
+      const row = await tripRow(trip.id);
+
+      assert.equal(row.status, 'CANCELLED', name);
+      assert.equal(row.driver_id, null, name);
+      assert.ok(!(await history(trip.id)).includes('ASSIGNED'), name);
+      assert.ok(callsOf('release', trip.id).length >= 1, name);
+      assert.deepEqual(
+        [...new Set(callsOf('release', trip.id).map(item => item.id))],
+        [accepting.assignmentId],
+        name,
+      );
+    }
+  });
+
+  await t.test('cancelling during finalize ends the accept without needing review', async () => {
+    const booking = await book();
+    const { trip, driverId } = booking;
+    let operation;
+
+    on('resolve', trip.id, async () => {
+      operation = await cancelled202(trip);
+
+      return conflict('JOB_CANCELLED');
+    });
+
+    const accepting = await accept(booking);
+    const acceptance = await finished(accepting.id, driverId);
+
+    assert.equal(acceptance.status, 'FAILED_COMPENSATED');
+    assert.equal(acceptance.errorCode, 'JOB_CANCELLED');
+    assert.equal((await finished(operation.id, trip.passengerId)).status, 'SUCCEEDED');
+    assert.equal((await tripRow(trip.id)).status, 'CANCELLED');
+    assert.equal(callsOf('release', trip.id)[0].body.reason, 'TRIP_CANCELLED');
+  });
+
+  await t.test('temporary failures while cancelling retry with the same commands', async () => {
+    const { trip } = await assignedBooking();
+
+    on('cancelJob', trip.id, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE);
+    on('release', trip.id, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE);
+
+    const operation = await cancelled202(trip);
+
+    assert.equal((await finished(operation.id, trip.passengerId, 60000)).status, 'SUCCEEDED');
+
+    for (const name of ['cancelJob', 'release']) {
+      const seen = callsOf(name, trip.id);
+
+      assert.equal(seen.length, 4, name);
+      assert.equal(new Set(seen.map(item => item.body.commandId)).size, 1, name);
+    }
+  });
+
+  const retryOperation = (operationId, { commandId = randomUUID(), reason = 'Dependency restored', token: value = tokens.ops } = {}) =>
+    call('/internal/v1/operations/' + operationId + '/retry', {
+      method: 'POST',
+      body: { commandId, reason },
+      headers: value ? { 'X-Service-Token': value } : {},
+    });
+
+  await t.test('API-28 resumes an operation needing review, with audit', async () => {
+    const { trip } = await assignedBooking();
+
+    always('cancelJob', trip.id, UNAVAILABLE);
+
+    const operation = await cancelled202(trip);
+    const stuck = await finished(operation.id, trip.passengerId, 90000);
+
+    assert.equal(stuck.status, 'FAILED_NEEDS_REVIEW');
+    assert.equal(stuck.errorCode, 'DEPENDENCY_UNAVAILABLE');
+    assert.equal((await tripRow(trip.id)).status, 'CANCELLING');
+
+    assert.equal((await retryOperation(operation.id, { token: serviceToken() })).status, 401);
+    assert.equal((await retryOperation(operation.id, { token: tokens.matchingCaller })).status, 403);
+    assert.equal((await retryOperation(operation.id, { reason: 'x' })).status, 400);
+
+    const missing = await retryOperation(randomUUID());
+
+    assert.equal(missing.status, 404);
+    assert.equal(missing.body.code, 'OPERATION_NOT_FOUND');
+
+    const blocked = await retryOperation(operation.id);
+
+    assert.equal(blocked.status, 202, JSON.stringify(blocked.body));
+    assert.equal(
+      (await finished(operation.id, trip.passengerId, 90000)).status,
+      'FAILED_NEEDS_REVIEW',
+    );
+
+    scripts.delete('cancelJob:' + trip.id);
+
+    const commandId = randomUUID();
+    const retried = await retryOperation(operation.id, { commandId });
+
+    assert.equal(retried.status, 202, JSON.stringify(retried.body));
+    assert.equal(retried.body.status, 'PENDING');
+    assert.equal(retried.body.errorCode, undefined);
+
+    const replay = await retryOperation(operation.id, { commandId });
+
+    assert.equal(replay.status, 202);
+    assert.deepEqual(replay.body, retried.body);
+
+    const changed = await retryOperation(operation.id, { commandId, reason: 'Something else' });
+
+    assert.equal(changed.status, 409);
+    assert.equal(changed.body.code, 'PAYLOAD_MISMATCH');
+
+    const final = await finished(operation.id, trip.passengerId);
+
+    assert.equal(final.status, 'SUCCEEDED');
+    assert.equal(final.tripStatus, 'CANCELLED');
+    assert.equal(new Set(callsOf('cancelJob', trip.id).map(item => item.body.commandId)).size, 1);
+
+    const notRetryable = await retryOperation(operation.id);
+
+    assert.equal(notRetryable.status, 409);
+    assert.equal(notRetryable.body.code, 'OPERATION_NOT_RETRYABLE');
+
+    const audit = (
+      await db.query(
+        'SELECT caller, reason, from_step, previous_error_code, command_id FROM trip_schema.operation_retries WHERE operation_id = $1 ORDER BY created_at',
+        [operation.id],
+      )
+    ).rows;
+
+    assert.equal(audit.length, 2);
+    assert.equal(audit[1].caller, 'OPS');
+    assert.equal(audit[1].reason, 'Dependency restored');
+    assert.equal(audit[1].from_step, 'CANCEL_JOB');
+    assert.equal(audit[1].previous_error_code, 'DEPENDENCY_UNAVAILABLE');
+    assert.equal(audit[1].command_id, commandId);
+  });
+
+  await t.test('API-28 lets a completed trip release the driver and request payment once', async () => {
+    const { trip, driverId } = await assignedBooking();
+    const started = await command('start', trip.id, driverId, {});
+
+    assert.equal(started.status, 200, JSON.stringify(started.body));
+
+    always('release', trip.id, UNAVAILABLE);
+
+    const completing = await command('complete', trip.id, driverId, {});
+
+    assert.equal(completing.status, 202, JSON.stringify(completing.body));
+
+    const stuck = await finished(completing.body.id, driverId, 90000);
+
+    assert.equal(stuck.status, 'FAILED_NEEDS_REVIEW');
+    assert.equal(await count('outbox_events', "aggregate_id = $1 AND type = 'payment.requested'", [trip.id]), 0);
+
+    scripts.delete('release:' + trip.id);
+
+    const results = await Promise.all([retryOperation(completing.body.id), retryOperation(completing.body.id)]);
+
+    assert.deepEqual(results.map(result => result.status).sort(), [202, 409]);
+    assert.equal((await finished(completing.body.id, driverId)).status, 'SUCCEEDED');
+    assert.equal(await count('outbox_events', "aggregate_id = $1 AND type = 'payment.requested'", [trip.id]), 1);
+    assert.equal((await tripRow(trip.id)).status, 'COMPLETED');
+  });
+
+  await t.test('API-12 decides the next step when the previous outcome is unknown', async () => {
+    const reservation = (id, tripId, driverId, status) => ({
+      status: 200,
+      body: { id, tripId, driverId, status, version: 2 },
+    });
+
+    async function scenario(failing, status) {
+      const booking = await book();
+      const { trip, driverId } = booking;
+
+      on(failing, trip.id, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE);
+
+      if (status) {
+        on('lookup', trip.id, ({ id }) => reservation(id, trip.id, driverId, status));
+      }
+
+      const operation = await accept(booking);
+
+      return { trip, final: await finished(operation.id, driverId, 60000) };
+    }
+
+    const held = await scenario('reserve', 'HELD');
+
+    assert.equal(held.final.status, 'SUCCEEDED');
+    assert.equal(callsOf('reserve', held.trip.id).length, 3);
+    assert.equal(callsOf('confirm', held.trip.id).length, 1);
+
+    const confirmedAtReserve = await scenario('reserve', 'CONFIRMED');
+
+    assert.equal(confirmedAtReserve.final.status, 'SUCCEEDED');
+    assert.equal(callsOf('confirm', confirmedAtReserve.trip.id).length, 0);
+
+    const released = await scenario('reserve', 'RELEASED');
+
+    assert.equal(released.final.status, 'FAILED_COMPENSATED');
+    assert.equal(released.final.errorCode, 'RESERVATION_RELEASED');
+    assert.equal(callsOf('confirm', released.trip.id).length, 0);
+
+    const missing = await scenario('reserve');
+
+    assert.equal(missing.final.status, 'SUCCEEDED');
+    assert.equal(callsOf('reserve', missing.trip.id).length, 4);
+
+    const confirmed = await scenario('confirm', 'CONFIRMED');
+
+    assert.equal(confirmed.final.status, 'SUCCEEDED');
+    assert.equal(callsOf('confirm', confirmed.trip.id).length, 3);
+
+    const stillHeld = await scenario('confirm', 'HELD');
+
+    assert.equal(stillHeld.final.status, 'SUCCEEDED');
+    assert.equal(callsOf('confirm', stillHeld.trip.id).length, 4);
+
+    const expired = await scenario('confirm', 'EXPIRED');
+
+    assert.equal(expired.final.status, 'FAILED_COMPENSATED');
+    assert.equal(expired.final.errorCode, 'RESERVATION_EXPIRED');
+
+    const clean = await book();
+    const operation = await accept(clean);
+
+    assert.equal((await finished(operation.id, clean.driverId)).status, 'SUCCEEDED');
+    assert.equal(callsOf('lookup', clean.trip.id).length, 0);
   });
 });

@@ -1,33 +1,41 @@
 {
-  "executedAt": "2026-10-31T09:42:05.828Z",
+  "executedAt": "2026-10-31T10:33:55.238Z",
   "status": "PASS",
-  "commit": "de9bc68",
+  "commit": "b45ab9e",
   "gateway": "http://127.0.0.1:8080",
   "outcomes": [
     {
       "name": "E2E-1: a full trip from quote to paid",
       "status": "PASS",
-      "tripId": "8fd6aa23-a821-496a-aedb-149458182866",
-      "operationId": "b6689d36-377a-4d31-90bb-412f24ef898d",
-      "paymentId": "ef35b3e9-cfb2-489c-9b07-285cf357c1a8",
-      "correlationId": "20a7d68b-4bef-4e45-be5f-f72609c0d9fd",
-      "durationMs": 8001
+      "tripId": "7c2af6cd-a454-4eb3-88ca-511f057d4e91",
+      "operationId": "58bb5c06-4652-40f5-aaf9-e568c858064c",
+      "paymentId": "721acf01-855b-4f02-8282-2618caeeb48a",
+      "correlationId": "fffd4149-131a-453e-90f7-40e928f976c8",
+      "durationMs": 7368
     },
     {
       "name": "E2E-2: the first driver rejects, the next one completes the trip",
       "status": "PASS",
-      "tripId": "ee619873-bc0b-4fa4-aacc-12b662565b56",
-      "operationId": "b8ccaf75-de9e-491b-8950-f1adcf6fbb56",
-      "paymentId": "53fb06d2-d314-4db8-b3be-5c8fc80bbec8",
-      "correlationId": "2cf61d8e-88c9-431a-a75c-8669eec609c0",
-      "durationMs": 7596
+      "tripId": "300dab0a-910b-4435-918e-d2c077257e75",
+      "operationId": "263b2a11-d347-4c38-84a5-295038a8f971",
+      "paymentId": "9201c6c7-6ecd-46b8-92ae-9589f178f45e",
+      "correlationId": "fd551180-6dc6-40c3-923d-8fb923258ac4",
+      "durationMs": 8732
     },
     {
       "name": "E2E-3: without a driver the trip ends in NO_DRIVER and nothing is charged",
       "status": "PASS",
-      "tripId": "24e617e9-c430-4b7f-b482-16bbc82fb72a",
-      "correlationId": "4571a194-1777-4541-8922-ca1708015c18",
-      "durationMs": 2162
+      "tripId": "fa4cf631-9de1-4477-a07f-03ca4860e6c5",
+      "correlationId": "eebaaba1-b9c7-4904-b0c2-0293cb131c4e",
+      "durationMs": 2171
+    },
+    {
+      "name": "E2E-4: cancelling before and after assignment; a started trip cannot be cancelled",
+      "status": "PASS",
+      "tripId": "ae6d6fab-a778-4a7a-b817-80dcd2306c91",
+      "operationId": "da603260-bbce-4239-802a-53bdcc6e5a05",
+      "correlationId": "4c2bb328-6dd2-4a47-979a-8ca70dd82b99",
+      "durationMs": 14121
     }
   ],
   "tokens": "[REDACTED]"

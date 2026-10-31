@@ -2,11 +2,14 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DriverClient } from './driver.client';
 import { FareSnapshot } from './entities/fare-snapshot.entity';
+import { OperationRetry } from './entities/operation-retry.entity';
 import { Operation } from './entities/operation.entity';
 import { SagaStep } from './entities/saga-step.entity';
 import { StateHistory } from './entities/state-history.entity';
 import { Trip } from './entities/trip.entity';
 import { MatchingClient } from './matching.client';
+import { OperationRetryService } from './operation-retry.service';
+import { OperationsInternalController } from './operations-internal.controller';
 import { OperationsController } from './operations.controller';
 import { PricingClient } from './pricing.client';
 import { SagaSteps } from './saga/saga-steps';
@@ -21,8 +24,15 @@ import { TripsController } from './trips.controller';
 import { TripsService } from './trips.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Trip, FareSnapshot, StateHistory, Operation, SagaStep])],
-  controllers: [TripsController, OperationsController, TripsInternalController],
+  imports: [
+    TypeOrmModule.forFeature([Trip, FareSnapshot, StateHistory, Operation, OperationRetry, SagaStep]),
+  ],
+  controllers: [
+    TripsController,
+    OperationsController,
+    TripsInternalController,
+    OperationsInternalController,
+  ],
   providers: [
     PricingClient,
     MatchingClient,
@@ -30,6 +40,7 @@ import { TripsService } from './trips.service';
     TripsService,
     TripCommandsService,
     TripPaymentsService,
+    OperationRetryService,
     TripEventsConsumer,
     TripOutboxRelay,
     SagaStore,

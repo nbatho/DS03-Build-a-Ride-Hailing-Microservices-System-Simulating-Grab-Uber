@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
-import type { OperationStatus, OperationType } from '@app/contracts';
+import type { OperationStatus, OperationType, TripCancelReason } from '@app/contracts';
 import { Operation } from '../entities/operation.entity';
 import { SagaStep } from '../entities/saga-step.entity';
 import {
   ACCEPT_STEPS,
+  CANCEL_STEPS,
   COMPLETE_STEPS,
   LEASE_SECONDS,
   REJECT_STEPS,
@@ -16,6 +17,7 @@ const STEPS_BY_TYPE = {
   ACCEPT: ACCEPT_STEPS,
   REJECT: REJECT_STEPS,
   COMPLETE: COMPLETE_STEPS,
+  CANCEL: CANCEL_STEPS,
 } as const;
 
 export type StepOutcome =
@@ -30,9 +32,11 @@ export interface ClaimedOperation {
   type: OperationType;
   assignmentId: string | null;
   offerId: string | null;
-  driverId: string;
+  driverId: string | null;
+  reason: TripCancelReason | null;
   currentStep: SagaStepName;
   attemptCount: number;
+  uncertain: boolean;
   leaseToken: string;
   correlationId: string;
 }
@@ -43,6 +47,8 @@ export interface NewOperation {
   type: keyof typeof STEPS_BY_TYPE;
   assignmentId: string | null;
   offerId: string | null;
+  driverId?: string | null;
+  reason?: TripCancelReason;
   correlationId: string;
   now: Date;
 }
@@ -54,11 +60,13 @@ interface OperationRow {
   type: OperationType;
   assignment_id: string | null;
   offer_id: string | null;
-  driver_id: string;
+  driver_id: string | null;
+  reason: TripCancelReason | null;
   current_step: SagaStepName;
   attempt_count: number;
   lease_token: string;
   correlation_id: string;
+  resumed: boolean;
 }
 
 export class LeaseLostError extends Error {
@@ -83,7 +91,8 @@ export class SagaStore {
       status: 'PENDING',
       assignmentId: input.assignmentId,
       offerId: input.offerId,
-      driverId: input.actorId,
+      driverId: input.driverId === undefined ? input.actorId : input.driverId,
+      reason: input.reason ?? null,
       currentStep: steps[0],
       attemptCount: 0,
       nextRetryAt: input.now,
@@ -115,14 +124,14 @@ export class SagaStore {
          UPDATE trip_schema.operations AS o
             SET status = 'RUNNING', lease_token = $1,
                 lease_until = now() + make_interval(secs => $2), updated_at = now()
-           FROM (SELECT id FROM trip_schema.operations
+           FROM (SELECT id, lease_token IS NOT NULL AS resumed FROM trip_schema.operations
                   WHERE status IN ('PENDING', 'RUNNING') AND next_retry_at <= now()
                     AND (lease_until IS NULL OR lease_until < now())
                   ORDER BY next_retry_at, id
                   LIMIT $3
                   FOR UPDATE SKIP LOCKED) AS c
           WHERE o.id = c.id
-      RETURNING o.*)
+      RETURNING o.*, c.resumed)
        SELECT * FROM claimed`,
       [randomUUID(), LEASE_SECONDS, limit],
     )) as OperationRow[];
@@ -135,8 +144,10 @@ export class SagaStore {
       assignmentId: row.assignment_id,
       offerId: row.offer_id,
       driverId: row.driver_id,
+      reason: row.reason,
       currentStep: row.current_step,
       attemptCount: row.attempt_count,
+      uncertain: row.attempt_count > 0 || row.resumed,
       leaseToken: row.lease_token,
       correlationId: row.correlation_id,
     }));

@@ -41,7 +41,7 @@ function writeEvidence(outcomes) {
     JSON.stringify(
       {
         executedAt: new Date().toISOString(),
-        status: outcomes.length === 3 && outcomes.every(item => item.status === 'PASS') ? 'PASS' : 'FAIL',
+        status: outcomes.length === 4 && outcomes.every(item => item.status === 'PASS') ? 'PASS' : 'FAIL',
         commit: commit.stdout.trim() || 'unknown',
         gateway: GATEWAY,
         outcomes,
@@ -341,6 +341,130 @@ test('G2: the main flow works end to end through the Gateway', { timeout: 300000
       assert.notEqual(internal.status, 200);
 
       return { tripId: trip.id, correlationId };
+    });
+
+    await scenario('E2E-4: cancelling before and after assignment; a started trip cannot be cancelled', async () => {
+      const drivers = [first, second];
+      const refreshGps = () => Promise.all(drivers.map(item => sendLocation(item, POINT_A)));
+      const cancel = tripId =>
+        call('/trips/' + tripId + '/cancel', {
+          method: 'POST',
+          token: passenger.token,
+          key: randomUUID(),
+          body: { reason: 'CHANGE_PLAN' },
+        });
+      const assign = async trip => {
+        const found = await poll(
+          async () => {
+            const offers = await Promise.all(drivers.map(item => findOffer(item, trip.id)));
+            const index = offers.findIndex(Boolean);
+
+            return index >= 0 ? { driver: drivers[index], item: offers[index] } : null;
+          },
+          Boolean,
+          30000,
+          'offer',
+        );
+        const accepted = await expectStatus(
+          call('/trips/' + trip.id + '/accept', {
+            method: 'POST',
+            token: found.driver.token,
+            key: randomUUID(),
+            body: { offerId: found.item.offer.id },
+          }),
+          202,
+        );
+
+        assert.equal((await finishedOperation(found.driver, accepted.id)).status, 'SUCCEEDED');
+
+        return { driver: found.driver, assignmentId: accepted.assignmentId };
+      };
+
+      await refreshGps();
+
+      const correlationId = randomUUID();
+      const searching = await bookTrip(passenger, POINT_A, correlationId);
+      const cancelling = await expectStatus(cancel(searching.trip.id), 202);
+
+      assert.equal(cancelling.tripStatus, 'CANCELLING');
+      assert.equal((await finishedOperation(passenger, cancelling.id)).status, 'SUCCEEDED');
+      assert.equal(
+        (await expectStatus(call('/trips/' + searching.trip.id, { token: passenger.token }), 200)).status,
+        'CANCELLED',
+      );
+      assert.equal(
+        await poll(
+          async () =>
+            queryDb('matching-db', 'matching_db', `SELECT status FROM matching_schema.matching_jobs WHERE trip_id = '${searching.trip.id}'`),
+          status => status === 'CANCELLED',
+          30000,
+          'job cancelled',
+        ),
+        'CANCELLED',
+      );
+
+      await refreshGps();
+
+      const assigned = await bookTrip(passenger, POINT_A, randomUUID());
+      const { driver, assignmentId } = await assign(assigned.trip);
+
+      assert.equal((await driverProfile(driver)).status, 'BUSY');
+
+      const cancelAssigned = await expectStatus(cancel(assigned.trip.id), 202);
+
+      assert.equal((await finishedOperation(passenger, cancelAssigned.id)).status, 'SUCCEEDED');
+      assert.equal((await driverProfile(driver)).status, 'AVAILABLE');
+      assert.equal(
+        queryDb('driver-db', 'driver_db', `SELECT status FROM driver_schema.reservations WHERE id = '${assignmentId}'`),
+        'RELEASED',
+      );
+      assert.equal(
+        queryDb('matching-db', 'matching_db', `SELECT status FROM matching_schema.matching_jobs WHERE trip_id = '${assigned.trip.id}'`),
+        'CANCELLED',
+      );
+
+      await poll(
+        () => findNotification(driver, item => item.tripId === assigned.trip.id && item.tripStatus === 'CANCELLED'),
+        Boolean,
+        30000,
+        'cancellation notice for the driver',
+      );
+
+      assert.equal((await call('/payments?tripId=' + assigned.trip.id, { token: passenger.token })).status, 404);
+
+      await refreshGps();
+
+      const started = await bookTrip(passenger, POINT_A, randomUUID());
+      const running = await assign(started.trip);
+
+      await expectStatus(
+        call('/trips/' + started.trip.id + '/start', {
+          method: 'POST',
+          token: running.driver.token,
+          key: randomUUID(),
+          body: {},
+        }),
+        200,
+      );
+
+      const tooLate = await cancel(started.trip.id);
+
+      assert.equal(tooLate.status, 409);
+      assert.equal(tooLate.body.code, 'TRIP_ALREADY_STARTED');
+
+      const completing = await expectStatus(
+        call('/trips/' + started.trip.id + '/complete', {
+          method: 'POST',
+          token: running.driver.token,
+          key: randomUUID(),
+          body: {},
+        }),
+        202,
+      );
+
+      assert.equal((await finishedOperation(running.driver, completing.id)).status, 'SUCCEEDED');
+
+      return { tripId: assigned.trip.id, operationId: cancelAssigned.id, correlationId };
     });
   } finally {
     for (const driver of [first, second]) {

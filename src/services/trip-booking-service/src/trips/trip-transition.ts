@@ -22,6 +22,7 @@ export interface TripTransition {
 
 export interface TransitionedTrip {
   passengerId: string;
+  assignmentId: string | null;
   version: number;
 }
 
@@ -47,7 +48,12 @@ export async function transitionTrip(
     .where({ id: input.tripId })
     .returning('*')
     .execute();
-  const [row] = result.raw as Array<{ passenger_id: string; version: number; updated_at: Date }>;
+  const [row] = result.raw as Array<{
+    passenger_id: string;
+    assignment_id: string | null;
+    version: number;
+    updated_at: Date;
+  }>;
 
   await manager.getRepository(StateHistory).insert({
     id: randomUUID(),
@@ -60,5 +66,5 @@ export async function transitionTrip(
     occurredAt: row.updated_at,
   });
 
-  return { passengerId: row.passenger_id, version: row.version };
+  return { passengerId: row.passenger_id, assignmentId: row.assignment_id, version: row.version };
 }

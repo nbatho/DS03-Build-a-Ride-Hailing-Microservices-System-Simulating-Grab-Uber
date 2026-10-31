@@ -1,0 +1,64 @@
+{
+  "test": "resilience-accept-saga-lost-reply-and-crash",
+  "purpose": "Mất phản hồi sau khi đã commit hoặc restart giữa Saga không tạo double reservation hay tài xế mồ côi",
+  "setup": "Driver, Identity, Trip, PostgreSQL, RabbitMQ thật; Matching giả; Trip gọi Driver qua proxy trong test để ép lỗi sau khi Driver đã commit",
+  "steps": "Năm case: mất reply PUT /internal/v1/reservations/{reservationId}, mất reply POST /internal/v1/reservations/{reservationId}/confirm, kill Trip sau confirm, kill Driver giữa Saga rồi POST /internal/v1/operations/{operationId}/retry, lệnh reserve đến muộn sau tombstone",
+  "expected": "Không gửi lại thừa sau khi GET /internal/v1/reservations/{reservationId} xác nhận; 1 reservation mỗi assignment; cleanup xong tài xế AVAILABLE; tombstone chặn lệnh muộn",
+  "actual": [
+    {
+      "case": "a",
+      "tripId": "9a619fa9-b7f7-43cf-b27a-2083866a721a",
+      "assignmentId": "d704d9c3-021c-4277-93b8-44dfbd959532",
+      "reserves": 3,
+      "lookups": 1,
+      "reservation": "CONFIRMED"
+    },
+    {
+      "case": "b",
+      "tripId": "224a0881-9f69-4983-bcd3-4cd6b3a21f86",
+      "assignmentId": "530a72fe-e490-46c2-b785-42821e9fe0c0",
+      "confirms": 3,
+      "lookups": 1,
+      "reservation": "CONFIRMED"
+    },
+    {
+      "case": "c",
+      "tripId": "3a9a71d7-5c0a-4011-a730-b2d3eb6a3570",
+      "assignmentId": "bc4170df-5e2a-475e-be4c-90c3895e1720",
+      "confirms": 1,
+      "tripAcceptedEvents": 1
+    },
+    {
+      "case": "d",
+      "tripId": "5d52d9c0-725e-4011-bb5b-f1215c63d520",
+      "assignmentId": "42cc0b9e-a477-45d6-b222-523ff1c3d399",
+      "stuckStatus": "FAILED_NEEDS_REVIEW",
+      "finalStatus": "FAILED_COMPENSATED",
+      "reservation": "RELEASED",
+      "activeReservations": 0,
+      "audit": [
+        {
+          "from_step": "RELEASE_DRIVER",
+          "reason": "Driver restored"
+        }
+      ]
+    },
+    {
+      "case": "e",
+      "tripId": "8a79396c-2a3e-4618-842b-4bb5dd647052",
+      "assignmentId": "7e3ee010-19c5-424f-9f54-28fca9ee4d7a",
+      "heldReserves": 15,
+      "lateReplies": {
+        "status": 409,
+        "code": "RESERVATION_CLOSED"
+      },
+      "reservation": "RELEASED"
+    }
+  ],
+  "summary": "Đủ 5 case: mất reply sau commit, chết giữa Saga, cleanup qua POST /internal/v1/operations/{operationId}/retry, tombstone chặn lệnh muộn",
+  "status": "PASS",
+  "commit": "b45ab9e",
+  "executedAt": "2026-10-31T11:37:29.027Z",
+  "durationMs": 135693,
+  "tokens": "[REDACTED]"
+}

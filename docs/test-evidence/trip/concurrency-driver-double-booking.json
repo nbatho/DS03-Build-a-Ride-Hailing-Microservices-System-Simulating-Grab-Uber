@@ -1,0 +1,56 @@
+{
+  "test": "concurrency-driver-double-booking",
+  "purpose": "Một tài xế chỉ được giữ tối đa một reservation và một chuyến đang chạy tại một thời điểm",
+  "setup": "1 tài xế online ở ZONE_A, 2 khách đặt chuyến thật, stack Compose đầy đủ",
+  "steps": "Chờ tài xế có 2 offer OPEN thật từ 2 job, gửi POST /api/v1/trips/{tripId}/accept đồng thời bằng Promise.all, lặp 3 vòng",
+  "expected": "Một operation SUCCEEDED, một FAILED_COMPENSATED với DRIVER_UNAVAILABLE; bên thua về NO_DRIVER",
+  "actual": [
+    {
+      "round": 1,
+      "winnerTripId": "0cb018d5-41de-435d-9a2f-2cce288caeae",
+      "loserTripId": "d02fc69b-e748-43e0-9968-baaad6dae893",
+      "winnerOperationId": "125c88f5-57f6-401c-b4db-8bd9343d22cc",
+      "loserOperationId": "25ff59fb-506a-461b-b0ae-fecef60bea25",
+      "loserErrorCode": "DRIVER_UNAVAILABLE",
+      "loserReservation": "RELEASED",
+      "activeReservationsDuringRound": 1,
+      "activeTripsDuringRound": 1
+    },
+    {
+      "round": 2,
+      "winnerTripId": "0dc7ffde-fd28-4837-b1ee-d89dcf024d11",
+      "loserTripId": "1b78b782-d388-4e35-96cc-2d7bce459098",
+      "winnerOperationId": "39bf0c83-97c8-4887-b033-9c91da0f9696",
+      "loserOperationId": "3748ef56-7f15-47f5-b0ce-093b6daebf64",
+      "loserErrorCode": "DRIVER_UNAVAILABLE",
+      "loserReservation": "RELEASED",
+      "activeReservationsDuringRound": 1,
+      "activeTripsDuringRound": 1
+    },
+    {
+      "round": 3,
+      "winnerTripId": "8980bcc6-75a6-4355-8d73-2ebde176aa96",
+      "loserTripId": "5f950f54-0236-4b60-bc45-dcedd49e9760",
+      "winnerOperationId": "d4535a5a-b953-476b-a85f-96a4ee817eda",
+      "loserOperationId": "d42d542a-1fbc-41b2-af59-6453033ea243",
+      "loserErrorCode": "DRIVER_UNAVAILABLE",
+      "loserReservation": "RELEASED",
+      "activeReservationsDuringRound": 1,
+      "activeTripsDuringRound": 1
+    }
+  ],
+  "dbBefore": {
+    "activeReservations": "0",
+    "activeTrips": "0"
+  },
+  "dbAfter": {
+    "activeReservations": "0",
+    "activeTrips": "0"
+  },
+  "summary": "3 vòng, mỗi vòng đúng một bên thắng, không double-booking",
+  "status": "PASS",
+  "commit": "b45ab9e",
+  "executedAt": "2026-10-31T11:30:18.065Z",
+  "durationMs": 20879,
+  "tokens": "[REDACTED]"
+}
