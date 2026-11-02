@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-25",
+  "scope": "Driver API-04 through API-14, expiry worker and GPS demo/simulator",
+  "checks": [
+    { "command": "npm run typecheck", "result": "PASS" },
+    { "command": "npm run test:driver:unit", "result": "PASS", "tests": 4 },
+    { "command": "npm test", "result": "PASS", "tests": 45, "driverScenarios": 21 },
+    {
+      "command": "npx eslint tests/helpers/driver-environment.cjs tests/startup.test.cjs tests/identity.integration.test.cjs scripts/simulation/driver-gps.cjs scripts/identity/demo.cjs",
+      "result": "PASS"
+    },
+    { "check": "Actual local Driver startup and /health/ready using existing .env and driver_db", "result": "PASS", "httpStatus": 200 }
+  ],
+  "verified": [
+    "Driver identities and access tokens come from real Identity registration/login",
+    "Concurrent profile creation is safe and repeated content preserves state/version",
+    "Canonical plates are unique; concurrent idempotent requests create one vehicle",
+    "GPS sequences never regress, replay preserves receivedAt and GPS does not bump profile version",
+    "Online requires vehicle and fresh GPS; stale profile versions conflict",
+    "Candidates are sorted and filtered by zone, online, vehicle, GPS and active reservations",
+    "Two trips cannot hold one driver; one trip cannot hold two drivers",
+    "Reserve retries preserve the original 30-second lease",
+    "Confirm checks DB clock after acquiring the driver/reservation locks",
+    "Confirmed reservations have no automatic expiry; command replay is atomic",
+    "Release before reserve and concurrent reserve/release cannot resurrect an assignment",
+    "Offline and reserve cannot both succeed in a race",
+    "Expiry worker resumes after service restart and ignores confirmed reservations",
+    "DB outage returns 503 from readiness/API while liveness remains up; DB restart recovers",
+    "Demo uses real onboarding and resumes GPS sequence on restart",
+    "Identity, Pricing and health checks for all eight apps still pass"
+  ],
+  "remainingIntegration": [
+    "Actual Trip/Matching workflows and Gateway public routes",
+    "Dockerfiles/shared Compose and BA load tests"
+  ]
+}

@@ -1,0 +1,59 @@
+# DB dev của B: mỗi service một PostgreSQL riêng (BA mục 3.2).
+# Chạy qua npm: b:setup:dev (tạo mật khẩu), b:db:up, b:db:stop, b:db:start.
+name: ds03-b-dev
+services:
+  driver-db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: driver_db
+      POSTGRES_PASSWORD: ${DRIVER_BOOTSTRAP_PASSWORD:?Run npm run b:setup:dev}
+      DRIVER_APP_PASSWORD: ${DRIVER_APP_PASSWORD:?Run npm run b:setup:dev}
+      DRIVER_MIGRATOR_PASSWORD: ${DRIVER_MIGRATOR_PASSWORD:?Run npm run b:setup:dev}
+    ports:
+      - '127.0.0.1:5542:5432'
+    volumes:
+      - driver-db-data:/var/lib/postgresql/data
+      - ./postgres/driver-init.sql:/docker-entrypoint-initdb.d/001-driver.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d driver_db']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  matching-db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: matching_db
+      POSTGRES_PASSWORD: ${MATCHING_BOOTSTRAP_PASSWORD:?Run npm run b:setup:dev}
+      MATCHING_APP_PASSWORD: ${MATCHING_APP_PASSWORD:?Run npm run b:setup:dev}
+      MATCHING_MIGRATOR_PASSWORD: ${MATCHING_MIGRATOR_PASSWORD:?Run npm run b:setup:dev}
+    ports:
+      - '127.0.0.1:5546:5432'
+    volumes:
+      - matching-db-data:/var/lib/postgresql/data
+      - ./postgres/matching-init.sql:/docker-entrypoint-initdb.d/001-matching.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d matching_db']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  pricing-db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: pricing_db
+      POSTGRES_PASSWORD: ${PRICING_BOOTSTRAP_PASSWORD:?Run npm run b:setup:dev}
+      PRICING_APP_PASSWORD: ${PRICING_APP_PASSWORD:?Run npm run b:setup:dev}
+      PRICING_MIGRATOR_PASSWORD: ${PRICING_MIGRATOR_PASSWORD:?Run npm run b:setup:dev}
+    ports:
+      - '127.0.0.1:5547:5432'
+    volumes:
+      - pricing-db-data:/var/lib/postgresql/data
+      - ./postgres/pricing-init.sql:/docker-entrypoint-initdb.d/001-pricing.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d pricing_db']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+volumes:
+  driver-db-data:
+  matching-db-data:
+  pricing-db-data:

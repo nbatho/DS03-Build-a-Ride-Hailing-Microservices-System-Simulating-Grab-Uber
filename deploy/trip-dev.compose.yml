@@ -1,0 +1,21 @@
+name: ds03-trip-dev
+services:
+  trip-db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: trip_db
+      POSTGRES_PASSWORD: ${TRIP_BOOTSTRAP_PASSWORD:?Run npm run trip:setup:dev}
+      TRIP_APP_PASSWORD: ${TRIP_APP_PASSWORD:?Run npm run trip:setup:dev}
+      TRIP_MIGRATOR_PASSWORD: ${TRIP_MIGRATOR_PASSWORD:?Run npm run trip:setup:dev}
+    ports:
+      - '127.0.0.1:5543:5432'
+    volumes:
+      - trip-db-data:/var/lib/postgresql/data
+      - ./postgres/trip-init.sql:/docker-entrypoint-initdb.d/001-trip.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d trip_db']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+volumes:
+  trip-db-data:

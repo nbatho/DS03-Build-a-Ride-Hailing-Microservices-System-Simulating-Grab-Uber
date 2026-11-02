@@ -39,6 +39,18 @@
       ],
       "@app/runtime/*": [
         "src/packages/runtime/src/*"
+      ],
+      "@app/auth": [
+        "src/packages/auth/src"
+      ],
+      "@app/auth/*": [
+        "src/packages/auth/src/*"
+      ],
+      "@app/messaging": [
+        "src/packages/messaging/src"
+      ],
+      "@app/messaging/*": [
+        "src/packages/messaging/src/*"
       ]
     }
   },

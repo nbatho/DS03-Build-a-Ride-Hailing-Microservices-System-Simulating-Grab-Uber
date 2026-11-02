@@ -1,0 +1,33 @@
+{
+  "test": "resilience-payment-result-reconciliation",
+  "purpose": "Chuyến không kẹt ở trạng thái chờ thanh toán khi Payment đã có kết quả cuối, và việc đối soát không tạo thêm lần thu",
+  "setup": "Chuyến thanh toán thành công thật, stack Compose đầy đủ. Tạo tình huống mất kết quả bằng cách ghi trực tiếp vào trip-db: đặt lại payment_status = PENDING và lùi updated_at 2 phút",
+  "steps": "Chờ Trip tự gọi GET /internal/v1/payments/{paymentId}, poll GET /api/v1/trips/{tripId}, đếm payment và lần thu trong payment-db",
+  "expected": "paymentStatus về SUCCEEDED, chuyến vẫn COMPLETED, vẫn 1 payment và 1 lần thu",
+  "actual": [
+    {
+      "tripId": "160f9fb5-77c8-4d24-9e7a-82fea15e1fa9",
+      "paymentId": "24be2e8d-bba8-432e-b516-e458b90070b3",
+      "correlationId": "ea454199-d1de-41cb-98ca-15313f463744",
+      "paymentStatus": "SUCCEEDED",
+      "tripStatus": "COMPLETED",
+      "reconciledAfterMs": 23246
+    }
+  ],
+  "dbBefore": {
+    "tripPaymentStatus": "PENDING",
+    "payments": "1",
+    "attempts": "1"
+  },
+  "dbAfter": {
+    "tripPaymentStatus": "SUCCEEDED",
+    "payments": "1",
+    "attempts": "1"
+  },
+  "summary": "Trip tự đọc kết quả từ Payment thật, không tạo thêm payment hay lần thu",
+  "status": "PASS",
+  "commit": "500f59e",
+  "executedAt": "2026-11-02T03:21:22.540Z",
+  "durationMs": 31176,
+  "tokens": "[REDACTED]"
+}

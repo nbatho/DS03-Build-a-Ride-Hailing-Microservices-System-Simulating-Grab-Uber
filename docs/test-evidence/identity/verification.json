@@ -1,0 +1,32 @@
+{
+  "verifiedAt": "2026-10-13T11:06:59.256258+00:00",
+  "repositoryHead": "57cc8e9b9cab5246813b6b69e91f2f5f158408fa",
+  "worktreeModified": true,
+  "sourceSha256": "c1b2790c8af71c90f3c7200b24c6efd4c6ba529c98b5fe00b7491a1c8d4fcfe2",
+  "os": "Windows-11-10.0.26200-SP0",
+  "node": "v24.18.1",
+  "docker": "Docker version 29.6.1, build 8900f1d",
+  "identityImage": "sha256:9140db5b8ac6ee59e220b6f0e18e9b8d01e679cbd254835a2838a9e45dbc440c",
+  "runtimeUser": "node",
+  "checks": {
+    "typecheck": "PASS",
+    "unit": {
+      "passed": 5,
+      "failed": 0
+    },
+    "smokeAndIntegration": {
+      "passed": 11,
+      "failed": 0
+    },
+    "compiledMigrationInDocker": "PASS",
+    "dockerRuntimeHealth": "PASS",
+    "gatewayIdentityDriverDemo": "PASS"
+  },
+  "devPorts": {
+    "postgres": 5541,
+    "identity": 3001,
+    "gateway": 8081,
+    "driver": 3002
+  },
+  "scope": "Identity/User + JWT; Driver onboarding and Trip/Saga remain separate work"
+}

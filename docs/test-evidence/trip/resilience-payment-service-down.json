@@ -1,0 +1,42 @@
+{
+  "test": "resilience-payment-service-down",
+  "purpose": "Payment tắt khi chuyến kết thúc thì yêu cầu thanh toán không mất, bật lại xử lý đúng một logical payment",
+  "setup": "Chuyến IN_PROGRESS thật, stack Compose đầy đủ, dừng service payment bằng docker compose stop",
+  "steps": "Complete khi Payment tắt, kiểm tra tin chờ trong queue, bật Payment, poll kết quả",
+  "expected": "Operation SUCCEEDED, COMPLETED/PENDING, 1 tin trong payment.events; sau khi bật lại SUCCEEDED, 1 payment, 1 attempt",
+  "actual": [
+    {
+      "phase": "payment-down",
+      "tripId": "1377fc65-2f1b-4b33-864e-0d7540cf2533",
+      "paymentId": "8b235961-f083-451f-a70b-0793eb6c76b2",
+      "correlationId": "eb9130e0-3871-42bc-b8c3-b837577d5c9b",
+      "operationId": "fd6b6a41-3b7d-4712-bbbd-64f8bd87f08e",
+      "operationStatus": "SUCCEEDED",
+      "tripStatus": "COMPLETED",
+      "paymentStatus": "PENDING",
+      "queueDepth": 1,
+      "gatewayStatusWhileDown": 502
+    },
+    {
+      "phase": "payment-restarted",
+      "paymentStatus": "SUCCEEDED",
+      "payments": "1",
+      "attempts": "1"
+    }
+  ],
+  "dbBefore": {
+    "paymentService": "stopped",
+    "paymentEventsQueue": 0
+  },
+  "dbAfter": {
+    "payments": "1",
+    "attempts": "1",
+    "paymentEventsQueue": 0
+  },
+  "summary": "Yêu cầu chờ trong queue khi Payment tắt, xử lý đúng một lần sau khi bật lại",
+  "status": "PASS",
+  "commit": "500f59e",
+  "executedAt": "2026-11-02T03:21:45.502Z",
+  "durationMs": 22877,
+  "tokens": "[REDACTED]"
+}

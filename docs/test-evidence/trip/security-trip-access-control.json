@@ -1,0 +1,196 @@
+{
+  "test": "security-trip-access-control",
+  "purpose": "Chỉ đúng người, đúng vai trò và đúng dịch vụ mới đọc hoặc đổi được chuyến; lần gọi bị từ chối không làm đổi trạng thái",
+  "setup": "Chuyến đã gán tài xế, stack Compose đầy đủ. Token thử ký bằng khóa dev trong deploy/secrets. Gọi thẳng Trip từ trong container vì Compose chỉ mở cổng Gateway",
+  "steps": "Gọi các route của Trip qua Gateway và gọi thẳng service với JWT hỏng, sai vai trò, người khác, header giả, token dịch vụ sai, rồi đọc lại trạng thái chuyến",
+  "expected": "401 với JWT hoặc token dịch vụ hỏng; 403 với sai vai trò, người khác hoặc sai bên gọi; 404 với route nội bộ qua Gateway; trạng thái và version của chuyến không đổi",
+  "actual": [
+    {
+      "check": "another driver accepts the offer",
+      "status": 403,
+      "code": "RESOURCE_FORBIDDEN"
+    },
+    {
+      "check": "gateway: missing JWT",
+      "status": 401,
+      "code": "INVALID_TOKEN"
+    },
+    {
+      "check": "service: missing JWT",
+      "status": 401,
+      "code": "INVALID_TOKEN"
+    },
+    {
+      "check": "gateway: expired JWT",
+      "status": 401,
+      "code": "INVALID_TOKEN"
+    },
+    {
+      "check": "service: expired JWT",
+      "status": 401,
+      "code": "INVALID_TOKEN"
+    },
+    {
+      "check": "gateway: wrong audience",
+      "status": 401,
+      "code": "INVALID_TOKEN"
+    },
+    {
+      "check": "service: wrong audience",
+      "status": 401,
+      "code": "INVALID_TOKEN"
+    },
+    {
+      "check": "gateway: wrong issuer",
+      "status": 401,
+      "code": "INVALID_TOKEN"
+    },
+    {
+      "check": "service: wrong issuer",
+      "status": 401,
+      "code": "INVALID_TOKEN"
+    },
+    {
+      "check": "gateway: tampered signature",
+      "status": 401,
+      "code": "INVALID_TOKEN"
+    },
+    {
+      "check": "service: tampered signature",
+      "status": 401,
+      "code": "INVALID_TOKEN"
+    },
+    {
+      "check": "driver creates a trip",
+      "status": 403,
+      "code": "ROLE_FORBIDDEN"
+    },
+    {
+      "check": "passenger starts a trip",
+      "status": 403,
+      "code": "ROLE_FORBIDDEN"
+    },
+    {
+      "check": "passenger completes a trip",
+      "status": 403,
+      "code": "ROLE_FORBIDDEN"
+    },
+    {
+      "check": "passenger accepts an offer",
+      "status": 403,
+      "code": "ROLE_FORBIDDEN"
+    },
+    {
+      "check": "driver cancels a trip",
+      "status": 403,
+      "code": "ROLE_FORBIDDEN"
+    },
+    {
+      "check": "stranger reads the trip",
+      "status": 403,
+      "code": "RESOURCE_FORBIDDEN"
+    },
+    {
+      "check": "stranger cancels the trip",
+      "status": 403,
+      "code": "RESOURCE_FORBIDDEN"
+    },
+    {
+      "check": "stranger reads the operation",
+      "status": 403,
+      "code": "RESOURCE_FORBIDDEN"
+    },
+    {
+      "check": "other driver reads the trip",
+      "status": 403,
+      "code": "RESOURCE_FORBIDDEN"
+    },
+    {
+      "check": "other driver starts the trip",
+      "status": 403,
+      "code": "RESOURCE_FORBIDDEN"
+    },
+    {
+      "check": "other driver completes the trip",
+      "status": 403,
+      "code": "RESOURCE_FORBIDDEN"
+    },
+    {
+      "check": "forged headers with a stranger token",
+      "status": 403,
+      "code": "RESOURCE_FORBIDDEN"
+    },
+    {
+      "check": "forged headers without a token",
+      "status": 401,
+      "code": "INVALID_TOKEN"
+    },
+    {
+      "check": "forged headers at the service",
+      "status": 403,
+      "code": "RESOURCE_FORBIDDEN"
+    },
+    {
+      "check": "internal trip through the Gateway",
+      "status": 404,
+      "code": "NOT_FOUND"
+    },
+    {
+      "check": "operation retry through the Gateway",
+      "status": 404,
+      "code": "NOT_FOUND"
+    },
+    {
+      "check": "internal trip without a token",
+      "status": 401,
+      "code": "INTERNAL_CALLER_FORBIDDEN"
+    },
+    {
+      "check": "internal trip with a fake token",
+      "status": 401,
+      "code": "INTERNAL_CALLER_FORBIDDEN"
+    },
+    {
+      "check": "internal trip with a user JWT",
+      "status": 401,
+      "code": "INTERNAL_CALLER_FORBIDDEN"
+    },
+    {
+      "check": "internal trip from ops",
+      "status": 403,
+      "code": "INTERNAL_CALLER_FORBIDDEN"
+    },
+    {
+      "check": "retry without a token",
+      "status": 401,
+      "code": "INTERNAL_CALLER_FORBIDDEN"
+    },
+    {
+      "check": "retry with a fake token",
+      "status": 401,
+      "code": "INTERNAL_CALLER_FORBIDDEN"
+    },
+    {
+      "check": "retry from Matching",
+      "status": 403,
+      "code": "INTERNAL_CALLER_FORBIDDEN"
+    },
+    {
+      "check": "retry from ops on a finished operation",
+      "status": 409,
+      "code": "OPERATION_NOT_RETRYABLE"
+    }
+  ],
+  "dbBefore": {
+    "trip": "ASSIGNED|3"
+  },
+  "dbAfter": {
+    "trip": "ASSIGNED|3"
+  },
+  "summary": "Mọi lần gọi sai đều bị từ chối, trạng thái và version của chuyến giữ nguyên",
+  "status": "PASS",
+  "commit": "500f59e",
+  "executedAt": "2026-11-02T03:24:09.989Z",
+  "durationMs": 13108,
+  "tokens": "[REDACTED]"
+}

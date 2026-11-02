@@ -1,0 +1,42 @@
+{
+  "test": "trip-create-from-quote",
+  "purpose": "Chuyến chỉ được tạo từ quote còn hạn của chính khách, gửi lại cùng Idempotency-Key không tạo chuyến thứ hai, và giá được chốt theo quote",
+  "setup": "Stack Compose đầy đủ, quote thật từ Pricing. Tạo quote hết hạn bằng cách ghi expires_at trực tiếp vào pricing-db",
+  "steps": "Gửi POST /api/v1/trips với quote hợp lệ, gửi lại cùng key, đổi body, dùng lại quote với key khác, dùng quote của khách khác, dùng quote hết hạn",
+  "expected": "201 và giá đúng; cùng key trả cùng chuyến, 1 trip.requested, 1 job; đổi body 409 IDEMPOTENCY_CONFLICT; dùng lại quote 409 QUOTE_ALREADY_USED; quote người khác 403 RESOURCE_FORBIDDEN; quote hết hạn 409 QUOTE_EXPIRED",
+  "actual": [
+    {
+      "tripId": "2afccf75-ec7c-4f92-a7b9-768f4bb73572",
+      "quoteId": "3be48aba-f934-4250-9c89-086e91f3e582",
+      "amount": "41000",
+      "trips": "1",
+      "requested": "1",
+      "jobs": "1"
+    },
+    {
+      "status": 409,
+      "code": "IDEMPOTENCY_CONFLICT"
+    },
+    {
+      "status": 409,
+      "code": "QUOTE_ALREADY_USED"
+    },
+    {
+      "status": 403,
+      "code": "RESOURCE_FORBIDDEN"
+    },
+    {
+      "status": 409,
+      "code": "QUOTE_EXPIRED"
+    }
+  ],
+  "dbAfter": {
+    "tripsFromRefusedQuotes": "0"
+  },
+  "summary": "Một quote tạo đúng một chuyến; mọi yêu cầu sai đều bị từ chối và không tạo chuyến",
+  "status": "PASS",
+  "commit": "500f59e",
+  "executedAt": "2026-11-02T03:16:14.100Z",
+  "durationMs": 2503,
+  "tokens": "[REDACTED]"
+}

@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "components": {
+    "schemas": {
+      "Point": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "lat": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90,
+            "example": 10.77
+          },
+          "lng": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180,
+            "example": 106.69
+          },
+          "zoneId": {
+            "type": "string",
+            "enum": ["ZONE_A", "ZONE_B"],
+            "description": "Vùng mô phỏng; Matching lọc theo zoneId, không dùng định tuyến bản đồ thật.",
+            "example": "ZONE_A"
+          }
+        },
+        "required": ["lat", "lng", "zoneId"],
+        "description": ""
+      },
+      "Candidate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "driverId": {
+            "type": "string",
+            "description": "UUID chuẩn, không dùng số tự tăng để liên kết service.",
+            "example": "e7c02766-ce0d-553f-b18a-3860ac1be699",
+            "format": "uuid"
+          },
+          "vehicleId": {
+            "type": "string",
+            "description": "UUID chuẩn, không dùng số tự tăng để liên kết service.",
+            "example": "d804f68e-af52-5aff-ab6a-cc4f5979e204",
+            "format": "uuid"
+          },
+          "zoneId": {
+            "type": "string",
+            "enum": ["ZONE_A", "ZONE_B"],
+            "description": "",
+            "example": "ZONE_A"
+          },
+          "locationSequence": {
+            "type": "integer",
+            "description": "",
+            "example": 2,
+            "minimum": 0
+          },
+          "locationReceivedAt": {
+            "type": "string",
+            "description": "UTC, RFC 3339; đồng hồ ví dụ, không phải thời hạn còn hiệu lực.",
+            "example": "2026-10-11T02:00:00Z",
+            "format": "date-time"
+          }
+        },
+        "required": ["driverId", "vehicleId", "zoneId", "locationSequence", "locationReceivedAt"],
+        "description": ""
+      },
+      "Candidates": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Candidate"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": ["items"],
+        "description": ""
+      },
+      "Trip": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID chuẩn, không dùng số tự tăng để liên kết service.",
+            "example": "a1031bdc-44d7-5c67-93ff-7f11b2987aa4",
+            "format": "uuid"
+          },
+          "passengerId": {
+            "type": "string",
+            "description": "UUID chuẩn, không dùng số tự tăng để liên kết service.",
+            "example": "c15878c4-5fc0-5082-a243-691c58a8c3f3",
+            "format": "uuid"
+          },
+          "driverId": {
+            "type": "string",
+            "description": "UUID chuẩn, không dùng số tự tăng để liên kết service.",
+            "example": "e7c02766-ce0d-553f-b18a-3860ac1be699",
+            "format": "uuid"
+          },
+          "quoteId": {
+            "type": "string",
+            "description": "UUID chuẩn, không dùng số tự tăng để liên kết service.",
+            "example": "f3983467-9632-5d3f-8e26-0c0fe95c1219",
+            "format": "uuid"
+          },
+          "assignmentId": {
+            "type": "string",
+            "description": "UUID chuẩn, không dùng số tự tăng để liên kết service.",
+            "example": "40f54b0d-49ab-50a9-a794-7e42581d2be7",
+            "format": "uuid"
+          },
+          "pickup": {
+            "$ref": "#/components/schemas/Point"
+          },
+          "dropoff": {
+            "$ref": "#/components/schemas/Point"
+          },
+          "amount": {
+            "type": "string",
+            "description": "Số nguyên VND dạng chuỗi; không dùng float JSON để cộng tiền.",
+            "example": "41000",
+            "pattern": "^\\d{1,14}$"
+          },
+          "currency": {
+            "type": "string",
+            "enum": ["VND"],
+            "description": "",
+            "example": "VND"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "MATCHING",
+              "ASSIGNING",
+              "ASSIGNED",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "CANCELLING",
+              "CANCELLED",
+              "NO_DRIVER"
+            ],
+            "description": "",
+            "example": "MATCHING"
+          },
+          "paymentStatus": {
+            "type": "string",
+            "enum": ["NOT_REQUESTED", "PENDING", "PENDING_RETRY", "SUCCEEDED", "FAILED"],
+            "description": "",
+            "example": "NOT_REQUESTED"
+          },
+          "paymentId": {
+            "type": "string",
+            "description": "UUID chuẩn, không dùng số tự tăng để liên kết service.",
+            "example": "b9bfefb8-1556-5e49-816c-4f95e3d86990",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "description": "Version tăng khi aggregate thay đổi; kiểm tra bằng compare-and-set.",
+            "example": 1,
+            "minimum": 1
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "UTC, RFC 3339; đồng hồ ví dụ, không phải thời hạn còn hiệu lực.",
+            "example": "2026-10-11T02:00:00Z",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "UTC, RFC 3339; đồng hồ ví dụ, không phải thời hạn còn hiệu lực.",
+            "example": "2026-10-11T02:00:00Z",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "passengerId",
+          "quoteId",
+          "pickup",
+          "dropoff",
+          "amount",
+          "currency",
+          "status",
+          "paymentStatus",
+          "version",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": ""
+      }
+    }
+  }
+}

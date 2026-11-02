@@ -1,0 +1,81 @@
+{
+  "executedAt": "2026-10-22T05:20:59.708Z",
+  "status": "PASS",
+  "commit": "5e83d58",
+  "infrastructure": "disposable PostgreSQL 17 (payment_db, notification_db) + RabbitMQ 4.1, project ds03-c-test-f9e003cd",
+  "apps": "dist/simulated-payment-service, dist/notification-service (real builds, SIGKILL for crashes)",
+  "producerStandIn": "Trip/Matching events published by the test with the real EventPublisher (confirm + mandatory)",
+  "cases": [
+    "R01",
+    "R03",
+    "F09",
+    "F10 (out-of-order subset)"
+  ],
+  "outcomes": [
+    {
+      "name": "R01: payment down — request waits in payment.events, processed once after restart",
+      "status": "PASS",
+      "durationMs": 2164,
+      "details": {
+        "paymentId": "3d2598ff-c69f-4ba5-9fa9-face9e4fc332",
+        "requestEventId": "320d15f7-c547-4b54-98e2-52b2495b2b3f",
+        "resultEventId": "be03d0bd-edca-4a66-be2a-93220de25605"
+      }
+    },
+    {
+      "name": "R03: duplicate delivery and re-sent attempt never charge twice",
+      "status": "PASS",
+      "durationMs": 1130,
+      "details": {
+        "paymentId": "fac68153-2f45-4951-878a-8974164e916b"
+      }
+    },
+    {
+      "name": "R03: malformed message goes to payment.events.dlq at once; good messages keep flowing",
+      "status": "PASS",
+      "durationMs": 277,
+      "details": {
+        "dlqErrors": [
+          "Body is not valid JSON",
+          "$.producer must be trip-booking-service for payment.requested"
+        ]
+      }
+    },
+    {
+      "name": "R03: payment killed mid-burst — after restart every payment charged exactly once",
+      "status": "PASS",
+      "durationMs": 2772,
+      "details": {
+        "payments": 30,
+        "succeededBeforeKill": 14
+      }
+    },
+    {
+      "name": "R03: RabbitMQ restart — Payment and Notification reconnect and keep processing",
+      "status": "PASS",
+      "durationMs": 19435,
+      "details": {
+        "paymentId": "5cffe04c-27de-417e-9355-a8ff3c7e5fc8"
+      }
+    },
+    {
+      "name": "F09: temporary failure then retry with the same paymentId succeeds; no double charge",
+      "status": "PASS",
+      "durationMs": 4637,
+      "details": {
+        "paymentId": "8592f8cc-236f-4a8c-afb6-a6bf91b50917",
+        "attempts": 2
+      }
+    },
+    {
+      "name": "F10: offer arriving after cancellation is not actionable; driver gets one cancel notice",
+      "status": "PASS",
+      "durationMs": 648,
+      "details": {
+        "tripId": "35842f03-1359-4344-92d4-1ce4de10a101",
+        "notifications": 3
+      }
+    }
+  ],
+  "secrets": "[REDACTED]"
+}

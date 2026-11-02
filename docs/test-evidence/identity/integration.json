@@ -1,0 +1,53 @@
+{
+  "executedAt": "2026-10-30T12:28:29.289Z",
+  "status": "PASS",
+  "outcomes": [
+    {
+      "name": "F01: register both roles, normalize email, hash-only DB and real login/me through Gateway",
+      "status": "PASS"
+    },
+    {
+      "name": "DB-F01: concurrent normalized email registrations produce one account",
+      "status": "PASS"
+    },
+    {
+      "name": "validation, byte boundaries, oversized/malformed JSON and correlation errors are safe",
+      "status": "PASS"
+    },
+    {
+      "name": "S01/S02: missing/invalid JWT, deleted user, role and forged actor boundaries",
+      "status": "PASS"
+    },
+    {
+      "name": "DB-S01: app role is not owner and cannot DDL/TRUNCATE/write migration history/read another schema",
+      "status": "PASS"
+    },
+    {
+      "name": "recovery: database down yields 503 without losing process; restart restores data and same JWT",
+      "status": "PASS"
+    },
+    {
+      "name": "login rate limit: both success/failure count, forwarding cannot bypass, health is exempt",
+      "status": "PASS"
+    },
+    {
+      "name": "logs redact passwords, tokens, key material and private upstream credentials",
+      "status": "PASS"
+    }
+  ],
+  "database": "isolated disposable PostgreSQL 17",
+  "cases": [
+    "F01",
+    "DB-F01",
+    "S01",
+    "S02 Identity/Driver subset",
+    "DB-S01",
+    "Identity DB/process recovery",
+    "login rate limit"
+  ],
+  "correlationId": "7cac7875-7256-4ea6-9639-5cb96496992d",
+  "passengerId": "c843fbc3-adc7-41d9-85eb-206c09455c8f",
+  "driverUserId": "25c02d08-bd53-4754-a41f-c0679641ac0e",
+  "tokens": "[REDACTED]",
+  "scope": "Identity API and JWT integration; full-system Saga/payment tests are not implemented here"
+}
