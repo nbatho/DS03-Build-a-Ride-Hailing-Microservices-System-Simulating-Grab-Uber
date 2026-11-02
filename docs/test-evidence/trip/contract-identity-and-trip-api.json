@@ -1,0 +1,263 @@
+{
+  "test": "contract-identity-and-trip-api",
+  "purpose": "Response thật của Identity và Trip khớp method, path, status và schema đã công bố, để bên gọi không phải đoán dữ liệu",
+  "setup": "Stack Compose đầy đủ. Schema lấy từ docs/api/identity.openapi.json và docs/api/trip.openapi.json",
+  "steps": "Đi hết vòng đời một chuyến qua Gateway và gọi route nội bộ từ trong container Trip, kiểm tra mỗi response bằng Ajv, đối chiếu route public với danh sách của Gateway",
+  "expected": "Mọi response đúng status đã công bố và đúng schema; trường có điều kiện xuất hiện đúng lúc; route public có trên Gateway, route nội bộ thì không",
+  "actual": [
+    {
+      "method": "POST",
+      "route": "/api/v1/auth/register",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/auth/register",
+      "status": 409,
+      "code": "EMAIL_EXISTS"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/auth/register",
+      "status": 400,
+      "code": "VALIDATION_ERROR"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/auth/login",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/auth/login",
+      "status": 401,
+      "code": "INVALID_CREDENTIALS"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/users/me",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/users/me",
+      "status": 401,
+      "code": "INVALID_TOKEN"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips",
+      "status": 400,
+      "code": "VALIDATION_ERROR"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips",
+      "status": 404,
+      "code": "QUOTE_NOT_FOUND"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips",
+      "status": 401,
+      "code": "INVALID_TOKEN"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips",
+      "status": 403,
+      "code": "ROLE_FORBIDDEN"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/trips",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/trips",
+      "status": 400,
+      "code": "VALIDATION_ERROR"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/trips/{tripId}",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/trips/{tripId}",
+      "status": 403,
+      "code": "RESOURCE_FORBIDDEN"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/trips/{tripId}",
+      "status": 404,
+      "code": "TRIP_NOT_FOUND"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/operations/{operationId}",
+      "status": 404,
+      "code": "OPERATION_NOT_FOUND"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips/{tripId}/start",
+      "status": 403,
+      "code": "RESOURCE_FORBIDDEN"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips/{tripId}/accept",
+      "status": 400,
+      "code": "VALIDATION_ERROR"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips/{tripId}/accept",
+      "status": 404,
+      "code": "TRIP_NOT_FOUND"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips/{tripId}/reject",
+      "status": 202
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/operations/{operationId}",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/operations/{operationId}",
+      "status": 403,
+      "code": "RESOURCE_FORBIDDEN"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips/{tripId}/accept",
+      "status": 202
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips/{tripId}/accept",
+      "status": 409,
+      "code": "IDEMPOTENCY_CONFLICT"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/trips/{tripId}",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "route": "/internal/v1/trips/{tripId}",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "route": "/internal/v1/trips/{tripId}",
+      "status": 401,
+      "code": "INTERNAL_CALLER_FORBIDDEN"
+    },
+    {
+      "method": "GET",
+      "route": "/internal/v1/trips/{tripId}",
+      "status": 403,
+      "code": "INTERNAL_CALLER_FORBIDDEN"
+    },
+    {
+      "method": "GET",
+      "route": "/internal/v1/trips/{tripId}",
+      "status": 404,
+      "code": "TRIP_NOT_FOUND"
+    },
+    {
+      "method": "POST",
+      "route": "/internal/v1/operations/{operationId}/retry",
+      "status": 409,
+      "code": "OPERATION_NOT_RETRYABLE"
+    },
+    {
+      "method": "POST",
+      "route": "/internal/v1/operations/{operationId}/retry",
+      "status": 404,
+      "code": "OPERATION_NOT_FOUND"
+    },
+    {
+      "method": "POST",
+      "route": "/internal/v1/operations/{operationId}/retry",
+      "status": 400,
+      "code": "VALIDATION_ERROR"
+    },
+    {
+      "method": "POST",
+      "route": "/internal/v1/operations/{operationId}/retry",
+      "status": 401,
+      "code": "INTERNAL_CALLER_FORBIDDEN"
+    },
+    {
+      "method": "POST",
+      "route": "/internal/v1/operations/{operationId}/retry",
+      "status": 403,
+      "code": "INTERNAL_CALLER_FORBIDDEN"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips/{tripId}/cancel",
+      "status": 400,
+      "code": "VALIDATION_ERROR"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips/{tripId}/complete",
+      "status": 409,
+      "code": "INVALID_STATE"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips/{tripId}/start",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips/{tripId}/cancel",
+      "status": 409,
+      "code": "TRIP_ALREADY_STARTED"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips/{tripId}/complete",
+      "status": 202
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/trips/{tripId}",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/trips/{tripId}/cancel",
+      "status": 202
+    }
+  ],
+  "summary": "Mọi response đã kiểm tra đều đúng status và schema đã công bố",
+  "status": "PASS",
+  "commit": "6e54a80",
+  "executedAt": "2026-11-02T02:36:18.191Z",
+  "durationMs": 53664,
+  "tokens": "[REDACTED]"
+}

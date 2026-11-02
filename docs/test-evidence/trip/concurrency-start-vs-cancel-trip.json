@@ -7,8 +7,8 @@
   "actual": [
     {
       "round": 1,
-      "tripId": "f5d7c063-08a9-499a-bc85-5948a3b7becf",
-      "assignmentId": "17620e17-25a5-47d2-8607-e608a40e8d89",
+      "tripId": "ce6006c1-d733-43a2-938e-643c9eb82dc7",
+      "assignmentId": "8db235ca-6907-48a6-9377-2f17fd1ada38",
       "winner": "start",
       "startStatus": 200,
       "cancelStatus": 409,
@@ -17,8 +17,8 @@
     },
     {
       "round": 2,
-      "tripId": "f0ca8855-5f7d-4add-8492-078a5589b1db",
-      "assignmentId": "d5f5f17f-7ab8-42a8-9b36-b5543d3e1f3b",
+      "tripId": "983e1622-157a-4fc7-9dea-564d922f0d9e",
+      "assignmentId": "89625954-d1f1-4799-8c21-dac0d55280a5",
       "winner": "cancel",
       "startStatus": 409,
       "startCode": "INVALID_STATE",
@@ -27,8 +27,8 @@
     },
     {
       "round": 3,
-      "tripId": "c28141c0-8db7-4d1c-aeca-0fa4d2ec5a3b",
-      "assignmentId": "e717570d-0747-4cee-9c09-f026a988ea9c",
+      "tripId": "dbeda172-2e86-4781-a528-9ca9c7a65d11",
+      "assignmentId": "a6dc9a38-b0d6-4ec2-8a31-1c34599ebe36",
       "winner": "start",
       "startStatus": 200,
       "cancelStatus": 409,
@@ -37,8 +37,8 @@
     },
     {
       "round": 4,
-      "tripId": "0f3bfaa5-cdac-42e0-8dfc-9537898ee7de",
-      "assignmentId": "8d689913-d3a4-47aa-9000-57adb490bbf6",
+      "tripId": "f94bea0d-6a22-4a74-96e3-13b12038ef32",
+      "assignmentId": "6d7084a9-86da-4fa6-8cf7-385e0a6c86f3",
       "winner": "cancel",
       "startStatus": 409,
       "startCode": "INVALID_STATE",
@@ -47,8 +47,8 @@
     },
     {
       "round": 5,
-      "tripId": "6e91136d-bb3e-40cf-9708-5ed8f67362b1",
-      "assignmentId": "7d454001-bb37-4197-a7c9-b7b8c38e53c5",
+      "tripId": "04e822ae-af03-4754-919b-92973d7b2059",
+      "assignmentId": "07e04d20-367b-4e1b-8073-78c046919e1d",
       "winner": "start",
       "startStatus": 200,
       "cancelStatus": 409,
@@ -57,8 +57,8 @@
     },
     {
       "round": 6,
-      "tripId": "7f610b85-e8d1-4ce7-9248-dbeec0e1657d",
-      "assignmentId": "0630a61c-218a-4a7b-8f6d-ba95e9834396",
+      "tripId": "4425a126-be95-49ab-a25a-982610da0082",
+      "assignmentId": "08fd15e9-585f-402c-9096-b3c392c04068",
       "winner": "cancel",
       "startStatus": 409,
       "startCode": "INVALID_STATE",
@@ -72,8 +72,8 @@
     "cancel": 3
   },
   "status": "PASS",
-  "commit": "b45ab9e",
-  "executedAt": "2026-10-31T11:30:56.315Z",
-  "durationMs": 38160,
+  "commit": "6e54a80",
+  "executedAt": "2026-11-02T02:30:05.032Z",
+  "durationMs": 42194,
   "tokens": "[REDACTED]"
 }

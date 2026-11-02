@@ -8,7 +8,7 @@ const ROOT = path.resolve(__dirname, '../..');
 const GATEWAY = process.env.E2E_GATEWAY_URL ?? 'http://127.0.0.1:8080';
 const API = GATEWAY + '/api/v1';
 
-async function call(route, { method = 'GET', body, token, key, correlationId } = {}) {
+async function call(route, { method = 'GET', body, token, key, correlationId, headers = {} } = {}) {
   const response = await fetch(API + route, {
     method,
     headers: {
@@ -16,6 +16,7 @@ async function call(route, { method = 'GET', body, token, key, correlationId } =
       ...(token ? { Authorization: 'Bearer ' + token } : {}),
       ...(key ? { 'Idempotency-Key': key } : {}),
       ...(correlationId ? { 'X-Correlation-Id': correlationId } : {}),
+      ...headers,
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     signal: AbortSignal.timeout(15000),
@@ -175,6 +176,32 @@ function compose(args, timeout = 60000) {
 const queryDb = (service, database, sql) =>
   compose(['exec', '-T', service, 'psql', '-U', 'postgres', '-d', database, '-tAc', sql], 30000);
 
+const CONTAINER_FETCH = `
+const { url, method, headers, tokenEnv, body } = JSON.parse(process.argv[1]);
+
+fetch(url, {
+  method,
+  headers: {
+    'Content-Type': 'application/json',
+    ...headers,
+    ...(tokenEnv ? { 'X-Service-Token': process.env[tokenEnv] } : {}),
+  },
+  ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  signal: AbortSignal.timeout(10000),
+}).then(async response => {
+  const text = await response.text();
+
+  console.log(JSON.stringify({ status: response.status, body: text ? JSON.parse(text) : undefined }));
+});
+`;
+
+// Compose chỉ mở cổng Gateway nên gọi thẳng Trip từ trong container của nó; tokenEnv là tên biến chứa token dịch vụ.
+function callTripDirectly(route, { method = 'GET', body, headers = {}, tokenEnv } = {}) {
+  const request = JSON.stringify({ url: 'http://127.0.0.1:3003' + route, method, headers, tokenEnv, body });
+
+  return JSON.parse(compose(['exec', '-T', 'trip', 'node', '-e', CONTAINER_FETCH, request]));
+}
+
 async function acceptOffer(driver, tripId, offerId) {
   const accepted = await expectStatus(
     call('/trips/' + tripId + '/accept', {
@@ -196,6 +223,7 @@ module.exports = {
   account,
   bringOnline,
   call,
+  callTripDirectly,
   compose,
   createQuote,
   driverProfile,

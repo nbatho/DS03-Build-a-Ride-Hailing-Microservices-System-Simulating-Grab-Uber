@@ -2,12 +2,15 @@ import { isUUID } from 'class-validator';
 import {
   MATCHING_JOB_STATUSES,
   OFFER_STATUSES,
+  PAYMENT_STATUSES,
   RESERVATION_STATUSES,
   ZONE_IDS,
   type MatchingJob,
   type MatchingJobStatus,
   type Offer,
   type OfferStatus,
+  type Payment,
+  type PaymentStatus,
   type Point,
   type Quote,
   type Reservation,
@@ -131,6 +134,27 @@ export function readOffer(value: unknown, offerId: string): Offer {
   }
 
   return offer as Offer;
+}
+
+export function readPayment(value: unknown, paymentId: string): Payment {
+  const payment = value as Partial<Payment> | null;
+
+  if (
+    !payment ||
+    payment.id !== paymentId ||
+    !isUUID(payment.tripId) ||
+    !isUUID(payment.passengerId) ||
+    typeof payment.amount !== 'string' ||
+    !AMOUNT.test(payment.amount) ||
+    payment.currency !== 'VND' ||
+    !PAYMENT_STATUSES.includes(payment.status as PaymentStatus) ||
+    !Number.isInteger(payment.attemptNo) ||
+    typeof payment.retryable !== 'boolean'
+  ) {
+    throw invalid('Payment');
+  }
+
+  return payment as Payment;
 }
 
 export function readReservation(

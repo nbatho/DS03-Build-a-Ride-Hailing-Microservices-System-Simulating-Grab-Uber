@@ -1,0 +1,75 @@
+{
+  "test": "clean-setup",
+  "purpose": "Người khác dựng được cả hệ thống chỉ bằng README, không cần file riêng hay sửa tay trên máy tác giả",
+  "setup": "Thư mục mới chỉ chứa các file git nhận, không có .env, khóa JWT hay node_modules. Compose project riêng ds03-clean, volume mới. Stack dev đã dừng và giữ nguyên volume",
+  "steps": [
+    "npm ci",
+    "npm run identity:setup:dev",
+    "npm run b:setup:dev",
+    "npm run c:setup:dev",
+    "npm run trip:setup:dev",
+    "npm run svc:tokens",
+    "npm run stack:up",
+    "npm run test:e2e"
+  ],
+  "expected": "Mọi lệnh thoát 0, 8 app và các hạ tầng healthy, luồng chính qua Gateway đạt",
+  "actual": [
+    {
+      "command": "npm ci",
+      "exitCode": 0,
+      "durationMs": 226959
+    },
+    {
+      "command": "npm run identity:setup:dev",
+      "exitCode": 0,
+      "durationMs": 1266
+    },
+    {
+      "command": "npm run b:setup:dev",
+      "exitCode": 0,
+      "durationMs": 1386
+    },
+    {
+      "command": "npm run c:setup:dev",
+      "exitCode": 0,
+      "durationMs": 1435
+    },
+    {
+      "command": "npm run trip:setup:dev",
+      "exitCode": 0,
+      "durationMs": 1403
+    },
+    {
+      "command": "npm run svc:tokens",
+      "exitCode": 0,
+      "durationMs": 1467
+    },
+    {
+      "command": "npm run stack:up",
+      "exitCode": 0,
+      "durationMs": 34365
+    },
+    {
+      "command": "npm run test:e2e",
+      "exitCode": 0,
+      "durationMs": 44837
+    }
+  ],
+  "containers": 16,
+  "unhealthy": 0,
+  "e2e": {
+    "status": "PASS",
+    "scenarios": [
+      "PASS a full trip from quote to paid",
+      "PASS the first driver rejects, the next one completes the trip",
+      "PASS without a driver the trip ends in NO_DRIVER and nothing is charged",
+      "PASS cancelling before and after assignment; a started trip cannot be cancelled"
+    ]
+  },
+  "status": "PASS",
+  "commit": "6e54a80",
+  "workingTreeHasUncommittedChanges": true,
+  "executedAt": "2026-11-01T15:17:57.526Z",
+  "durationMs": 327161,
+  "tokens": "[REDACTED]"
+}

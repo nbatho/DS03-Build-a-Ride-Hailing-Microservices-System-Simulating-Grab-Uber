@@ -71,8 +71,11 @@ test('Start, complete and payment with real Payment, Notification and RabbitMQ',
       },
     );
   const driverToken = randomBytes(32).toString('base64url');
+  const paymentToken = randomBytes(32).toString('base64url');
   const releases = [];
   const scripts = new Map();
+  const paymentReplies = new Map();
+  const paymentCalls = [];
 
   server = http.createServer(async (req, res) => {
     let raw = '';
@@ -84,6 +87,13 @@ test('Start, complete and payment with real Payment, Notification and RabbitMQ',
         .writeHead(reply.status, { 'Content-Type': 'application/json' })
         .end(JSON.stringify(reply.body));
     const id = req.url.split('/')[4];
+
+    if (req.url.startsWith('/internal/v1/payments/') && req.headers['x-service-token'] === paymentToken) {
+      paymentCalls.push(id);
+      send(paymentReplies.get(id) ?? { status: 404, body: { code: 'PAYMENT_NOT_FOUND' } });
+
+      return;
+    }
 
     if (!req.url.endsWith('/release') || req.headers['x-service-token'] !== driverToken) {
       send({ status: 403, body: { code: 'INTERNAL_CALLER_FORBIDDEN' } });
@@ -112,7 +122,7 @@ test('Start, complete and payment with real Payment, Notification and RabbitMQ',
   const tripPort = await port();
   const origin = 'http://127.0.0.1:' + tripPort;
 
-  async function launchTrip() {
+  async function launchTrip(appPort = tripPort) {
     const app = start('trip-booking-service', {
       ...db.env,
       RABBITMQ_URL: environment.rabbitUrl,
@@ -120,12 +130,15 @@ test('Start, complete and payment with real Payment, Notification and RabbitMQ',
       JWT_PUBLIC_KEY_FILE: path.join(directory, 'identity-public.pem'),
       JWT_ISSUER: 'ride-hailing',
       JWT_AUDIENCE: 'ride-api',
-      TRIP_PORT: String(tripPort),
+      TRIP_PORT: String(appPort),
       DRIVER_BASE_URL: 'http://127.0.0.1:' + server.address().port,
       SVC_TOKEN_TRIP_DRIVER: driverToken,
+      PAYMENT_BASE_URL: 'http://127.0.0.1:' + server.address().port,
+      SVC_TOKEN_TRIP_PAYMENT: paymentToken,
+      TRIP_PAYMENT_RECONCILE_INTERVAL_MS: '300',
     });
 
-    await healthy(app, origin).catch(error => {
+    await healthy(app, 'http://127.0.0.1:' + appPort).catch(error => {
       throw new Error(error.message + '\n' + app.logs);
     });
 
@@ -693,5 +706,142 @@ test('Start, complete and payment with real Payment, Notification and RabbitMQ',
 
     assert.equal(row.payment_status, 'PENDING');
     assert.equal(row.version, 1);
+  });
+
+  // Đặt phản hồi trước khi lùi updated_at: worker có thể đọc ngay khi chuyến đủ điều kiện.
+  const seedOverdue = async (fields = {}, reply) => {
+    const trip = await seedPaying();
+
+    if (reply !== null) {
+      paymentReplies.set(
+        trip.paymentId,
+        reply ?? {
+          status: 200,
+          body: {
+            id: trip.paymentId,
+            tripId: trip.id,
+            passengerId: trip.passengerId,
+            amount: '41000',
+            currency: 'VND',
+            status: 'SUCCEEDED',
+            attemptNo: 1,
+            retryable: false,
+            updatedAt: new Date().toISOString(),
+            ...fields,
+          },
+        },
+      );
+    }
+
+    await db.appQuery(
+      "UPDATE trip_schema.trips SET updated_at = now() - interval '2 minutes' WHERE id = $1",
+      [trip.id],
+    );
+
+    return trip;
+  };
+  const callsOf = paymentId => paymentCalls.filter(id => id === paymentId).length;
+
+  await t.test('a trip waiting too long takes the final result from Payment', async () => {
+    const paid = await seedOverdue();
+    const failed = await seedOverdue({ status: 'FAILED', retryable: false });
+    const exhausted = await seedOverdue({ status: 'FAILED', attemptNo: 3, retryable: true });
+
+    await eventually(async () => {
+      assert.equal((await tripRow(paid.id)).payment_status, 'SUCCEEDED');
+      assert.equal((await tripRow(failed.id)).payment_status, 'FAILED');
+      assert.equal((await tripRow(exhausted.id)).payment_status, 'FAILED');
+    });
+
+    const row = await tripRow(exhausted.id);
+
+    assert.equal(row.status, 'COMPLETED');
+    assert.equal(row.version, 2);
+    assert.equal(row.payment_version, 0);
+    assert.equal(row.payment_attempt_no, 3);
+    assert.equal((await outbox(exhausted.id, 'payment.requested')).length, 0);
+  });
+
+  await t.test('a result that is not final or does not match leaves the trip waiting', async () => {
+    const retryable = await seedOverdue({ status: 'FAILED', retryable: true });
+    const pending = await seedOverdue({ status: 'PENDING', attemptNo: 0, retryable: true });
+    const missing = await seedOverdue({}, null);
+    const down = await seedOverdue({}, UNAVAILABLE);
+    const otherTrip = await seedOverdue({ tripId: randomUUID() });
+    const otherAmount = await seedOverdue({ amount: '1' });
+    const broken = await seedOverdue({}, { status: 200, body: { id: randomUUID() } });
+    const trips = [retryable, pending, missing, down, otherTrip, otherAmount, broken];
+
+    await eventually(() => {
+      for (const trip of trips) {
+        assert.ok(callsOf(trip.paymentId) >= 1, 'Payment not read yet for ' + trip.id);
+      }
+    }, 30000);
+
+    for (const trip of trips) {
+      const row = await tripRow(trip.id);
+
+      assert.equal(row.payment_status, 'PENDING');
+      assert.equal(row.version, 1);
+    }
+  });
+
+  await t.test('a trip still inside the waiting time is not read', async () => {
+    const trip = await seedPaying();
+
+    await sleep(1500);
+    assert.equal(callsOf(trip.paymentId), 0);
+    assert.equal((await tripRow(trip.id)).payment_status, 'PENDING');
+  });
+
+  await t.test('a result event arriving after reconciliation changes nothing', async () => {
+    const paid = await seedOverdue();
+    const failed = await seedOverdue({ status: 'FAILED', retryable: false });
+
+    await eventually(async () => {
+      assert.equal((await tripRow(paid.id)).payment_status, 'SUCCEEDED');
+      assert.equal((await tripRow(failed.id)).payment_status, 'FAILED');
+    });
+
+    const late = [
+      await publishResult('payment.succeeded', paid, { paymentVersion: 2 }),
+      await publishResult('payment.failed', failed, { paymentVersion: 2, retryable: true }),
+    ];
+
+    await eventually(async () => {
+      for (const event of late) {
+        assert.equal(await processed(event.event_id), 1);
+      }
+    });
+
+    assert.equal((await tripRow(paid.id)).payment_status, 'SUCCEEDED');
+    assert.equal((await tripRow(paid.id)).version, 2);
+    assert.equal((await tripRow(failed.id)).payment_status, 'FAILED');
+    assert.equal((await tripRow(failed.id)).version, 2);
+    assert.equal((await outbox(failed.id, 'payment.requested')).length, 0);
+  });
+
+  await t.test('two Trip instances reconcile a trip once', async () => {
+    const secondApp = await launchTrip(await port());
+
+    try {
+      const trips = [];
+
+      for (let index = 0; index < 8; index += 1) {
+        trips.push(await seedOverdue());
+      }
+
+      await eventually(async () => {
+        for (const trip of trips) {
+          assert.equal((await tripRow(trip.id)).payment_status, 'SUCCEEDED');
+        }
+      });
+
+      for (const trip of trips) {
+        assert.equal((await tripRow(trip.id)).version, 2);
+      }
+    } finally {
+      await stop(secondApp);
+    }
   });
 });

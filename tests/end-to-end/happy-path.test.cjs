@@ -40,6 +40,11 @@ function writeEvidence(outcomes) {
     path.join(directory, 'happy-path.json'),
     JSON.stringify(
       {
+        test: 'happy-path',
+        purpose: 'Luồng chính chạy thông qua Gateway bằng các service thật: đặt chuyến, nhận chuyến, kết thúc, thanh toán, từ chối, không có tài xế và hủy chuyến',
+        setup: 'Stack Compose đầy đủ, PAYMENT_SIMULATION_MODE=SUCCEED, 1 khách và 2 tài xế tạo mới cho mỗi lần chạy',
+        steps: 'Gọi các route public qua Gateway theo 4 kịch bản trong outcomes, poll GET /api/v1/trips/{tripId} và GET /api/v1/operations/{operationId}, đối chiếu thêm trong DB từng service',
+        expected: 'Mỗi kịch bản đạt trạng thái cuối đúng: COMPLETED và đã trả tiền; tài xế sau nhận thay người từ chối; NO_DRIVER không phát sinh thanh toán; CANCELLED và trả xe, chuyến đã chạy không hủy được',
         executedAt: new Date().toISOString(),
         status: outcomes.length === 4 && outcomes.every(item => item.status === 'PASS') ? 'PASS' : 'FAIL',
         commit: commit.stdout.trim() || 'unknown',
@@ -136,7 +141,7 @@ const paidTrip = (passenger, tripId) =>
     'payment of trip ' + tripId,
   );
 
-test('G2: the main flow works end to end through the Gateway', { timeout: 300000 }, async t => {
+test('the main flow works end to end through the Gateway', { timeout: 300000 }, async t => {
   const outcomes = [];
 
   t.after(() => writeEvidence(outcomes));
@@ -166,7 +171,7 @@ test('G2: the main flow works end to end through the Gateway', { timeout: 300000
   assert.equal(first.role, 'DRIVER');
 
   try {
-    await scenario('E2E-1: a full trip from quote to paid', async () => {
+    await scenario('a full trip from quote to paid', async () => {
       await bringOnline(first, POINT_A);
       assert.equal((await driverProfile(first)).status, 'AVAILABLE');
 
@@ -253,7 +258,7 @@ test('G2: the main flow works end to end through the Gateway', { timeout: 300000
       };
     });
 
-    await scenario('E2E-2: the first driver rejects, the next one completes the trip', async () => {
+    await scenario('the first driver rejects, the next one completes the trip', async () => {
       await sendLocation(first, POINT_A);
       await bringOnline(second, POINT_A);
 
@@ -307,7 +312,7 @@ test('G2: the main flow works end to end through the Gateway', { timeout: 300000
       };
     });
 
-    await scenario('E2E-3: without a driver the trip ends in NO_DRIVER and nothing is charged', async () => {
+    await scenario('without a driver the trip ends in NO_DRIVER and nothing is charged', async () => {
       const correlationId = randomUUID();
       const { trip } = await bookTrip(passenger, POINT_B, correlationId);
       const finished = await poll(
@@ -343,7 +348,7 @@ test('G2: the main flow works end to end through the Gateway', { timeout: 300000
       return { tripId: trip.id, correlationId };
     });
 
-    await scenario('E2E-4: cancelling before and after assignment; a started trip cannot be cancelled', async () => {
+    await scenario('cancelling before and after assignment; a started trip cannot be cancelled', async () => {
       const drivers = [first, second];
       const refreshGps = () => Promise.all(drivers.map(item => sendLocation(item, POINT_A)));
       const cancel = tripId =>

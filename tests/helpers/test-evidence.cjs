@@ -19,6 +19,7 @@ function testEvidence(name, description) {
   return {
     record: item => evidence.actual.push(item),
     set: fields => Object.assign(evidence, fields),
+    get: field => evidence[field],
     fail: error => {
       evidence.error = error.message;
     },

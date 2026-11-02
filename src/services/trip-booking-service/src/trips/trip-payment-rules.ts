@@ -1,5 +1,6 @@
 import {
   MAX_PAYMENT_ATTEMPTS,
+  type Payment,
   type RideEvent,
   type TripPaymentStatus,
 } from '@app/contracts';
@@ -20,6 +21,8 @@ export type PaymentDecision =
   | { kind: 'FAILED' }
   | { kind: 'RETRY'; nextAttempt: number; delaySeconds: number };
 
+export type ReconcileDecision = 'SUCCEEDED' | 'FAILED' | 'KEEP' | 'MISMATCH';
+
 function isStale(state: PaymentProjection, paymentVersion: number): boolean {
   return state.paymentStatus === 'SUCCEEDED' || paymentVersion <= state.paymentVersion;
 }
@@ -32,7 +35,8 @@ export function decideFailed(
   state: PaymentProjection,
   failure: { paymentVersion: number; attemptNo: number; retryable: boolean },
 ): PaymentDecision {
-  if (isStale(state, failure.paymentVersion)) {
+  // Đối soát không có paymentVersion nên FAILED phải chặn cả event cũ mang version cao hơn của chuyến.
+  if (state.paymentStatus === 'FAILED' || isStale(state, failure.paymentVersion)) {
     return { kind: 'IGNORE' };
   }
 
@@ -45,6 +49,33 @@ export function decideFailed(
     nextAttempt: failure.attemptNo + 1,
     delaySeconds: PAYMENT_RETRY_DELAY_SECONDS[failure.attemptNo],
   };
+}
+
+export function decideReconcile(
+  trip: Pick<Trip, 'id' | 'passengerId' | 'paymentId' | 'status' | 'paymentStatus'>,
+  fareAmount: string,
+  payment: Payment,
+): ReconcileDecision {
+  if (trip.status !== 'COMPLETED' || !['PENDING', 'PENDING_RETRY'].includes(trip.paymentStatus)) {
+    return 'KEEP';
+  }
+
+  if (
+    payment.id !== trip.paymentId ||
+    payment.tripId !== trip.id ||
+    payment.passengerId !== trip.passengerId ||
+    payment.amount !== fareAmount
+  ) {
+    return 'MISMATCH';
+  }
+
+  if (payment.status === 'SUCCEEDED') {
+    return 'SUCCEEDED';
+  }
+
+  return payment.status === 'FAILED' && (!payment.retryable || payment.attemptNo >= MAX_PAYMENT_ATTEMPTS)
+    ? 'FAILED'
+    : 'KEEP';
 }
 
 export function paymentRequestedEvent(

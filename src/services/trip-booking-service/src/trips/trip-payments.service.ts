@@ -1,13 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
-import type { RideEvent, TripPaymentStatus } from '@app/contracts';
+import type { Payment, RideEvent, TripPaymentStatus } from '@app/contracts';
 import { NonRetryableEventError, enqueueOutboxEvent, processEventOnce } from '@app/messaging';
+import { runInTransaction } from '@app/runtime';
 import { FareSnapshot } from './entities/fare-snapshot.entity';
 import { Trip } from './entities/trip.entity';
-import { decideFailed, decideSucceeded, paymentRequestedEvent } from './trip-payment-rules';
+import {
+  decideFailed,
+  decideReconcile,
+  decideSucceeded,
+  paymentRequestedEvent,
+  type ReconcileDecision,
+} from './trip-payment-rules';
 import { TRIP_INBOX, TRIP_OUTBOX_TABLE } from './trips.service';
 
 type PaymentResult = RideEvent<'payment.succeeded' | 'payment.failed'>;
+
+const RECONCILE_AFTER_SECONDS = 60;
 
 function mismatch(event: PaymentResult, reason: string): NonRetryableEventError {
   return new NonRetryableEventError(
@@ -66,6 +75,39 @@ export class TripPaymentsService {
         'UPDATE trip_schema.outbox_events SET next_retry_at = now() + make_interval(secs => $2) WHERE event_id = $1',
         [retry.event_id, decision.delaySeconds],
       );
+    });
+  }
+
+  // Thứ tự ngẫu nhiên để các chuyến phải giữ nguyên không chiếm mãi lượt của chuyến khác.
+  findUnsettled(limit: number): Promise<Array<Pick<Trip, 'id' | 'paymentId'>>> {
+    return this.database
+      .getRepository(Trip)
+      .createQueryBuilder('trip')
+      .select(['trip.id', 'trip.paymentId'])
+      .where("trip.status = 'COMPLETED'")
+      .andWhere("trip.paymentStatus IN ('PENDING', 'PENDING_RETRY')")
+      .andWhere('trip.updatedAt < now() - make_interval(secs => :age)', { age: RECONCILE_AFTER_SECONDS })
+      .orderBy('random()')
+      .limit(limit)
+      .getMany();
+  }
+
+  reconcile(tripId: string, payment: Payment): Promise<ReconcileDecision> {
+    return runInTransaction(this.database, async manager => {
+      const trip = await manager
+        .getRepository(Trip)
+        .findOneOrFail({ where: { id: tripId }, lock: { mode: 'pessimistic_write' } });
+      const fare = await this.findFare(manager, trip);
+      const decision = decideReconcile(trip, fare.amount, payment);
+
+      if (decision === 'SUCCEEDED' || decision === 'FAILED') {
+        await this.project(manager, trip, decision, {
+          paymentVersion: trip.paymentVersion,
+          attemptNo: payment.attemptNo,
+        });
+      }
+
+      return decision;
     });
   }
 

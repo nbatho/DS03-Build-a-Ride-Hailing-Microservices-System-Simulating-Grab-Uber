@@ -6,7 +6,7 @@ qua `nest-cli.json`; dependency và lockfile dùng chung tại root.
 ## Chạy nhanh
 
 Yêu cầu Node.js >=22, npm và Docker Desktop có Linux Engine hoạt động.
-Hướng dẫn chi tiết: [Identity/User + JWT](docs/identity.md).
+Hướng dẫn chi tiết: [Identity/User + JWT](docs/services/identity-user-service.md), [Trip/Saga](docs/services/trip-booking-service.md).
 
 ```powershell
 npm ci
@@ -32,13 +32,13 @@ Invoke-RestMethod http://127.0.0.1:3001/health/ready
 ```
 
 Setup sinh credential/key local ngoài Git. Nếu đã có .env, bổ sung theo
-.env.example và docs/identity.md; không chỉ copy placeholder rồi start.
+.env.example và docs/services/identity-user-service.md; không chỉ copy placeholder rồi start.
 Gateway/Driver cần public key; chỉ Identity đọc private key và DB của mình.
 
 ## Test tay API bằng Postman
 
 Service không còn trang Swagger (`/docs`). Hợp đồng API là `openapi.json` trong báo cáo BA;
-riêng Identity có bản trích ở [docs/api/identity.openapi.json](docs/api/identity.openapi.json).
+Identity và Trip có bản trích ở [docs/api/identity.openapi.json](docs/api/identity.openapi.json), [docs/api/trip.openapi.json](docs/api/trip.openapi.json).
 Trong Postman chọn **Import** → file OpenAPI để có sẵn request, body mẫu và header cho mọi API.
 Collection đã viết sẵn cho Identity/JWT: [tests/postman](tests/postman) (chạy bằng Collection Runner
 hoặc Postman CLI khi các service đang chạy).
@@ -81,6 +81,24 @@ npm run prod:trip-booking-service
 
 Các alias ngắn như `dev:trip`, `dev:identity` đã bỏ; dùng tên project trong bảng.
 `npm start`, `npm run start:dev`, `npm run start:prod` mặc định chạy Gateway.
+
+## Chạy cả hệ thống bằng Docker
+
+Cách nhanh nhất để có đủ 7 service, Gateway, DB và RabbitMQ. Chỉ cần làm một lần trên máy mới:
+
+```powershell
+npm ci
+npm run identity:setup:dev
+npm run b:setup:dev
+npm run c:setup:dev
+npm run trip:setup:dev
+npm run svc:tokens
+npm run stack:up
+```
+
+Gateway mở ở `http://127.0.0.1:8080`. Thử nhanh bằng `npm run test:e2e`. Luồng gọi API của khách và tài xế: [hướng dẫn Trip](docs/services/trip-booking-service.md#luồng-khách-và-tài-xế).
+
+Tắt bằng `npm run stack:down`, dữ liệu vẫn giữ trong volume.
 
 ## Chạy toàn hệ thống
 
@@ -194,10 +212,11 @@ Các module chính là `users`, `drivers`, `trips`, `payments`, `notifications`,
 - **DB của Trip**: `npm run trip:setup:dev` (mật khẩu DB vào `.env`, bắt buộc trước `stack:up`), `trip:db:up`, `migration:trip:run`.
 - **Cả hệ thống**: `npm run stack:up` dựng 7 DB, RabbitMQ, migration và 8 app (`deploy/docker-compose.yml`,
   `deploy/node-service.Dockerfile`); chỉ mở `127.0.0.1:8080`. `stack:ps`, `stack:logs`, `stack:down`.
-- **E2E luồng chính**: `npm run test:e2e` (cần `stack:up` và `PAYMENT_SIMULATION_MODE=SUCCEED`), đi hết chuỗi báo giá → đặt chuyến →
-  nhận → bắt đầu → hoàn thành → thanh toán qua Gateway; bằng chứng ghi vào `docs/test-evidence/e2e/happy-path.json`.
-- **Đồng thời và phục hồi của Trip**: `npm run test:trip:concurrency` (tài xế bị đặt trùng, start và cancel cùng lúc) và `npm run test:trip:recovery` (Payment tắt, mất phản hồi hoặc chết giữa Saga nhận chuyến) cần `stack:up`,
+- **E2E**: `npm run test:e2e` (cần `stack:up` và `PAYMENT_SIMULATION_MODE=SUCCEED`), đi hết chuỗi báo giá → đặt chuyến →
+  nhận → bắt đầu → hoàn thành → thanh toán qua Gateway và kiểm tra tạo chuyến từ quote; bằng chứng ghi vào `docs/test-evidence/e2e/happy-path.json`, `docs/test-evidence/trip/trip-create-from-quote.json`.
+- **Đồng thời và phục hồi của Trip**: `npm run test:trip:concurrency` (tài xế bị đặt trùng, start và cancel cùng lúc) và `npm run test:trip:recovery` (Payment tắt, mất phản hồi hoặc chết giữa Saga nhận chuyến, đối soát kết quả thanh toán) cần `stack:up`,
   chạy lần lượt, bằng chứng ghi vào `docs/test-evidence/trip/`. Test Payment tắt dừng service `payment` của stack rồi bật lại.
+- **Bảo mật và contract của Trip**: `npm run test:trip:security` (JWT hỏng, sai vai trò, người khác, header giả, route nội bộ), `npm run test:contract` (response thật của Identity, Trip khớp `docs/api/*.openapi.json`), đều cần `stack:up`.
 - **Vận hành**: operation kẹt ở `FAILED_NEEDS_REVIEW` thì sau khi dependency hồi phục chạy
   `npm run ops:retry -- <operationId> "<lý do>"`; gửi lại cùng `commandId` (đối số thứ ba) không chạy lại lần nữa. Tìm operation cần xử lý:
   `docker compose --env-file .env -f deploy/docker-compose.yml exec -T trip-db psql -U postgres -d trip_db -c "SELECT id, trip_id, type, current_step, error_code FROM trip_schema.operations WHERE status = 'FAILED_NEEDS_REVIEW'"`.
@@ -274,7 +293,7 @@ kiểm tra JWT/role/DTO. Docker Engine cần chạy cho integration/smoke.
 Đã có register/login/me, bcrypt, JWT RS256, Guard dùng chung, PostgreSQL
 Identity/migration, Gateway allowlist 3 route và Docker dev của A.
 Driver đã có hồ sơ, xe, GPS, bật/tắt, tìm ứng viên, giữ/xác nhận/trả xe và worker hết hạn;
-xem [hướng dẫn Driver](docs/services/driver-vehicle-location-service.md). Trip/Saga, RabbitMQ,
+xem [hướng dẫn Driver](docs/services/driver-vehicle-location-service.md). Trip đã có vòng đời chuyến, Saga nhận, hủy, kết thúc, đối soát thanh toán và API vận hành; xem [hướng dẫn Trip](docs/services/trip-booking-service.md). RabbitMQ,
 Payment/Notification/Matching và Compose chung còn cần triển khai. Pricing đã có
 tạo/đọc báo giá, JWT/token nội bộ, DB/readiness và test; xem [hướng dẫn Pricing](docs/services/pricing-service.md).
 
@@ -284,7 +303,7 @@ route internal được giữ ngoài public prefix.
 
 Phân công theo BA:
 
-- A: [Identity/JWT đã triển khai](docs/identity.md), tiếp theo Trip/Saga.
+- A: [Identity/JWT](docs/services/identity-user-service.md) và [Trip/Saga](docs/services/trip-booking-service.md) đã triển khai.
 - B: Driver và Pricing đã có nghiệp vụ/test riêng; tiếp theo Matching và tích hợp A/C.
 - C: Payment, Notification, messaging, mở rộng Gateway và Compose chung.
 
@@ -408,9 +427,9 @@ async accept(
 
 ## Identity/User + JWT đã triển khai
 
-Hướng dẫn setup PostgreSQL riêng, migration, key, API, Guard B/C, Docker và test: [docs/identity.md](docs/identity.md).
+Hướng dẫn setup PostgreSQL riêng, migration, key, API, Guard, Docker và test: [docs/services/identity-user-service.md](docs/services/identity-user-service.md).
 
 Chạy dev: `npm run identity:dev` sau setup/migration. Gateway dev dùng 8081; PostgreSQL riêng dùng 5541.
 
 `npm test` dùng PostgreSQL test tạm riêng, kiểm tra Identity/JWT qua Gateway/Driver,
-integration Pricing/Driver và smoke 8 app. Trip/Saga và nghiệp vụ Matching/C còn cần triển khai tiếp.
+integration Pricing/Driver/Matching/Trip và smoke 8 app.
