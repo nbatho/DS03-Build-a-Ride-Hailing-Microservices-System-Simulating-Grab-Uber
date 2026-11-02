@@ -6,8 +6,8 @@
   "expected": "201 và giá đúng; cùng key trả cùng chuyến, 1 trip.requested, 1 job; đổi body 409 IDEMPOTENCY_CONFLICT; dùng lại quote 409 QUOTE_ALREADY_USED; quote người khác 403 RESOURCE_FORBIDDEN; quote hết hạn 409 QUOTE_EXPIRED",
   "actual": [
     {
-      "tripId": "d9ed6f8d-ca69-44c2-895c-2aee7e8d1b58",
-      "quoteId": "1ecbb2d4-9abe-4f34-8019-5e273794faad",
+      "tripId": "2afccf75-ec7c-4f92-a7b9-768f4bb73572",
+      "quoteId": "3be48aba-f934-4250-9c89-086e91f3e582",
       "amount": "41000",
       "trips": "1",
       "requested": "1",
@@ -35,8 +35,8 @@
   },
   "summary": "Một quote tạo đúng một chuyến; mọi yêu cầu sai đều bị từ chối và không tạo chuyến",
   "status": "PASS",
-  "commit": "6e54a80",
-  "executedAt": "2026-11-02T02:28:32.484Z",
-  "durationMs": 4092,
+  "commit": "500f59e",
+  "executedAt": "2026-11-02T03:16:14.100Z",
+  "durationMs": 2503,
   "tokens": "[REDACTED]"
 }

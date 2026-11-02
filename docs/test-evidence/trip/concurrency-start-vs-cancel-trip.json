@@ -7,8 +7,8 @@
   "actual": [
     {
       "round": 1,
-      "tripId": "ce6006c1-d733-43a2-938e-643c9eb82dc7",
-      "assignmentId": "8db235ca-6907-48a6-9377-2f17fd1ada38",
+      "tripId": "19d94227-c02b-4abc-a546-5e656dccf4f0",
+      "assignmentId": "221603cb-0370-4cb8-8662-3d682e5b8ead",
       "winner": "start",
       "startStatus": 200,
       "cancelStatus": 409,
@@ -17,8 +17,8 @@
     },
     {
       "round": 2,
-      "tripId": "983e1622-157a-4fc7-9dea-564d922f0d9e",
-      "assignmentId": "89625954-d1f1-4799-8c21-dac0d55280a5",
+      "tripId": "2e105dc7-1a0d-41f1-a301-f9a91283c283",
+      "assignmentId": "93168d56-3941-4f17-a45c-b808041335be",
       "winner": "cancel",
       "startStatus": 409,
       "startCode": "INVALID_STATE",
@@ -27,18 +27,18 @@
     },
     {
       "round": 3,
-      "tripId": "dbeda172-2e86-4781-a528-9ca9c7a65d11",
-      "assignmentId": "a6dc9a38-b0d6-4ec2-8a31-1c34599ebe36",
-      "winner": "start",
-      "startStatus": 200,
-      "cancelStatus": 409,
-      "cancelCode": "TRIP_ALREADY_STARTED",
-      "reservation": "CONFIRMED"
+      "tripId": "06203a87-e596-435f-b327-4662acd2f4fa",
+      "assignmentId": "e7d0f61f-081c-447c-81b7-4a80643dd268",
+      "winner": "cancel",
+      "startStatus": 409,
+      "startCode": "INVALID_STATE",
+      "cancelStatus": 202,
+      "reservation": "RELEASED"
     },
     {
       "round": 4,
-      "tripId": "f94bea0d-6a22-4a74-96e3-13b12038ef32",
-      "assignmentId": "6d7084a9-86da-4fa6-8cf7-385e0a6c86f3",
+      "tripId": "bbebdb7c-89a3-4a80-aa47-11304ee87c8f",
+      "assignmentId": "31c6c4cd-1ff9-44d2-88fa-de0d5633a335",
       "winner": "cancel",
       "startStatus": 409,
       "startCode": "INVALID_STATE",
@@ -47,8 +47,8 @@
     },
     {
       "round": 5,
-      "tripId": "04e822ae-af03-4754-919b-92973d7b2059",
-      "assignmentId": "07e04d20-367b-4e1b-8073-78c046919e1d",
+      "tripId": "bde3b8c4-0642-47c5-afd1-435297a68dfe",
+      "assignmentId": "d53a38ee-9adf-47bf-b5c1-55dcd2d9a48d",
       "winner": "start",
       "startStatus": 200,
       "cancelStatus": 409,
@@ -57,8 +57,8 @@
     },
     {
       "round": 6,
-      "tripId": "4425a126-be95-49ab-a25a-982610da0082",
-      "assignmentId": "08fd15e9-585f-402c-9096-b3c392c04068",
+      "tripId": "8bfc21dc-8820-43e3-b1d9-88f06056fdf9",
+      "assignmentId": "42e97d74-007c-475a-9661-18b03caa9b67",
       "winner": "cancel",
       "startStatus": 409,
       "startCode": "INVALID_STATE",
@@ -66,14 +66,14 @@
       "reservation": "RELEASED"
     }
   ],
-  "summary": "Start thắng 3 vòng, cancel thắng 3 vòng, không vòng nào cả hai cùng thắng",
+  "summary": "Start thắng 2 vòng, cancel thắng 4 vòng, không vòng nào cả hai cùng thắng",
   "wins": {
-    "start": 3,
-    "cancel": 3
+    "start": 2,
+    "cancel": 4
   },
   "status": "PASS",
-  "commit": "6e54a80",
-  "executedAt": "2026-11-02T02:30:05.032Z",
-  "durationMs": 42194,
+  "commit": "500f59e",
+  "executedAt": "2026-11-02T03:17:38.400Z",
+  "durationMs": 37986,
   "tokens": "[REDACTED]"
 }

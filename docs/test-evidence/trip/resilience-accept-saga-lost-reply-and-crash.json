@@ -7,31 +7,31 @@
   "actual": [
     {
       "case": "a",
-      "tripId": "106f2a6f-ea7c-4f46-a6d4-ee931efec064",
-      "assignmentId": "e8897390-631d-4436-890f-e9792d164784",
+      "tripId": "d1278022-1c7b-437f-95d8-0e6fab02bffa",
+      "assignmentId": "df53dffc-4aff-41b6-8c9a-c008460eff39",
       "reserves": 3,
       "lookups": 1,
       "reservation": "CONFIRMED"
     },
     {
       "case": "b",
-      "tripId": "f641f82a-ccc9-499c-83ed-c106f4ff46c7",
-      "assignmentId": "b229c2de-b1cc-40fb-8e4c-7dc834b996ef",
+      "tripId": "7f237772-53be-4bed-ac91-0a50a5af32f5",
+      "assignmentId": "cd033921-8118-4234-8f4a-2ee040ac2b0a",
       "confirms": 3,
       "lookups": 1,
       "reservation": "CONFIRMED"
     },
     {
       "case": "c",
-      "tripId": "ba7e4e13-016a-43a9-9020-deef7aa8f68d",
-      "assignmentId": "fda8b1c2-6ec5-4d7e-a90f-04a2d49056ac",
+      "tripId": "b1ea3536-b9c9-4935-9820-a8186024c6ac",
+      "assignmentId": "f3eaef15-2878-4bfc-afdb-ce4b6ec96625",
       "confirms": 1,
       "tripAcceptedEvents": 1
     },
     {
       "case": "d",
-      "tripId": "1915b926-9785-44be-a146-bc13a04ea806",
-      "assignmentId": "b1ba08cc-5660-4faa-93f7-f91043a0c6fb",
+      "tripId": "aa65ed1e-4900-4e0b-b47f-aceae96030de",
+      "assignmentId": "3f31135a-3f82-472f-b7f5-673d3d7f9a40",
       "stuckStatus": "FAILED_NEEDS_REVIEW",
       "finalStatus": "FAILED_COMPENSATED",
       "reservation": "RELEASED",
@@ -45,8 +45,8 @@
     },
     {
       "case": "e",
-      "tripId": "3da84075-32f2-4d6c-b519-5ad83d7d0333",
-      "assignmentId": "e9441742-cc77-409d-a00e-cca1e6b048f8",
+      "tripId": "96cbed0a-21e8-436d-9754-cc972679d502",
+      "assignmentId": "eaf25880-f716-4830-8df0-9b33e8e4c115",
       "heldReserves": 15,
       "lateReplies": {
         "status": 409,
@@ -57,8 +57,8 @@
   ],
   "summary": "Đủ 5 case: mất reply sau commit, chết giữa Saga, cleanup qua POST /internal/v1/operations/{operationId}/retry, tombstone chặn lệnh muộn",
   "status": "PASS",
-  "commit": "6e54a80",
-  "executedAt": "2026-11-02T02:33:56.067Z",
-  "durationMs": 179812,
+  "commit": "500f59e",
+  "executedAt": "2026-11-02T03:20:49.393Z",
+  "durationMs": 144609,
   "tokens": "[REDACTED]"
 }

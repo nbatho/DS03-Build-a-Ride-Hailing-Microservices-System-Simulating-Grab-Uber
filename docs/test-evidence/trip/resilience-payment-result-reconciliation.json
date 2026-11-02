@@ -6,12 +6,12 @@
   "expected": "paymentStatus về SUCCEEDED, chuyến vẫn COMPLETED, vẫn 1 payment và 1 lần thu",
   "actual": [
     {
-      "tripId": "48fb60db-ff85-4ecf-8079-cf646ec9a7c3",
-      "paymentId": "454e02db-3c7e-4719-967a-0f909f006dcc",
-      "correlationId": "6d4c2d16-6c8b-46f9-8807-3880fc6e100f",
+      "tripId": "160f9fb5-77c8-4d24-9e7a-82fea15e1fa9",
+      "paymentId": "24be2e8d-bba8-432e-b516-e458b90070b3",
+      "correlationId": "ea454199-d1de-41cb-98ca-15313f463744",
       "paymentStatus": "SUCCEEDED",
       "tripStatus": "COMPLETED",
-      "reconciledAfterMs": 2282
+      "reconciledAfterMs": 23246
     }
   ],
   "dbBefore": {
@@ -26,8 +26,8 @@
   },
   "summary": "Trip tự đọc kết quả từ Payment thật, không tạo thêm payment hay lần thu",
   "status": "PASS",
-  "commit": "6e54a80",
-  "executedAt": "2026-11-02T02:34:11.312Z",
-  "durationMs": 12094,
+  "commit": "500f59e",
+  "executedAt": "2026-11-02T03:21:22.540Z",
+  "durationMs": 31176,
   "tokens": "[REDACTED]"
 }
