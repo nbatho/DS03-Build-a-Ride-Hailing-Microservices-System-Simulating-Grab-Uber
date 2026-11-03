@@ -6,6 +6,10 @@ import { MatchingBroker, MATCHING_EXCHANGE } from './matching-broker';
 import { MatchingStateService } from './matching-state.service';
 import { OutboxEventEntity } from './entities/outbox-event.entity';
 
+// Gửi tối đa PUBLISH_BATCH sự kiện mỗi lượt; còn sự kiện chờ thì gửi tiếp ngay (tới TICK_BUDGET_MS) thay vì chờ 500 ms.
+const PUBLISH_BATCH = 50;
+const TICK_BUDGET_MS = 2000;
+
 @Injectable()
 export class MatchingOutboxPublisher implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
@@ -20,7 +24,7 @@ export class MatchingOutboxPublisher implements OnModuleInit, OnModuleDestroy {
   onModuleInit(): void {
     this.timer = setInterval(() => {
       if (!this.running && this.broker.isReady()) {
-        this.running = this.publishPendingEvents()
+        this.running = this.drain()
           .catch(() => Logger.warn('Matching outbox failed; will retry', 'MatchingOutbox'))
           .finally(() => {
             this.running = undefined;
@@ -35,7 +39,17 @@ export class MatchingOutboxPublisher implements OnModuleInit, OnModuleDestroy {
     await this.running;
   }
 
-  async publishPendingEvents(): Promise<void> {
+  private async drain(): Promise<void> {
+    const until = Date.now() + TICK_BUDGET_MS;
+    let published: number;
+
+    do {
+      published = await this.publishPendingEvents();
+    } while (published === PUBLISH_BATCH && Date.now() < until && this.broker.isReady());
+  }
+
+  /** Trả về số sự kiện đã nhận gửi trong lượt này. */
+  async publishPendingEvents(): Promise<number> {
     const claims = await runInTransaction(this.database, async manager => {
       const rows = await manager
         .getRepository(OutboxEventEntity)
@@ -47,7 +61,7 @@ export class MatchingOutboxPublisher implements OnModuleInit, OnModuleDestroy {
         .addOrderBy('event.event_id', 'ASC')
         .setLock('pessimistic_write')
         .setOnLocked('skip_locked')
-        .take(5)
+        .take(PUBLISH_BATCH)
         .getMany();
       const now = await this.state.now(manager);
 
@@ -92,5 +106,7 @@ export class MatchingOutboxPublisher implements OnModuleInit, OnModuleDestroy {
         }
       }),
     );
+
+    return claims.length;
   }
 }

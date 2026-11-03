@@ -10,6 +10,11 @@ import { AttemptedCandidateEntity } from './entities/attempted-candidate.entity'
 import { DriverClient } from './driver.client';
 import { TripClient } from './trip.client';
 
+// Mỗi lượt nhận tối đa CLAIM_BATCH việc; còn việc thì nhận tiếp ngay trong tick (tới TICK_BUDGET_MS)
+// thay vì chờ 500 ms, để việc tồn đọng và việc quá hạn tìm (60 giây) không phải xếp hàng 5 việc mỗi nửa giây.
+const CLAIM_BATCH = 20;
+const TICK_BUDGET_MS = 2000;
+
 @Injectable()
 export class MatchingWorker implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
@@ -41,8 +46,16 @@ export class MatchingWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   private async tick(): Promise<void> {
+    const until = Date.now() + TICK_BUDGET_MS;
+
     await this.expireOpenOffers();
-    await this.searchNextCandidates();
+
+    let claimed: number;
+
+    do {
+      claimed = await this.searchNextCandidates();
+    } while (claimed === CLAIM_BATCH && Date.now() < until);
+
     await this.reconcileClaimedOffers();
   }
 
@@ -58,7 +71,7 @@ export class MatchingWorker implements OnModuleInit, OnModuleDestroy {
         .addOrderBy('job.id', 'ASC')
         .setLock('pessimistic_write')
         .setOnLocked('skip_locked')
-        .take(5)
+        .take(CLAIM_BATCH)
         .getMany();
       const now = await this.state.now(manager);
 
@@ -97,7 +110,8 @@ export class MatchingWorker implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  async searchNextCandidates(): Promise<void> {
+  /** Trả về số việc đã nhận trong lượt này. */
+  async searchNextCandidates(): Promise<number> {
     const claims = await this.claim('SEARCHING');
 
     await Promise.allSettled(
@@ -183,6 +197,8 @@ export class MatchingWorker implements OnModuleInit, OnModuleDestroy {
         }
       }),
     );
+
+    return claims.length;
   }
 
   async expireOpenOffers(): Promise<void> {

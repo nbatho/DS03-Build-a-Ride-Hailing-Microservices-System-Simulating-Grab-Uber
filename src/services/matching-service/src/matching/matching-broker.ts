@@ -1,11 +1,20 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import {
   connect,
   type ChannelModel,
   type Channel,
+  type ConfirmChannel,
   type ConsumeMessage,
+  type Message,
   type Options,
 } from 'amqplib';
+
+interface PublishChannel {
+  channel: ConfirmChannel;
+  /** Lời gửi đang chờ xác nhận; channel đóng thì báo lỗi cho tất cả. */
+  waiting: Set<(error: Error) => void>;
+}
 
 export const MATCHING_EXCHANGE = 'ride.events';
 export const MATCHING_QUEUE = 'matching.events';
@@ -17,6 +26,9 @@ export class MatchingBroker implements OnApplicationShutdown {
   private connection?: ChannelModel;
   private consumerChannel?: Channel;
   private consumerTag?: string;
+  private publishChannel?: Promise<PublishChannel>;
+  /** messageId của tin bị trả về (mandatory, không queue nào nhận); RabbitMQ gửi return trước ack. */
+  private readonly returned = new Set<string>();
 
   isReady(): boolean {
     return Boolean(this.connection && this.consumerChannel && this.consumerTag);
@@ -116,51 +128,86 @@ export class MatchingBroker implements OnApplicationShutdown {
       throw new Error('RabbitMQ is unavailable');
     }
 
-    const channel = await connection.createConfirmChannel();
-    let returned = false;
+    const { channel, waiting } = await this.confirmChannel(connection);
+    const messageId = properties.messageId ?? randomUUID();
 
-    channel.on('error', () => {});
-    channel.on('return', () => {
-      returned = true;
-    });
+    await new Promise<void>((resolve, reject) => {
+      const fail = (error: Error) => {
+        clearTimeout(timer);
+        waiting.delete(fail);
+        reject(error);
+      };
+      const timer = setTimeout(
+        () => fail(new Error('RabbitMQ publish confirmation timed out')),
+        5000,
+      );
 
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(
-          () => reject(new Error('RabbitMQ publish confirmation timed out')),
-          5000,
-        );
-        const closed = () => {
+      waiting.add(fail);
+      channel.publish(
+        exchange,
+        routingKey,
+        body,
+        { ...properties, messageId, persistent: true, mandatory: true },
+        error => {
           clearTimeout(timer);
-          reject(new Error('RabbitMQ channel closed before confirmation'));
-        };
+          waiting.delete(fail);
 
-        channel.once('close', closed);
-        channel.publish(
-          exchange,
-          routingKey,
-          body,
-          { ...properties, persistent: true, mandatory: true },
-          error => {
-            clearTimeout(timer);
-            channel.removeListener('close', closed);
+          if (this.returned.delete(messageId) || error) {
+            reject(new Error('RabbitMQ publish was rejected or unroutable'));
+          } else {
+            resolve();
+          }
+        },
+      );
+    });
+  }
 
-            if (error || returned) {
-              reject(new Error('RabbitMQ publish was rejected or unroutable'));
-            } else {
-              resolve();
-            }
-          },
-        );
-      });
-    } finally {
-      await channel.close().catch(() => {});
+  // Một confirm channel dùng lại cho mọi lần gửi: mở rồi đóng channel cho từng tin làm RabbitMQ tốn CPU khi tải cao.
+  private confirmChannel(connection: ChannelModel): Promise<PublishChannel> {
+    if (this.publishChannel) {
+      return this.publishChannel;
     }
+
+    const opening = connection.createConfirmChannel().then(
+      channel => {
+        const waiting = new Set<(error: Error) => void>();
+
+        channel.on('error', () => {});
+        channel.on('return', (message: Message) => {
+          if (message.properties.messageId) {
+            this.returned.add(message.properties.messageId as string);
+          }
+        });
+        channel.on('close', () => {
+          if (this.publishChannel === opening) {
+            this.publishChannel = undefined;
+          }
+
+          for (const fail of [...waiting]) {
+            fail(new Error('RabbitMQ channel closed before confirmation'));
+          }
+        });
+
+        return { channel, waiting };
+      },
+      (error: unknown) => {
+        if (this.publishChannel === opening) {
+          this.publishChannel = undefined;
+        }
+
+        throw error;
+      },
+    );
+
+    this.publishChannel = opening;
+
+    return opening;
   }
 
   async disconnect(): Promise<void> {
     const connection = this.connection;
 
+    this.publishChannel = undefined;
     this.connection = undefined;
     this.consumerChannel = undefined;
     this.consumerTag = undefined;
