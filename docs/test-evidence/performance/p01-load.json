@@ -1,0 +1,746 @@
+{
+  "test": "P01",
+  "requirement": "BA mục 12.1 test 15 (tải) và mục 10.2: 95% request đọc, báo giá, đặt chuyến dưới 1 giây; không giữ một tài xế cho hai chuyến; không chuyến nào có hơn một khoản thanh toán",
+  "setup": "Stack Compose đầy đủ trên một máy; 20 tài xế mô phỏng ở ZONE_A (GPS 5 giây/lần, hỏi lời mời mỗi giây, nhận rồi chạy hết chuyến); 10 tài khoản khách dùng chung cho các client; Gateway tạm tắt giới hạn request",
+  "steps": "Mỗi mức 10, 25, 50 client chạy 60 giây; mỗi client là một khách lặp: POST /quotes → POST /trips → GET /trips/{id} mỗi giây tới khi chuyến xong (NO_DRIVER, hoặc COMPLETED và có kết quả thanh toán) rồi đặt chuyến mới. Sau mỗi mức chờ mọi chuyến về trạng thái cuối (tối đa 180 giây) rồi đọc DB",
+  "method": "Thời gian request đo ở client từ lúc gửi tới lúc đọc xong body, tính trên mọi request kể cả lỗi; mốc phần trăm theo nearest-rank. Lỗi hệ thống = HTTP 5xx, lỗi mạng hoặc quá 15 giây. NO_DRIVER là kết quả hợp lệ. Thời gian nghiệp vụ lấy từ trip_schema.state_history so với created_at của chuyến",
+  "gateway": "http://127.0.0.1:8088",
+  "machine": {
+    "os": "Windows_NT 10.0.26300 (win32)",
+    "cpu": "12th Gen Intel(R) Core(TM) i5-12500H",
+    "logicalCpus": 16,
+    "totalMemGiB": 15.7,
+    "node": "v22.17.1",
+    "docker": "28.3.3",
+    "dockerVmCpus": 16,
+    "dockerVmMemGiB": 7.6,
+    "images": [
+      {
+        "container": "ds03-matching-db-1",
+        "image": "postgres:17-bookworm",
+        "id": "sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5"
+      },
+      {
+        "container": "ds03-pricing-1",
+        "image": "ds03-pricing:latest",
+        "id": "sha256:dd642ce7c7734c73857249f44c2f1ccb9d9ec15a8ab7a678a5011798b5fdd079"
+      },
+      {
+        "container": "ds03-matching-1",
+        "image": "ds03-matching:latest",
+        "id": "sha256:d2bd11e211b45ee224750f01803e7f72a052c9880c11c1247b5b4e115e0c8b52"
+      },
+      {
+        "container": "ds03-notification-migrate-1",
+        "image": "ds03-notification-migrate:latest",
+        "id": "sha256:a69e9dc8e1bda2bb317cd4ed12049f9efbe950055818e7d81201b5c75204f7af"
+      },
+      {
+        "container": "ds03-pricing-migrate-1",
+        "image": "ds03-pricing-migrate:latest",
+        "id": "sha256:68c6d47b821357bec544798a423140c516998a00cdc114ce898a11b56b42f1c8"
+      },
+      {
+        "container": "ds03-trip-migrate-1",
+        "image": "ds03-trip-migrate:latest",
+        "id": "sha256:526e12c4cf3aac03b7393697361cabd3a0a889e7b77c232796c596a92b6de89e"
+      },
+      {
+        "container": "ds03-notification-1",
+        "image": "ds03-notification:latest",
+        "id": "sha256:3c923e49b173d1711987f5dd4326c921aa6a68845485dea600dbaec60a039239"
+      },
+      {
+        "container": "ds03-identity-db-1",
+        "image": "postgres:17-bookworm",
+        "id": "sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5"
+      },
+      {
+        "container": "ds03-trip-db-1",
+        "image": "postgres:17-bookworm",
+        "id": "sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5"
+      },
+      {
+        "container": "ds03-trip-1",
+        "image": "ds03-trip:latest",
+        "id": "sha256:a3178874eb2885ea77a418129597332c183f8e4e7fa74b64c936946f3cab70e8"
+      },
+      {
+        "container": "ds03-gateway-1",
+        "image": "ds03-gateway:latest",
+        "id": "sha256:1ec62be3c3c790f8173bef164a70a05733f3d951865c625aaa61f5c89925b300"
+      },
+      {
+        "container": "ds03-identity-1",
+        "image": "ds03-identity:latest",
+        "id": "sha256:bcb558c901576a1a0aa253c5cb7b25aa3b3a099c37a614f6fa3f072de1693df7"
+      },
+      {
+        "container": "ds03-matching-migrate-1",
+        "image": "ds03-matching-migrate:latest",
+        "id": "sha256:b1e39927d370fa91ff2d018bd3d907384f27762f78a9f25e7a8ee14e295c86cf"
+      },
+      {
+        "container": "ds03-pricing-db-1",
+        "image": "postgres:17-bookworm",
+        "id": "sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5"
+      },
+      {
+        "container": "ds03-notification-db-1",
+        "image": "postgres:17-bookworm",
+        "id": "sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5"
+      },
+      {
+        "container": "ds03-rabbitmq-1",
+        "image": "rabbitmq:4.1-management",
+        "id": "sha256:bf215c927c885b6d28bc52e02b0f2e1c033f2b439ec946c643834be93312ec4d"
+      },
+      {
+        "container": "ds03-driver-1",
+        "image": "ds03-driver:latest",
+        "id": "sha256:c9dade08d6868f14760335cf6f472cf768e10a452c508abafd0a88108a36e7c2"
+      },
+      {
+        "container": "ds03-payment-migrate-1",
+        "image": "ds03-payment-migrate:latest",
+        "id": "sha256:13648a4c697e22c2c848bb986c9f3ec0f2097cb94a20f614d64cbe647fe0bcbe"
+      },
+      {
+        "container": "ds03-driver-db-1",
+        "image": "postgres:17-bookworm",
+        "id": "sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5"
+      },
+      {
+        "container": "ds03-payment-1",
+        "image": "ds03-payment:latest",
+        "id": "sha256:957658d6889b4d696b79f84db002c20b5e8172dfa655ae4e9eb3c953c1b5e5e5"
+      },
+      {
+        "container": "ds03-payment-db-1",
+        "image": "postgres:17-bookworm",
+        "id": "sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5"
+      },
+      {
+        "container": "ds03-driver-migrate-1",
+        "image": "ds03-driver-migrate:latest",
+        "id": "sha256:5e65e4c9dc982757ec793533dfed9b4a72e70e8018ffee48b3795a6cd596ed47"
+      },
+      {
+        "container": "ds03-identity-migrate-1",
+        "image": "ds03-identity:latest",
+        "id": "sha256:bcb558c901576a1a0aa253c5cb7b25aa3b3a099c37a614f6fa3f072de1693df7"
+      }
+    ]
+  },
+  "levels": [
+    {
+      "clients": 10,
+      "durationMs": 60604,
+      "requests": {
+        "quote": {
+          "requests": 41,
+          "perSecond": 0.7,
+          "latencyMs": {
+            "count": 41,
+            "p50": 19,
+            "p95": 374,
+            "p99": 379,
+            "max": 379
+          },
+          "errors": {
+            "rateLimited": 0,
+            "clientErrors": 0,
+            "serverErrors": 0,
+            "networkOrTimeout": 0
+          },
+          "systemErrorRate": 0
+        },
+        "book": {
+          "requests": 41,
+          "perSecond": 0.7,
+          "latencyMs": {
+            "count": 41,
+            "p50": 26,
+            "p95": 154,
+            "p99": 160,
+            "max": 160
+          },
+          "errors": {
+            "rateLimited": 0,
+            "clientErrors": 0,
+            "serverErrors": 0,
+            "networkOrTimeout": 0
+          },
+          "systemErrorRate": 0
+        },
+        "read": {
+          "requests": 611,
+          "perSecond": 10.1,
+          "latencyMs": {
+            "count": 611,
+            "p50": 12,
+            "p95": 41,
+            "p99": 194,
+            "max": 598
+          },
+          "errors": {
+            "rateLimited": 0,
+            "clientErrors": 0,
+            "serverErrors": 0,
+            "networkOrTimeout": 0
+          },
+          "systemErrorRate": 0
+        },
+        "all": {
+          "requests": 693,
+          "perSecond": 11.4,
+          "latencyMs": {
+            "count": 693,
+            "p50": 13,
+            "p95": 53,
+            "p99": 374,
+            "max": 598
+          },
+          "errors": {
+            "rateLimited": 0,
+            "clientErrors": 0,
+            "serverErrors": 0,
+            "networkOrTimeout": 0
+          },
+          "systemErrorRate": 0
+        }
+      },
+      "p95UnderTarget": true,
+      "bookedTrips": 41,
+      "tripsInDb": 41,
+      "settleMs": 17040,
+      "unsettledTrips": 0,
+      "tripsByStatus": {
+        "COMPLETED": 41
+      },
+      "timeToAssignedMs": {
+        "count": 41,
+        "p50": 4877,
+        "p95": 44392,
+        "p99": 53408,
+        "max": 53408
+      },
+      "timeToNoDriverMs": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "timeToCompletedMs": {
+        "count": 41,
+        "p50": 6629,
+        "p95": 46149,
+        "p99": 55026,
+        "max": 55026
+      },
+      "completedToPaymentRecordedMs": {
+        "count": 41,
+        "p50": 722,
+        "p95": 1241,
+        "p99": 1413,
+        "max": 1413
+      },
+      "tripsCompletedByDrivers": 40,
+      "resources": {
+        "samples": 8,
+        "peakTotalMemMiB": 1581,
+        "byContainer": {
+          "gateway": {
+            "peakCpuPercent": 46.53,
+            "peakMemMiB": 118
+          },
+          "identity": {
+            "peakCpuPercent": 30.73,
+            "peakMemMiB": 69
+          },
+          "driver": {
+            "peakCpuPercent": 15.18,
+            "peakMemMiB": 92
+          },
+          "pricing": {
+            "peakCpuPercent": 82.71,
+            "peakMemMiB": 77
+          },
+          "matching": {
+            "peakCpuPercent": 42.48,
+            "peakMemMiB": 214
+          },
+          "payment": {
+            "peakCpuPercent": 25.06,
+            "peakMemMiB": 65
+          },
+          "notification": {
+            "peakCpuPercent": 33.28,
+            "peakMemMiB": 193
+          },
+          "trip": {
+            "peakCpuPercent": 21.45,
+            "peakMemMiB": 154
+          },
+          "trip-db": {
+            "peakCpuPercent": 34.17,
+            "peakMemMiB": 109
+          },
+          "matching-db": {
+            "peakCpuPercent": 36.23,
+            "peakMemMiB": 88
+          },
+          "pricing-db": {
+            "peakCpuPercent": 15.85,
+            "peakMemMiB": 61
+          },
+          "notification-db": {
+            "peakCpuPercent": 8.9,
+            "peakMemMiB": 60
+          },
+          "identity-db": {
+            "peakCpuPercent": 19.03,
+            "peakMemMiB": 39
+          },
+          "driver-db": {
+            "peakCpuPercent": 7.38,
+            "peakMemMiB": 57
+          },
+          "payment-db": {
+            "peakCpuPercent": 6.4,
+            "peakMemMiB": 46
+          },
+          "rabbitmq": {
+            "peakCpuPercent": 373.76,
+            "peakMemMiB": 232
+          }
+        }
+      }
+    },
+    {
+      "clients": 25,
+      "durationMs": 60982,
+      "requests": {
+        "quote": {
+          "requests": 68,
+          "perSecond": 1.1,
+          "latencyMs": {
+            "count": 68,
+            "p50": 29,
+            "p95": 231,
+            "p99": 248,
+            "max": 248
+          },
+          "errors": {
+            "rateLimited": 0,
+            "clientErrors": 0,
+            "serverErrors": 0,
+            "networkOrTimeout": 0
+          },
+          "systemErrorRate": 0
+        },
+        "book": {
+          "requests": 68,
+          "perSecond": 1.1,
+          "latencyMs": {
+            "count": 68,
+            "p50": 35,
+            "p95": 127,
+            "p99": 167,
+            "max": 167
+          },
+          "errors": {
+            "rateLimited": 0,
+            "clientErrors": 0,
+            "serverErrors": 0,
+            "networkOrTimeout": 0
+          },
+          "systemErrorRate": 0
+        },
+        "read": {
+          "requests": 1498,
+          "perSecond": 24.6,
+          "latencyMs": {
+            "count": 1498,
+            "p50": 14,
+            "p95": 77,
+            "p99": 130,
+            "max": 192
+          },
+          "errors": {
+            "rateLimited": 0,
+            "clientErrors": 0,
+            "serverErrors": 0,
+            "networkOrTimeout": 0
+          },
+          "systemErrorRate": 0
+        },
+        "all": {
+          "requests": 1634,
+          "perSecond": 26.8,
+          "latencyMs": {
+            "count": 1634,
+            "p50": 14,
+            "p95": 112,
+            "p99": 183,
+            "max": 248
+          },
+          "errors": {
+            "rateLimited": 0,
+            "clientErrors": 0,
+            "serverErrors": 0,
+            "networkOrTimeout": 0
+          },
+          "systemErrorRate": 0
+        }
+      },
+      "p95UnderTarget": true,
+      "bookedTrips": 68,
+      "tripsInDb": 68,
+      "settleMs": 21595,
+      "unsettledTrips": 0,
+      "tripsByStatus": {
+        "COMPLETED": 62,
+        "NO_DRIVER": 6
+      },
+      "timeToAssignedMs": {
+        "count": 62,
+        "p50": 16895,
+        "p95": 52839,
+        "p99": 59039,
+        "max": 59039
+      },
+      "timeToNoDriverMs": {
+        "count": 6,
+        "p50": 61397,
+        "p95": 61897,
+        "p99": 61897,
+        "max": 61897
+      },
+      "timeToCompletedMs": {
+        "count": 62,
+        "p50": 18577,
+        "p95": 54499,
+        "p99": 60644,
+        "max": 60644
+      },
+      "completedToPaymentRecordedMs": {
+        "count": 62,
+        "p50": 768,
+        "p95": 1167,
+        "p99": 1514,
+        "max": 1514
+      },
+      "tripsCompletedByDrivers": 63,
+      "resources": {
+        "samples": 9,
+        "peakTotalMemMiB": 1774,
+        "byContainer": {
+          "gateway": {
+            "peakCpuPercent": 64.12,
+            "peakMemMiB": 189
+          },
+          "identity": {
+            "peakCpuPercent": 29.46,
+            "peakMemMiB": 86
+          },
+          "driver": {
+            "peakCpuPercent": 28.1,
+            "peakMemMiB": 94
+          },
+          "pricing": {
+            "peakCpuPercent": 37.67,
+            "peakMemMiB": 94
+          },
+          "matching": {
+            "peakCpuPercent": 24.78,
+            "peakMemMiB": 221
+          },
+          "payment": {
+            "peakCpuPercent": 24.04,
+            "peakMemMiB": 67
+          },
+          "notification": {
+            "peakCpuPercent": 50.29,
+            "peakMemMiB": 193
+          },
+          "trip": {
+            "peakCpuPercent": 54.78,
+            "peakMemMiB": 207
+          },
+          "trip-db": {
+            "peakCpuPercent": 34.79,
+            "peakMemMiB": 110
+          },
+          "matching-db": {
+            "peakCpuPercent": 27.31,
+            "peakMemMiB": 89
+          },
+          "pricing-db": {
+            "peakCpuPercent": 20.6,
+            "peakMemMiB": 61
+          },
+          "notification-db": {
+            "peakCpuPercent": 8.81,
+            "peakMemMiB": 60
+          },
+          "identity-db": {
+            "peakCpuPercent": 13.06,
+            "peakMemMiB": 39
+          },
+          "driver-db": {
+            "peakCpuPercent": 18.9,
+            "peakMemMiB": 58
+          },
+          "payment-db": {
+            "peakCpuPercent": 12.32,
+            "peakMemMiB": 48
+          },
+          "rabbitmq": {
+            "peakCpuPercent": 353.84,
+            "peakMemMiB": 235
+          }
+        }
+      }
+    },
+    {
+      "clients": 50,
+      "durationMs": 60725,
+      "requests": {
+        "quote": {
+          "requests": 99,
+          "perSecond": 1.6,
+          "latencyMs": {
+            "count": 99,
+            "p50": 142,
+            "p95": 377,
+            "p99": 411,
+            "max": 411
+          },
+          "errors": {
+            "rateLimited": 0,
+            "clientErrors": 0,
+            "serverErrors": 0,
+            "networkOrTimeout": 0
+          },
+          "systemErrorRate": 0
+        },
+        "book": {
+          "requests": 99,
+          "perSecond": 1.6,
+          "latencyMs": {
+            "count": 99,
+            "p50": 230,
+            "p95": 304,
+            "p99": 360,
+            "max": 360
+          },
+          "errors": {
+            "rateLimited": 0,
+            "clientErrors": 0,
+            "serverErrors": 0,
+            "networkOrTimeout": 0
+          },
+          "systemErrorRate": 0
+        },
+        "read": {
+          "requests": 2949,
+          "perSecond": 48.6,
+          "latencyMs": {
+            "count": 2949,
+            "p50": 12,
+            "p95": 63,
+            "p99": 201,
+            "max": 473
+          },
+          "errors": {
+            "rateLimited": 0,
+            "clientErrors": 0,
+            "serverErrors": 0,
+            "networkOrTimeout": 0
+          },
+          "systemErrorRate": 0
+        },
+        "all": {
+          "requests": 3147,
+          "perSecond": 51.8,
+          "latencyMs": {
+            "count": 3147,
+            "p50": 13,
+            "p95": 165,
+            "p99": 307,
+            "max": 473
+          },
+          "errors": {
+            "rateLimited": 0,
+            "clientErrors": 0,
+            "serverErrors": 0,
+            "networkOrTimeout": 0
+          },
+          "systemErrorRate": 0
+        }
+      },
+      "p95UnderTarget": true,
+      "bookedTrips": 99,
+      "tripsInDb": 99,
+      "settleMs": 30256,
+      "unsettledTrips": 0,
+      "tripsByStatus": {
+        "COMPLETED": 77,
+        "NO_DRIVER": 22
+      },
+      "timeToAssignedMs": {
+        "count": 77,
+        "p50": 18221,
+        "p95": 56038,
+        "p99": 58194,
+        "max": 58194
+      },
+      "timeToNoDriverMs": {
+        "count": 22,
+        "p50": 62173,
+        "p95": 63152,
+        "p99": 63284,
+        "max": 63284
+      },
+      "timeToCompletedMs": {
+        "count": 77,
+        "p50": 20156,
+        "p95": 57961,
+        "p99": 60131,
+        "max": 60131
+      },
+      "completedToPaymentRecordedMs": {
+        "count": 77,
+        "p50": 793,
+        "p95": 1263,
+        "p99": 1398,
+        "max": 1398
+      },
+      "tripsCompletedByDrivers": 76,
+      "resources": {
+        "samples": 8,
+        "peakTotalMemMiB": 1804,
+        "byContainer": {
+          "gateway": {
+            "peakCpuPercent": 45.31,
+            "peakMemMiB": 225
+          },
+          "identity": {
+            "peakCpuPercent": 11.4,
+            "peakMemMiB": 86
+          },
+          "driver": {
+            "peakCpuPercent": 28,
+            "peakMemMiB": 96
+          },
+          "pricing": {
+            "peakCpuPercent": 18.64,
+            "peakMemMiB": 81
+          },
+          "matching": {
+            "peakCpuPercent": 38.3,
+            "peakMemMiB": 219
+          },
+          "payment": {
+            "peakCpuPercent": 13.06,
+            "peakMemMiB": 85
+          },
+          "notification": {
+            "peakCpuPercent": 14.77,
+            "peakMemMiB": 211
+          },
+          "trip": {
+            "peakCpuPercent": 47.95,
+            "peakMemMiB": 212
+          },
+          "trip-db": {
+            "peakCpuPercent": 21.13,
+            "peakMemMiB": 111
+          },
+          "matching-db": {
+            "peakCpuPercent": 32.24,
+            "peakMemMiB": 90
+          },
+          "pricing-db": {
+            "peakCpuPercent": 14.11,
+            "peakMemMiB": 62
+          },
+          "notification-db": {
+            "peakCpuPercent": 9.7,
+            "peakMemMiB": 61
+          },
+          "identity-db": {
+            "peakCpuPercent": 14.53,
+            "peakMemMiB": 39
+          },
+          "driver-db": {
+            "peakCpuPercent": 15.98,
+            "peakMemMiB": 59
+          },
+          "payment-db": {
+            "peakCpuPercent": 13.53,
+            "peakMemMiB": 46
+          },
+          "rabbitmq": {
+            "peakCpuPercent": 334.77,
+            "peakMemMiB": 233
+          }
+        }
+      }
+    }
+  ],
+  "constraints": {
+    "driversWithTwoActiveTrips": 0,
+    "driversWithTwoActiveReservations": 0,
+    "activeReservationsLeft": 0,
+    "tripsWithTwoPayments": 0,
+    "paymentsOverThreeAttempts": 0,
+    "completedTrips": 180,
+    "payments": 180,
+    "paymentsForNonCompletedTrips": 0,
+    "activeMatchingJobs": 0,
+    "claimedOffersLeft": 0,
+    "stateTransitions": [
+      {
+        "transition": "ASSIGNED->IN_PROGRESS",
+        "count": 180
+      },
+      {
+        "transition": "ASSIGNING->ASSIGNED",
+        "count": 180
+      },
+      {
+        "transition": "ASSIGNING->MATCHING",
+        "count": 2
+      },
+      {
+        "transition": "IN_PROGRESS->COMPLETED",
+        "count": 180
+      },
+      {
+        "transition": "-->MATCHING",
+        "count": 208
+      },
+      {
+        "transition": "MATCHING->ASSIGNING",
+        "count": 182
+      },
+      {
+        "transition": "MATCHING->NO_DRIVER",
+        "count": 28
+      }
+    ]
+  },
+  "executedAt": "2026-11-02T08:29:23.217Z",
+  "status": "PASS",
+  "commit": "4c5e84b",
+  "tokens": "[REDACTED]",
+  "driverBots": {
+    "completed": 180,
+    "acceptRefused": 16,
+    "gpsErrors": 0,
+    "errors": 0
+  }
+}

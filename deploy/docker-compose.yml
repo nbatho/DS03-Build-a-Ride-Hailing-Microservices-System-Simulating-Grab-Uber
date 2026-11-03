@@ -121,7 +121,7 @@ services:
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
-      { test: ['CMD', 'rabbitmq-diagnostics', '-q', 'check_port_connectivity'], interval: 5s, timeout: 5s, retries: 30 }
+      { test: ['CMD', 'gosu', 'rabbitmq', 'rabbitmq-diagnostics', '-q', 'check_port_connectivity'], interval: 5s, timeout: 5s, retries: 30 }
 
   # ---------- Migration (chạy một lần rồi thoát; app chờ bước này xong) ----------
   identity-migrate:
@@ -317,6 +317,9 @@ services:
     environment:
       <<: *jwt-env
       GATEWAY_PORT: '8080'
+      # 0 = tắt giới hạn; test tải P01 tạm đặt 0 khi chạy rồi trả lại.
+      GATEWAY_RATE_LIMIT_PER_MINUTE: ${GATEWAY_RATE_LIMIT_PER_MINUTE:-300}
+      GATEWAY_AUTH_RATE_LIMIT: ${GATEWAY_AUTH_RATE_LIMIT:-10}
       IDENTITY_BASE_URL: http://identity:3001
       DRIVER_BASE_URL: http://driver:3002
       TRIP_BASE_URL: http://trip:3003
@@ -327,7 +330,7 @@ services:
       default:
         ipv4_address: 10.203.0.80
     ports:
-      - '127.0.0.1:8080:8080'
+      - '127.0.0.1:${GATEWAY_PUBLISH_PORT:-8080}:8080'
     volumes: [*jwt-volume]
     healthcheck:
       { test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:8080/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], <<: *app-health }

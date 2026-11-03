@@ -9,6 +9,7 @@ const {
   createMatchingBroker,
 } = require('./helpers/matching-environment.cjs');
 const { createTripDatabase } = require('./helpers/trip-environment.cjs');
+const { createCEnvironment } = require('./helpers/c-environment.cjs');
 const apps = [
   ['api-gateway', 'GATEWAY_PORT'],
   ['identity-user-service', 'IDENTITY_PORT'],
@@ -30,24 +31,23 @@ test(
     const matching = await createMatchingDatabase(t);
     const broker = await createMatchingBroker(t);
     const trip = await createTripDatabase(t);
+    // Payment và Notification có DB riêng và đọc RabbitMQ (môi trường dùng chung của C).
+    const c = await createCEnvironment({ prefix: 'ds03-startup' });
+
+    t.after(() => c.close());
+
+    const envs = {
+      'pricing-service': pricing.env,
+      'driver-vehicle-location-service': driver.env,
+      'matching-service': { ...matching.env, ...broker.env },
+      'trip-booking-service': { ...trip.env, ...broker.env },
+      'simulated-payment-service': c.serviceEnv('payment'),
+      'notification-service': c.serviceEnv('notification'),
+    };
     const running = [];
 
     for (const [name, portEnv] of apps) {
-      running.push(
-        await fixture.launch(
-          name,
-          portEnv,
-          name === 'pricing-service'
-            ? pricing.env
-            : name === 'driver-vehicle-location-service'
-              ? driver.env
-              : name === 'matching-service'
-                ? { ...matching.env, ...broker.env }
-                : name === 'trip-booking-service'
-                  ? { ...trip.env, ...broker.env }
-                  : {},
-        ),
-      );
+      running.push(await fixture.launch(name, portEnv, envs[name] ?? {}));
     }
 
     const ids = new Set();
@@ -77,7 +77,12 @@ test(
       }
 
       ids.add(instance);
-      assert.equal((await fetch(app.url + '/api/v1/not-implemented')).status, 404);
+      // Gateway kiểm tra JWT trước khi xét đường nên request ẩn danh tới đường lạ nhận 401, không lộ đường nào tồn tại.
+      assert.equal(
+        (await fetch(app.url + '/api/v1/not-implemented')).status,
+        app.name === 'api-gateway' ? 401 : 404,
+        app.name,
+      );
     }
 
     assert.equal(ids.size, 8);

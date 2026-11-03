@@ -1,0 +1,230 @@
+{
+  "demo": "BA mục 13.3 — demo 9 bước",
+  "gateway": "http://127.0.0.1:8088",
+  "startedAt": "2026-11-02T07:50:28.402Z",
+  "steps": [
+    {
+      "step": 1,
+      "title": "Chạy cả hệ thống bằng Compose",
+      "durationMs": 3019,
+      "services": [
+        {
+          "service": "gateway",
+          "port": 8080,
+          "http": 200,
+          "status": "UP",
+          "instanceId": "0fda1591-1547-4343-aac4-bbea71ad6619"
+        },
+        {
+          "service": "identity",
+          "port": 3001,
+          "http": 200,
+          "status": "UP",
+          "instanceId": "ce1d1af2-4338-407d-8b93-831ce81a2f3c"
+        },
+        {
+          "service": "driver",
+          "port": 3002,
+          "http": 200,
+          "status": "UP",
+          "instanceId": "4ae8ce6b-f31f-4ca6-84f9-efc98d0c8d52"
+        },
+        {
+          "service": "trip",
+          "port": 3003,
+          "http": 200,
+          "status": "UP",
+          "instanceId": "50beef5b-eeef-4cf4-8ee9-0b23eca33999"
+        },
+        {
+          "service": "payment",
+          "port": 3004,
+          "http": 200,
+          "status": "UP",
+          "instanceId": "f3a9b348-29bb-44e7-bcdc-ca800178a8f9"
+        },
+        {
+          "service": "notification",
+          "port": 3005,
+          "http": 200,
+          "status": "UP",
+          "instanceId": "ee7b49f8-bb5f-42f6-88ac-28774579e911"
+        },
+        {
+          "service": "matching",
+          "port": 3006,
+          "http": 200,
+          "status": "UP",
+          "instanceId": "7ef5dc2d-2f85-4e45-a255-f9b395704265"
+        },
+        {
+          "service": "pricing",
+          "port": 3007,
+          "http": 200,
+          "status": "UP",
+          "instanceId": "25411651-49c9-4efa-95c4-0f32e576365e"
+        }
+      ],
+      "databases": [
+        "driver-db Up 47 minutes (healthy)",
+        "identity-db Up 47 minutes (healthy)",
+        "matching-db Up 47 minutes (healthy)",
+        "notification-db Up 47 minutes (healthy)",
+        "payment-db Up 47 minutes (healthy)",
+        "pricing-db Up 47 minutes (healthy)",
+        "trip-db Up 47 minutes (healthy)"
+      ]
+    },
+    {
+      "step": 2,
+      "title": "Tài xế đăng ký, có xe, gửi vị trí, bật nhận chuyến",
+      "durationMs": 686,
+      "driverId": "cc87da6b-4c8b-483a-afc9-7cf4ae020e50",
+      "driverStatus": "AVAILABLE",
+      "location": "ZONE_A lúc 07:50:31",
+      "passengerId": "4d9114c2-478e-436e-ad8f-0d62ec80ee92"
+    },
+    {
+      "step": 3,
+      "title": "Khách báo giá rồi đặt chuyến qua Gateway",
+      "durationMs": 693,
+      "quoteId": "3aaecf82-4560-4672-8093-371b53233af7",
+      "tripId": "0339ffae-75ab-4be0-b958-b772f20bd761",
+      "amount": "41000",
+      "fare": "41000 VND, CAR_V1",
+      "event": "trip.requested f31bb15f-0fff-4313-8b6f-5578200b18cf PUBLISHED",
+      "correlationId": "d94a6037-1ed2-44e3-bf82-2e026d009050"
+    },
+    {
+      "step": 4,
+      "title": "Ghép chuyến chọn tài xế, Thông báo hiện lời mời",
+      "durationMs": 2161,
+      "job": "778d7f24-d0dc-4487-83ac-5fd638e027ba OFFERING",
+      "offerId": "94501885-f93e-4dea-a006-bcd92a31a49b",
+      "recipientId": "cc87da6b-4c8b-483a-afc9-7cf4ae020e50",
+      "sourceEventId": "f7992b6c-59e4-4494-9722-06fa9e2479d5"
+    },
+    {
+      "step": 5,
+      "title": "Tài xế nhận → bắt đầu → kết thúc; thanh toán mô phỏng",
+      "durationMs": 5276,
+      "assignmentId": "83a21309-fea8-4cbf-a118-d0d584418156",
+      "history": "-->MATCHING, MATCHING->ASSIGNING, ASSIGNING->ASSIGNED, ASSIGNED->IN_PROGRESS, IN_PROGRESS->COMPLETED",
+      "paymentId": "670d8b03-8c8d-4769-9eaa-a64c9b45f259",
+      "paymentStatus": "SUCCEEDED",
+      "notices": [
+        "Thanh toán thành công",
+        "Chuyến đi đã hoàn thành",
+        "Chuyến đi đã bắt đầu",
+        "Đã có tài xế nhận chuyến"
+      ]
+    },
+    {
+      "step": 6,
+      "title": "Hai khách cùng lúc tranh một tài xế",
+      "durationMs": 19763,
+      "trips": [
+        "6b5485ca-9954-4887-b9e3-b27edb4dac21",
+        "e003bf3a-fae9-42bc-a917-bcc0bc81cd80"
+      ],
+      "offers": 2,
+      "results": [
+        {
+          "tripId": "6b5485ca-9954-4887-b9e3-b27edb4dac21",
+          "http": 202,
+          "operation": "SUCCEEDED",
+          "assignmentId": "2dbb4e28-f778-42e6-8279-f9cc9c4bdf18"
+        },
+        {
+          "tripId": "e003bf3a-fae9-42bc-a917-bcc0bc81cd80",
+          "http": 202,
+          "operation": "FAILED_COMPENSATED",
+          "assignmentId": "2c329172-aa7b-4cad-918b-f45087b3b4ed"
+        }
+      ],
+      "activeReservations": 1,
+      "winner": "6b5485ca-9954-4887-b9e3-b27edb4dac21",
+      "loser": {
+        "tripId": "e003bf3a-fae9-42bc-a917-bcc0bc81cd80",
+        "status": "NO_DRIVER"
+      }
+    },
+    {
+      "step": 7,
+      "title": "Tắt Thanh toán ngay trước khi kết thúc chuyến",
+      "durationMs": 19008,
+      "tripId": "f3049d3e-4d02-4ffa-9d61-2667330f5597",
+      "tripStatus": "COMPLETED",
+      "paymentStatus": "PENDING",
+      "paymentsWhileDown": {
+        "http": 502,
+        "code": "BAD_GATEWAY",
+        "elapsedMs": 8017
+      },
+      "tripsWhileDown": 200,
+      "queues": [
+        {
+          "name": "matching.events",
+          "ready": 0,
+          "unacked": 0
+        },
+        {
+          "name": "matching.events.dlq",
+          "ready": 0,
+          "unacked": 0
+        },
+        {
+          "name": "notification.events",
+          "ready": 0,
+          "unacked": 0
+        },
+        {
+          "name": "notification.events.dlq",
+          "ready": 0,
+          "unacked": 0
+        },
+        {
+          "name": "payment.events",
+          "ready": 1,
+          "unacked": 0
+        },
+        {
+          "name": "payment.events.dlq",
+          "ready": 0,
+          "unacked": 0
+        },
+        {
+          "name": "trip.events",
+          "ready": 0,
+          "unacked": 0
+        },
+        {
+          "name": "trip.events.dlq",
+          "ready": 0,
+          "unacked": 0
+        }
+      ]
+    },
+    {
+      "step": 8,
+      "title": "Quan sát việc tồn đọng, thử lại và mã theo dõi",
+      "durationMs": 1408,
+      "outbox": "payment.requested 5d2938e4-480c-43fb-867a-1b88a33cf33d PUBLISHED 07:51:05",
+      "waitingInQueue": 1,
+      "correlationId": "1d7696af-7240-408c-8786-d98cc4ecb128"
+    },
+    {
+      "step": 9,
+      "title": "Bật lại Thanh toán và chạy phục hồi",
+      "durationMs": 3397,
+      "tripId": "f3049d3e-4d02-4ffa-9d61-2667330f5597",
+      "paymentStatus": "SUCCEEDED",
+      "recoveredInMs": 3397,
+      "payments": 1,
+      "attempts": 1
+    }
+  ],
+  "status": "PASS",
+  "finishedAt": "2026-11-02T07:51:27.108Z",
+  "tokens": "[REDACTED]"
+}
