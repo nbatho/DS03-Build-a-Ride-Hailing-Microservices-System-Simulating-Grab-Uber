@@ -122,12 +122,34 @@ test('reconciliation applies only final results that match the trip', () => {
   }
 
   assert.equal(
-    decideReconcile(trip, '41000', { ...payment, status: 'FAILED', attemptNo: 2, retryable: true }),
-    'KEEP',
-  );
-  assert.equal(
     decideReconcile(trip, '41000', { ...payment, status: 'PENDING', attemptNo: 0, retryable: true }),
     'KEEP',
+  );
+});
+
+test('reconciliation schedules the next attempt only when the failure event was lost', () => {
+  const { trip, payment } = reconcileCase();
+  const failed = { ...payment, status: 'FAILED', attemptNo: 2, retryable: true };
+
+  assert.equal(decideReconcile({ ...trip, paymentAttemptNo: 2 }, '41000', failed), 'RETRY');
+  assert.equal(decideReconcile({ ...trip, paymentAttemptNo: 3 }, '41000', failed), 'KEEP');
+  assert.equal(decideReconcile(trip, '41000', failed), 'KEEP');
+});
+
+test('a failure of an attempt older than the one already requested is ignored', () => {
+  assert.deepEqual(
+    decideFailed(
+      { paymentStatus: 'PENDING_RETRY', paymentVersion: 2, paymentAttemptNo: 3 },
+      { paymentVersion: 3, attemptNo: 2, retryable: true },
+    ),
+    { kind: 'IGNORE' },
+  );
+  assert.deepEqual(
+    decideFailed(
+      { paymentStatus: 'PENDING', paymentVersion: 0, paymentAttemptNo: 1 },
+      { paymentVersion: 2, attemptNo: 1, retryable: true },
+    ),
+    { kind: 'RETRY', nextAttempt: 2, delaySeconds: 5 },
   );
 });
 

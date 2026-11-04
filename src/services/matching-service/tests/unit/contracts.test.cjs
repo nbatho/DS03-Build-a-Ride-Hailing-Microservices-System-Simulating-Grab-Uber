@@ -93,7 +93,7 @@ test('transient consumer failures retry at 1/5/15 seconds then move to DLQ; ACK 
     await consumer.process(
       {
         content: Buffer.from(JSON.stringify(value)),
-        properties: { messageId: value.event_id, headers: { 'x-matching-retry': attempt } },
+        properties: { messageId: value.event_id, headers: { 'x-retry-count': attempt } },
       },
       {
         ack: () => {
@@ -141,4 +141,85 @@ test('failed retry publish leaves the original delivery unacknowledged', async (
     ),
   );
   assert.equal(acknowledged, false);
+});
+
+function consumerWith(routes, handled = []) {
+  return new MatchingEventsConsumer(
+    {
+      publish: async (_exchange, queue, content, properties) => {
+        routes.push({ queue, content, headers: properties.headers });
+      },
+    },
+    {
+      createJobFromRequested: async envelope => {
+        handled.push(envelope.event_id);
+      },
+    },
+    {},
+  );
+}
+
+test('an event up to 128 KiB is processed (same limit as @app/messaging)', async () => {
+  const value = event();
+  const content = Buffer.from(JSON.stringify({ ...value, padding: 'x'.repeat(90_000 - JSON.stringify(value).length) }));
+  const routes = [];
+  const handled = [];
+  let acked = false;
+
+  assert.ok(content.length >= 89_000 && content.length <= 128 * 1024);
+  await consumerWith(routes, handled).process(
+    { content, properties: { messageId: value.event_id, headers: {} } },
+    { ack: () => (acked = true) },
+  );
+  assert.ok(handled.length === 1 || routes[0]?.headers['x-error-code'] !== 'EVENT_TOO_LARGE');
+  assert.equal(acked, true);
+});
+
+test('an event over 128 KiB goes to the DLQ truncated, with an error code and the original size', async () => {
+  const content = Buffer.alloc(140_000, 'a');
+  const routes = [];
+  let acked = false;
+
+  await consumerWith(routes).process(
+    { content, properties: { messageId: randomUUID(), headers: { 'x-matching-retry': 2 } } },
+    { ack: () => (acked = true) },
+  );
+
+  assert.equal(routes.length, 1);
+  assert.equal(routes[0].queue, 'matching.events.dlq');
+  assert.equal(routes[0].content.length, 1024);
+  assert.equal(routes[0].headers['x-error-code'], 'EVENT_TOO_LARGE');
+  assert.equal(routes[0].headers['x-original-size'], 140_000);
+  assert.equal(routes[0].headers['x-matching-retry'], undefined);
+  assert.equal(acked, true);
+});
+
+test('retries use x-retry-count so npm run events:dlq -- --replay resets them; DLQ copies carry the error', async () => {
+  const value = event();
+  const routes = [];
+  const consumer = new MatchingEventsConsumer(
+    { publish: async (_exchange, queue, _content, properties) => routes.push({ queue, headers: properties.headers }) },
+    {
+      createJobFromRequested: async () => {
+        throw new ApiError(503, 'DEPENDENCY_UNAVAILABLE', 'DB offline');
+      },
+    },
+    {},
+  );
+  const deliver = headers =>
+    consumer.process(
+      { content: Buffer.from(JSON.stringify(value)), properties: { messageId: value.event_id, headers } },
+      { ack: () => undefined },
+    );
+
+  await deliver({});
+  await deliver({ 'x-retry-count': 3 });
+  await deliver({});
+
+  assert.equal(routes[0].queue, 'matching.events.retry.1s');
+  assert.equal(routes[0].headers['x-retry-count'], 1);
+  assert.equal(routes[1].queue, 'matching.events.dlq');
+  assert.equal(routes[1].headers['x-error-code'], 'RETRIES_EXHAUSTED');
+  assert.equal(routes[1].headers['x-error-message'], 'DB offline');
+  assert.equal(routes[2].queue, 'matching.events.retry.1s');
 });

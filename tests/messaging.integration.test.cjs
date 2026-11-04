@@ -198,3 +198,32 @@ test(
     assert.equal(dead.properties.headers['x-retry-count'], 3);
   },
 );
+
+test(
+  'a consumer cancelled by the broker makes the service not ready, then reconnects and keeps consuming',
+  { timeout: 30_000 },
+  async t => {
+    if (!admin) {
+      return t.skip('no broker');
+    }
+
+    const connection = await open();
+    const consumer = new EventConsumer(connection, config);
+    const received = [];
+
+    await consumer.subscribe('notification.events', {
+      'payment.succeeded': async event => {
+        received.push(event.event_id);
+      },
+    });
+
+    await channel.deleteQueue('notification.events');
+    await waitFor(() => !connection.isConnected(), 5_000);
+    await waitFor(() => connection.isConnected(), 15_000);
+
+    const event = sample('payment.succeeded');
+
+    await new EventPublisher(connection).publish(event);
+    await waitFor(() => received.includes(event.event_id), 10_000);
+  },
+);

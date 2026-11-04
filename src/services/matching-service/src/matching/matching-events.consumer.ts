@@ -1,5 +1,12 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import type { Channel, ConsumeMessage } from 'amqplib';
+import type { Channel, ConsumeMessage, MessagePropertyHeaders } from 'amqplib';
+import { MAX_EVENT_BYTES } from '@app/contracts';
+import {
+  DLQ_TRUNCATED_BYTES,
+  ERROR_CODE_HEADER,
+  ERROR_MESSAGE_HEADER,
+  RETRY_COUNT_HEADER,
+} from '@app/messaging';
 import { ApiError, ReadinessRegistry } from '@app/runtime';
 import { MatchingBroker, MATCHING_QUEUE, RETRY_DELAYS } from './matching-broker';
 import { MatchingService } from './matching.service';
@@ -71,11 +78,20 @@ export class MatchingEventsConsumer implements OnModuleInit, OnModuleDestroy {
   }
 
   private async process(message: ConsumeMessage, channel: Channel): Promise<void> {
-    try {
-      if (message.content.length > 65536) {
-        throw new ApiError(400, 'INVALID_EVENT', 'Event exceeds 64 KiB');
-      }
+    if (message.content.length > MAX_EVENT_BYTES) {
+      await this.deadLetter(
+        message,
+        'EVENT_TOO_LARGE',
+        'Event is ' + message.content.length + ' bytes, limit ' + MAX_EVENT_BYTES,
+        message.content.subarray(0, DLQ_TRUNCATED_BYTES),
+        { 'x-original-size': message.content.length, 'x-truncated': true },
+      );
+      channel.ack(message);
 
+      return;
+    }
+
+    try {
       let body: unknown;
 
       try {
@@ -99,23 +115,76 @@ export class MatchingEventsConsumer implements OnModuleInit, OnModuleDestroy {
       channel.ack(message); // Transaction đã commit trước ACK.
     } catch (error) {
       const permanent = error instanceof ApiError && error.getStatus() < 500;
-      const attempts = Number(message.properties.headers?.['x-matching-retry'] ?? 0);
-      const retry =
-        !permanent && Number.isInteger(attempts) && attempts >= 0 && attempts < RETRY_DELAYS.length;
-      const queue = retry
-        ? MATCHING_QUEUE + '.retry.' + RETRY_DELAYS[attempts] / 1000 + 's'
-        : MATCHING_QUEUE + '.dlq';
+      const attempts = retryCount(message.properties.headers);
+      const reason = (error instanceof Error ? error.message : String(error)).slice(0, 500);
 
-      await this.broker.publish('', queue, message.content, {
-        contentType: 'application/json',
-        messageId: message.properties.messageId,
-        correlationId: message.properties.correlationId,
-        headers: {
-          ...message.properties.headers,
-          'x-matching-retry': retry ? attempts + 1 : attempts,
-        },
-      });
+      if (!permanent && attempts < RETRY_DELAYS.length) {
+        await this.broker.publish(
+          '',
+          MATCHING_QUEUE + '.retry.' + RETRY_DELAYS[attempts] / 1000 + 's',
+          message.content,
+          copyProperties(message, { [RETRY_COUNT_HEADER]: attempts + 1, 'x-last-error': reason }),
+        );
+      } else {
+        await this.deadLetter(
+          message,
+          permanent ? errorCode(error) : 'RETRIES_EXHAUSTED',
+          reason,
+          message.content,
+          { [RETRY_COUNT_HEADER]: attempts },
+        );
+      }
+
       channel.ack(message);
     }
   }
+
+  private deadLetter(
+    message: ConsumeMessage,
+    code: string,
+    reason: string,
+    content: Buffer,
+    headers: Record<string, unknown>,
+  ): Promise<void> {
+    Logger.error(
+      MATCHING_QUEUE + ' -> DLQ ' + code + ': ' + reason + ' (message ' + (message.properties.messageId ?? '?') + ')',
+      'MatchingConsumer',
+    );
+
+    return this.broker.publish(
+      '',
+      MATCHING_QUEUE + '.dlq',
+      content,
+      copyProperties(message, {
+        ...headers,
+        [ERROR_CODE_HEADER]: code,
+        [ERROR_MESSAGE_HEADER]: reason,
+        'x-original-queue': MATCHING_QUEUE,
+        'x-failed-at': new Date().toISOString(),
+      }),
+    );
+  }
+}
+
+function retryCount(headers: MessagePropertyHeaders | undefined): number {
+  const value = Number(headers?.[RETRY_COUNT_HEADER] ?? headers?.['x-matching-retry'] ?? 0);
+
+  return Number.isInteger(value) && value >= 0 ? value : 0;
+}
+
+function errorCode(error: unknown): string {
+  const body = error instanceof ApiError ? (error.getResponse() as { code?: string }) : undefined;
+
+  return body?.code ?? 'INVALID_EVENT';
+}
+
+function copyProperties(message: ConsumeMessage, headers: Record<string, unknown>) {
+  const { 'x-matching-retry': _legacy, ...original } = message.properties.headers ?? {};
+
+  return {
+    contentType: 'application/json',
+    messageId: message.properties.messageId,
+    correlationId: message.properties.correlationId,
+    headers: { ...original, ...headers },
+  };
 }

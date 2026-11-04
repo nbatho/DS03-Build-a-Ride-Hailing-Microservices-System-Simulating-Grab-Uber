@@ -13,6 +13,7 @@ export const PAYMENT_RETRY_DELAY_SECONDS: Readonly<Record<number, number>> = { 1
 export interface PaymentProjection {
   paymentStatus: TripPaymentStatus;
   paymentVersion: number;
+  paymentAttemptNo?: number;
 }
 
 export type PaymentDecision =
@@ -21,7 +22,7 @@ export type PaymentDecision =
   | { kind: 'FAILED' }
   | { kind: 'RETRY'; nextAttempt: number; delaySeconds: number };
 
-export type ReconcileDecision = 'SUCCEEDED' | 'FAILED' | 'KEEP' | 'MISMATCH';
+export type ReconcileDecision = 'SUCCEEDED' | 'FAILED' | 'RETRY' | 'KEEP' | 'MISMATCH';
 
 function isStale(state: PaymentProjection, paymentVersion: number): boolean {
   return state.paymentStatus === 'SUCCEEDED' || paymentVersion <= state.paymentVersion;
@@ -40,6 +41,10 @@ export function decideFailed(
     return { kind: 'IGNORE' };
   }
 
+  if (state.paymentAttemptNo !== undefined && failure.attemptNo < state.paymentAttemptNo) {
+    return { kind: 'IGNORE' };
+  }
+
   if (!failure.retryable || failure.attemptNo >= MAX_PAYMENT_ATTEMPTS) {
     return { kind: 'FAILED' };
   }
@@ -52,7 +57,8 @@ export function decideFailed(
 }
 
 export function decideReconcile(
-  trip: Pick<Trip, 'id' | 'passengerId' | 'paymentId' | 'status' | 'paymentStatus'>,
+  trip: Pick<Trip, 'id' | 'passengerId' | 'paymentId' | 'status' | 'paymentStatus'> &
+    Partial<Pick<Trip, 'paymentAttemptNo'>>,
   fareAmount: string,
   payment: Payment,
 ): ReconcileDecision {
@@ -73,9 +79,15 @@ export function decideReconcile(
     return 'SUCCEEDED';
   }
 
-  return payment.status === 'FAILED' && (!payment.retryable || payment.attemptNo >= MAX_PAYMENT_ATTEMPTS)
-    ? 'FAILED'
-    : 'KEEP';
+  if (payment.status !== 'FAILED') {
+    return 'KEEP';
+  }
+
+  if (!payment.retryable || payment.attemptNo >= MAX_PAYMENT_ATTEMPTS) {
+    return 'FAILED';
+  }
+
+  return trip.paymentAttemptNo !== undefined && trip.paymentAttemptNo <= payment.attemptNo ? 'RETRY' : 'KEEP';
 }
 
 export function paymentRequestedEvent(

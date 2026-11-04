@@ -14,3 +14,4 @@ export type { TransactionOptions } from './transaction';
 export { withIdempotencyKey, withCommandResult, requestFingerprint, IdempotencyKey } from './idempotency';
 export type { StoredResponse, IdempotentResult, IdempotencyKeyScope, CommandScope } from './idempotency';
 export { uuidParam } from './params';
+export { withDatabase } from './database';

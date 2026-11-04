@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
 import type { Notification, NotificationsPage } from '@app/contracts';
 import { processEventOnce } from '@app/messaging';
-import { ApiError } from '@app/runtime';
+import { ApiError, withDatabase } from '@app/runtime';
 import { decodeCursor, encodeCursor } from './cursor';
 import {
   applyEvent,
@@ -84,7 +84,16 @@ export class NotificationsService {
     return outcome;
   }
 
-  async list(recipientId: string, options: ListOptions, now = new Date()): Promise<NotificationsPage> {
+  list(recipientId: string, options: ListOptions, now = new Date()): Promise<NotificationsPage> {
+    return withDatabase('Notification', () => this.listPage(recipientId, options, now));
+  }
+
+  /** Đánh dấu đã đọc; gọi lặp vẫn 200 và giữ thời điểm đọc đầu tiên. Không đổi trạng thái chuyến. */
+  markRead(recipientId: string, notificationId: string, now = new Date()): Promise<Notification> {
+    return withDatabase('Notification', () => this.markOneRead(recipientId, notificationId, now));
+  }
+
+  private async listPage(recipientId: string, options: ListOptions, now: Date): Promise<NotificationsPage> {
     const limit = options.limit ?? DEFAULT_PAGE_LIMIT;
     const params: unknown[] = [recipientId];
     const where = ['n.recipient_id = $1'];
@@ -121,8 +130,7 @@ export class NotificationsService {
     };
   }
 
-  /** Đánh dấu đã đọc; gọi lặp vẫn 200 và giữ thời điểm đọc đầu tiên. Không đổi trạng thái chuyến. */
-  async markRead(recipientId: string, notificationId: string, now = new Date()): Promise<Notification> {
+  private async markOneRead(recipientId: string, notificationId: string, now: Date): Promise<Notification> {
     const row = await this.findRow(notificationId);
 
     if (row.recipient_id !== recipientId) {

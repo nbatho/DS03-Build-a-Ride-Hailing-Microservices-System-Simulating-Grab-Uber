@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
 import type { Payment, RideEvent, TripPaymentStatus } from '@app/contracts';
@@ -53,28 +54,12 @@ export class TripPaymentsService {
         await this.project(manager, trip, 'FAILED', event.payload);
       }
 
-      if (decision.kind !== 'RETRY') {
-        return;
+      if (decision.kind === 'RETRY') {
+        await this.scheduleRetry(manager, trip, event.payload.paymentVersion, decision, {
+          correlationId: event.correlation_id,
+          causationId: event.event_id,
+        });
       }
-
-      await this.project(manager, trip, 'PENDING_RETRY', {
-        ...event.payload,
-        attemptNo: decision.nextAttempt,
-      });
-
-      const retry = paymentRequestedEvent(
-        { ...trip, version: trip.version + 1 },
-        await this.findFare(manager, trip),
-        decision.nextAttempt,
-        { correlationId: event.correlation_id, causationId: event.event_id },
-      );
-
-      await enqueueOutboxEvent(manager, TRIP_OUTBOX_TABLE, retry);
-      // OutboxRelay chỉ lấy dòng đã đến next_retry_at, nên lịch thử lại sống qua restart mà không cần worker riêng.
-      await manager.query(
-        'UPDATE trip_schema.outbox_events SET next_retry_at = now() + make_interval(secs => $2) WHERE event_id = $1',
-        [retry.event_id, decision.delaySeconds],
-      );
     });
   }
 
@@ -107,8 +92,44 @@ export class TripPaymentsService {
         });
       }
 
+      if (decision === 'RETRY') {
+        const correlationId = randomUUID();
+
+        await this.scheduleRetry(
+          manager,
+          trip,
+          trip.paymentVersion,
+          { nextAttempt: payment.attemptNo + 1, delaySeconds: 0 },
+          { correlationId, causationId: correlationId },
+        );
+      }
+
       return decision;
     });
+  }
+
+  private async scheduleRetry(
+    manager: EntityManager,
+    trip: Trip,
+    paymentVersion: number,
+    retry: { nextAttempt: number; delaySeconds: number },
+    meta: { correlationId: string; causationId: string },
+  ): Promise<void> {
+    await this.project(manager, trip, 'PENDING_RETRY', { paymentVersion, attemptNo: retry.nextAttempt });
+
+    const event = paymentRequestedEvent(
+      { ...trip, version: trip.version + 1 },
+      await this.findFare(manager, trip),
+      retry.nextAttempt,
+      meta,
+    );
+
+    await enqueueOutboxEvent(manager, TRIP_OUTBOX_TABLE, event);
+    // OutboxRelay chỉ lấy dòng đã đến next_retry_at, nên lịch thử lại sống qua restart mà không cần worker riêng.
+    await manager.query(
+      'UPDATE trip_schema.outbox_events SET next_retry_at = now() + make_interval(secs => $2) WHERE event_id = $1',
+      [event.event_id, retry.delaySeconds],
+    );
   }
 
   private async lockTrip(manager: EntityManager, event: PaymentResult): Promise<Trip> {

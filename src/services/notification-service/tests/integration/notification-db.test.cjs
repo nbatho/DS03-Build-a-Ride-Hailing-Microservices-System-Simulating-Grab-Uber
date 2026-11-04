@@ -131,3 +131,27 @@ test('cursor pagination, unreadOnly and mark-read rules', async t => {
   await assert.rejects(service.markRead(ids.driver, target.id), error => error.getStatus() === 403);
   await assert.rejects(service.markRead(ids.passenger, randomUUID()), error => error.getStatus() === 404);
 });
+
+test('notification_db down: list and mark-read return 503 DEPENDENCY_UNAVAILABLE instead of 500', { timeout: 120_000 }, async t => {
+  if (!dataSource) {
+    return t.skip('no database');
+  }
+
+  environment.compose(['stop', 'notification-db']);
+
+  try {
+    for (const call of [
+      () => service.list(randomUUID(), {}),
+      () => service.markRead(randomUUID(), randomUUID()),
+    ]) {
+      await assert.rejects(call, error => {
+        assert.equal(error.getStatus?.(), 503);
+        assert.equal(error.getResponse().code, 'DEPENDENCY_UNAVAILABLE');
+
+        return true;
+      });
+    }
+  } finally {
+    environment.compose(['start', 'notification-db']);
+  }
+});

@@ -149,3 +149,30 @@ test('only the owning passenger can read the payment', async t => {
   await assert.rejects(payments.getForPassenger(randomUUID(), event.payload.paymentId), error => error.getStatus() === 403);
   await assert.rejects(payments.getForPassenger(event.payload.passengerId, randomUUID()), error => error.getStatus() === 404);
 });
+
+test('payment_db down: reads return 503 DEPENDENCY_UNAVAILABLE instead of 500', { timeout: 120_000 }, async t => {
+  if (!dataSource) {
+    return t.skip('no database');
+  }
+
+  const payments = service('SUCCEED');
+
+  environment.compose(['stop', 'payment-db']);
+
+  try {
+    for (const read of [
+      () => payments.getForPassenger(randomUUID(), randomUUID()),
+      () => payments.getByTripForPassenger(randomUUID(), randomUUID()),
+      () => payments.getForTrip(randomUUID()),
+    ]) {
+      await assert.rejects(read, error => {
+        assert.equal(error.getStatus?.(), 503);
+        assert.equal(error.getResponse().code, 'DEPENDENCY_UNAVAILABLE');
+
+        return true;
+      });
+    }
+  } finally {
+    environment.compose(['start', 'payment-db']);
+  }
+});

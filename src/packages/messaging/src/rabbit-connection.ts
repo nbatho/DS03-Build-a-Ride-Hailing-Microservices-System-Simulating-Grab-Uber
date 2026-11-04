@@ -128,6 +128,15 @@ export class RabbitConnection implements OnModuleInit, OnModuleDestroy {
     return this.model !== undefined && this.publishChannel !== undefined;
   }
 
+  restart(model: ChannelModel, reason: string): void {
+    if (this.model !== model || this.stopping) {
+      return;
+    }
+
+    this.logger.warn('Restarting RabbitMQ connection: ' + reason);
+    void model.close().catch(() => undefined);
+  }
+
   /** Đăng ký việc cần làm trên mỗi kết nối mới (ví dụ mở consumer). Đang kết nối thì chạy luôn. */
   async addSetup(setup: ConnectionSetup): Promise<void> {
     this.setups.push(setup);
