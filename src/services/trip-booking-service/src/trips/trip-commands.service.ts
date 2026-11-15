@@ -13,7 +13,7 @@ import { findCompletedResponse } from './idempotency-replay';
 import { MatchingClient } from './matching.client';
 import { SagaStore } from './saga/saga.store';
 import { transitionTrip } from './trip-transition';
-import { TRIP_OUTBOX_TABLE } from './trips.service';
+import { TRIP_OUTBOX_TABLE } from './trip-tables';
 
 interface OfferCommand<TRequest> {
   actor: Actor;
@@ -71,7 +71,6 @@ export class TripCommandsService {
         const assignmentId = randomUUID();
         const updated = await transitionTrip(manager, {
           tripId,
-          from: ['MATCHING'],
           to: 'ASSIGNING',
           set: { assignmentId },
           actorId: actor.userId,
@@ -143,7 +142,6 @@ export class TripCommandsService {
 
       const updated = await transitionTrip(manager, {
         tripId,
-        from: ['ASSIGNED'],
         to: 'IN_PROGRESS',
         actorId: actor.userId,
         commandId: key,
@@ -186,7 +184,6 @@ export class TripCommandsService {
 
       const updated = await transitionTrip(manager, {
         tripId,
-        from: ['IN_PROGRESS'],
         to: 'COMPLETED',
         set: { paymentId: randomUUID(), paymentStatus: 'PENDING' },
         actorId: actor.userId,
@@ -247,7 +244,6 @@ export class TripCommandsService {
 
       const updated = await transitionTrip(manager, {
         tripId,
-        from: ['MATCHING', 'ASSIGNING', 'ASSIGNED'],
         to: 'CANCELLING',
         actorId: actor.userId,
         commandId: key,

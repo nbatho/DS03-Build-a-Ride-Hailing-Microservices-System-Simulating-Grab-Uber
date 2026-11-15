@@ -1,7 +1,7 @@
 import { Injectable, type OnApplicationBootstrap, type OnModuleDestroy } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { EventPublisher, OutboxRelay } from '@app/messaging';
-import { TRIP_OUTBOX_TABLE } from './trips.service';
+import { TRIP_OUTBOX_TABLE } from './trip-tables';
 
 @Injectable()
 export class TripOutboxRelay implements OnApplicationBootstrap, OnModuleDestroy {

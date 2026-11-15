@@ -17,6 +17,7 @@ import {
 } from '@app/messaging';
 import { ApiError, withIdempotencyKey } from '@app/runtime';
 import { decodeCursor, encodeCursor } from './cursor';
+import { isUniqueViolation } from './database-error';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { ListTripsQueryDto } from './dto/list-trips.query.dto';
 import { FareSnapshot } from './entities/fare-snapshot.entity';
@@ -26,17 +27,10 @@ import { Trip, toTrip, toTripProgress } from './entities/trip.entity';
 import { findCompletedResponse } from './idempotency-replay';
 import { MatchingClient } from './matching.client';
 import { PricingClient } from './pricing.client';
+import { TRIP_INBOX, TRIP_OUTBOX_TABLE } from './trip-tables';
 import { transitionTrip } from './trip-transition';
 
-export const TRIP_OUTBOX_TABLE = 'trip_schema.outbox_events';
-export const TRIP_INBOX = { table: 'trip_schema.processed_events', consumerName: 'trip-booking-service' };
 const DEFAULT_PAGE_LIMIT = 20;
-
-export function isUniqueViolation(error: unknown, constraint: string): boolean {
-  const failure = error as { driverError?: { code?: string; constraint?: string } };
-
-  return failure.driverError?.code === '23505' && failure.driverError.constraint === constraint;
-}
 
 @Injectable()
 export class TripsService {
@@ -210,7 +204,6 @@ export class TripsService {
 
       const updated = await transitionTrip(manager, {
         tripId,
-        from: ['MATCHING'],
         to: 'NO_DRIVER',
         actorId: null,
         commandId: event.event_id,
