@@ -13,6 +13,8 @@ const { JwtService } = require('@nestjs/jwt');
 const { generateKeys } = require('../../../../../scripts/identity/generate-keys.cjs');
 
 const root = path.resolve(__dirname, '../../../../..');
+const HANGING_BODY_ID = 'b0d7b0d7-0000-4000-8000-000000000001';
+const CUT_BODY_ID = 'b0d7b0d7-0000-4000-8000-000000000002';
 const received = [];
 const gateways = [];
 let upstream;
@@ -127,6 +129,17 @@ before(async () => {
         return;
       }
 
+      if (req.url === '/api/v1/payments/' + HANGING_BODY_ID || req.url === '/api/v1/payments/' + CUT_BODY_ID) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.write('{"partial":');
+
+        if (req.url.endsWith(CUT_BODY_ID)) {
+          setTimeout(() => res.socket.destroy(), 100);
+        }
+
+        return;
+      }
+
       res.writeHead(200, { 'Content-Type': 'application/json', 'Retry-After': '1', 'X-Internal-Secret': 'x' });
       res.end(JSON.stringify({ upstreamPath: req.url }));
     });
@@ -234,6 +247,22 @@ test('upstream down gives 502 with the standard error body; response headers are
   assert.equal(response.headers.get('retry-after'), '1');
   assert.equal(response.headers.get('x-internal-secret'), null);
   assert.equal((await call('/api/v1/operations/' + randomUUID())).status, 204);
+});
+
+test('upstream that sends headers then drops mid-body gives 502', { timeout: 15_000 }, async () => {
+  const cut = await call('/api/v1/payments/' + CUT_BODY_ID);
+
+  assert.equal(cut.status, 502);
+  assert.equal(cut.body.code, 'BAD_GATEWAY');
+});
+
+test('upstream that sends headers then stalls gives 504 after the 10 s deadline', { timeout: 30_000 }, async () => {
+  const started = Date.now();
+  const stalled = await call('/api/v1/payments/' + HANGING_BODY_ID);
+
+  assert.equal(stalled.status, 504);
+  assert.equal(stalled.body.code, 'GATEWAY_TIMEOUT');
+  assert.ok(Date.now() - started < 15_000, 'Gateway must give up after its 10 s deadline');
 });
 
 // ---------- S03: dữ liệu xấu và giới hạn (BA mục 12.1 test 19) ----------

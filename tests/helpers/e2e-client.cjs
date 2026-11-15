@@ -1,11 +1,23 @@
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
 const { spawnSync } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
+const dotenv = require('dotenv');
 const { setTimeout: sleep } = require('node:timers/promises');
 
 const ROOT = path.resolve(__dirname, '../..');
-const GATEWAY = process.env.E2E_GATEWAY_URL ?? 'http://127.0.0.1:8080';
+
+// Cổng Gateway lấy theo GATEWAY_PUBLISH_PORT trong .env (giống Compose), mặc định 8080.
+function publishedPort() {
+  try {
+    return dotenv.parse(fs.readFileSync(path.join(ROOT, '.env'))).GATEWAY_PUBLISH_PORT || '8080';
+  } catch {
+    return '8080';
+  }
+}
+
+const GATEWAY = process.env.E2E_GATEWAY_URL ?? 'http://127.0.0.1:' + publishedPort();
 const API = GATEWAY + '/api/v1';
 
 async function call(route, { method = 'GET', body, token, key, correlationId, headers = {} } = {}) {

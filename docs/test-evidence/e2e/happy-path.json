@@ -4,43 +4,43 @@
   "setup": "Stack Compose đầy đủ, PAYMENT_SIMULATION_MODE=SUCCEED, 1 khách và 2 tài xế tạo mới cho mỗi lần chạy",
   "steps": "Gọi các route public qua Gateway theo 4 kịch bản trong outcomes, poll GET /api/v1/trips/{tripId} và GET /api/v1/operations/{operationId}, đối chiếu thêm trong DB từng service",
   "expected": "Mỗi kịch bản đạt trạng thái cuối đúng: COMPLETED và đã trả tiền; tài xế sau nhận thay người từ chối; NO_DRIVER không phát sinh thanh toán; CANCELLED và trả xe, chuyến đã chạy không hủy được",
-  "executedAt": "2026-11-02T03:16:11.520Z",
+  "executedAt": "2026-11-04T08:53:29.405Z",
   "status": "PASS",
-  "commit": "500f59e",
-  "gateway": "http://127.0.0.1:8080",
+  "commit": "e22365f",
+  "gateway": "http://127.0.0.1:8088",
   "outcomes": [
     {
       "name": "a full trip from quote to paid",
       "status": "PASS",
-      "tripId": "40e08549-3f63-4703-9b78-885d572a7df8",
-      "operationId": "48ca90d6-c9f6-46da-9c19-04bab09da54d",
-      "paymentId": "3784b47d-4d15-4745-903f-78beff6da5c2",
-      "correlationId": "38427e2b-2cd4-4f58-8db9-1d37b31a3a78",
-      "durationMs": 8176
+      "tripId": "61af29d6-9952-4029-9240-d96ade5d9c66",
+      "operationId": "5997afec-b9f7-4b63-bb25-b77d84413954",
+      "paymentId": "66c79ce2-8a99-4143-acf0-ba770e18e9fa",
+      "correlationId": "5e738a2d-a443-4846-8415-79769b7fdcc6",
+      "durationMs": 8726
     },
     {
       "name": "the first driver rejects, the next one completes the trip",
       "status": "PASS",
-      "tripId": "bd0b581f-656f-4ffd-a54a-041f951f905f",
-      "operationId": "0037b888-faa7-4d50-b4a5-61521171e6a8",
-      "paymentId": "afc436ab-3627-4dfb-9575-9ebc7bcc2e4c",
-      "correlationId": "1a1c2fe2-f902-49d1-b5ff-8e7a8222baf8",
-      "durationMs": 7736
+      "tripId": "d0cdfc25-d3e2-4904-8cc8-3dfb0a796207",
+      "operationId": "5152e8dc-7be1-4b5a-9998-40890f9d1485",
+      "paymentId": "c64299e5-700a-44e0-b59d-20be46d22ebd",
+      "correlationId": "49007eaf-2d49-4601-93c6-c443d11e1d31",
+      "durationMs": 7714
     },
     {
       "name": "without a driver the trip ends in NO_DRIVER and nothing is charged",
       "status": "PASS",
-      "tripId": "ba721d98-c5cc-4585-ac35-a896385d8742",
-      "correlationId": "57f16f1e-95a1-4fbe-9b93-9d9944ede78b",
-      "durationMs": 2185
+      "tripId": "c7d05889-e801-4b3f-aedc-9b8419c4609e",
+      "correlationId": "51225f38-9285-4bd0-82ec-c45f7469803d",
+      "durationMs": 2108
     },
     {
       "name": "cancelling before and after assignment; a started trip cannot be cancelled",
       "status": "PASS",
-      "tripId": "864b0ff8-4ff3-4863-8d61-cb7349820697",
-      "operationId": "b555aace-d505-47b3-a1c4-c4ad8017fde9",
-      "correlationId": "b60cf6c8-d971-472d-86a3-0807a1ea2366",
-      "durationMs": 15756
+      "tripId": "5a99b244-2179-475f-8587-d5d0e2656dff",
+      "operationId": "6d687b74-bc85-4fa0-b1f1-5db1988ef90b",
+      "correlationId": "f3515264-6bc2-4e37-b40a-4d09aea1dea4",
+      "durationMs": 14635
     }
   ],
   "tokens": "[REDACTED]"

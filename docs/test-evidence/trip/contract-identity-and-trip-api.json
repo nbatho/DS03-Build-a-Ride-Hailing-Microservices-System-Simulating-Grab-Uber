@@ -256,8 +256,8 @@
   ],
   "summary": "Mọi response đã kiểm tra đều đúng status và schema đã công bố",
   "status": "PASS",
-  "commit": "500f59e",
-  "executedAt": "2026-11-02T03:26:10.685Z",
-  "durationMs": 102887,
+  "commit": "e22365f",
+  "executedAt": "2026-11-04T08:55:11.478Z",
+  "durationMs": 90136,
   "tokens": "[REDACTED]"
 }

@@ -1,17 +1,16 @@
-// Payment trên payment_db thật (cần: npm run c:db:up && npm run migration:payment:run). Không có DB thì skip.
-// Chạy: npm run test:payment:integration
+// Payment trên payment_db thật: tự dựng DB tạm đã migrate (tests/helpers/c-environment.cjs), xong thì xóa.
+// Không có Docker thì skip. Chạy: npm run test:payment:integration
 require('reflect-metadata');
 const assert = require('node:assert/strict');
 const { test, before, after } = require('node:test');
-const path = require('node:path');
 const { randomUUID } = require('node:crypto');
-
-require('dotenv').config({ path: path.resolve(__dirname, '../../../../../.env'), quiet: true });
 const { DataSource } = require('typeorm');
 const { databaseOptions } = require('../../src/database/options');
 const entities = require('../../src/payments/entities');
 const { PaymentsService } = require('../../src/payments/payments.service');
+const { createCEnvironment, dockerAvailable } = require('../../../../../tests/helpers/c-environment.cjs');
 
+let environment;
 let dataSource;
 
 function service(mode) {
@@ -51,24 +50,26 @@ async function outbox(paymentId) {
 }
 
 before(async () => {
-  try {
-    const { Payment, PaymentAttempt, ProcessedEvent, OutboxEvent } = entities;
+  if (!dockerAvailable()) {
+    console.log('# Docker not available, skipping payment_db tests');
 
-    dataSource = new DataSource({
-      ...databaseOptions(process.env),
-      entities: [Payment, PaymentAttempt, ProcessedEvent, OutboxEvent],
-    });
-
-    await dataSource.initialize();
-    await dataSource.query('SELECT 1 FROM payment_schema.payments LIMIT 0');
-  } catch (error) {
-    console.log('# payment_db not available, skipping: ' + error.message);
-    dataSource = undefined;
+    return;
   }
+
+  const { Payment, PaymentAttempt, ProcessedEvent, OutboxEvent } = entities;
+
+  environment = await createCEnvironment({ prefix: 'ds03-payment-db' });
+  dataSource = new DataSource({
+    ...databaseOptions({ ...process.env, ...environment.serviceEnv('payment') }),
+    entities: [Payment, PaymentAttempt, ProcessedEvent, OutboxEvent],
+  });
+
+  await dataSource.initialize();
 });
 
 after(async () => {
   await dataSource?.destroy();
+  await environment?.close();
 });
 
 test('same event delivered twice charges once and writes one outbox event', async t => {
@@ -147,4 +148,31 @@ test('only the owning passenger can read the payment', async t => {
   assert.equal((await payments.getByTripForPassenger(event.payload.passengerId, event.payload.tripId)).id, event.payload.paymentId);
   await assert.rejects(payments.getForPassenger(randomUUID(), event.payload.paymentId), error => error.getStatus() === 403);
   await assert.rejects(payments.getForPassenger(event.payload.passengerId, randomUUID()), error => error.getStatus() === 404);
+});
+
+test('payment_db down: reads return 503 DEPENDENCY_UNAVAILABLE instead of 500', { timeout: 120_000 }, async t => {
+  if (!dataSource) {
+    return t.skip('no database');
+  }
+
+  const payments = service('SUCCEED');
+
+  environment.compose(['stop', 'payment-db']);
+
+  try {
+    for (const read of [
+      () => payments.getForPassenger(randomUUID(), randomUUID()),
+      () => payments.getByTripForPassenger(randomUUID(), randomUUID()),
+      () => payments.getForTrip(randomUUID()),
+    ]) {
+      await assert.rejects(read, error => {
+        assert.equal(error.getStatus?.(), 503);
+        assert.equal(error.getResponse().code, 'DEPENDENCY_UNAVAILABLE');
+
+        return true;
+      });
+    }
+  } finally {
+    environment.compose(['start', 'payment-db']);
+  }
 });

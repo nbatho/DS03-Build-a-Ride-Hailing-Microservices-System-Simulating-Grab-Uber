@@ -1,8 +1,8 @@
 {
-  "executedAt": "2026-10-22T05:20:59.708Z",
+  "executedAt": "2026-11-02T09:04:50.860Z",
   "status": "PASS",
-  "commit": "5e83d58",
-  "infrastructure": "disposable PostgreSQL 17 (payment_db, notification_db) + RabbitMQ 4.1, project ds03-c-test-f9e003cd",
+  "commit": "4c5e84b",
+  "infrastructure": "disposable PostgreSQL 17 (payment_db, notification_db) + RabbitMQ 4.1, project ds03-c-recovery-0301b3a0",
   "apps": "dist/simulated-payment-service, dist/notification-service (real builds, SIGKILL for crashes)",
   "producerStandIn": "Trip/Matching events published by the test with the real EventPublisher (confirm + mandatory)",
   "cases": [
@@ -15,25 +15,25 @@
     {
       "name": "R01: payment down — request waits in payment.events, processed once after restart",
       "status": "PASS",
-      "durationMs": 2164,
+      "durationMs": 4444,
       "details": {
-        "paymentId": "3d2598ff-c69f-4ba5-9fa9-face9e4fc332",
-        "requestEventId": "320d15f7-c547-4b54-98e2-52b2495b2b3f",
-        "resultEventId": "be03d0bd-edca-4a66-be2a-93220de25605"
+        "paymentId": "bd9a5562-1868-466e-97e3-ebc251f9978e",
+        "requestEventId": "1b2ac46f-ade4-4745-958d-eec389d6919f",
+        "resultEventId": "572b90ca-082f-44f7-af68-d56f9600c6a0"
       }
     },
     {
       "name": "R03: duplicate delivery and re-sent attempt never charge twice",
       "status": "PASS",
-      "durationMs": 1130,
+      "durationMs": 1314,
       "details": {
-        "paymentId": "fac68153-2f45-4951-878a-8974164e916b"
+        "paymentId": "3e2ded0b-df84-42b7-aaef-b2abe9c4913b"
       }
     },
     {
       "name": "R03: malformed message goes to payment.events.dlq at once; good messages keep flowing",
       "status": "PASS",
-      "durationMs": 277,
+      "durationMs": 256,
       "details": {
         "dlqErrors": [
           "Body is not valid JSON",
@@ -44,7 +44,7 @@
     {
       "name": "R03: payment killed mid-burst — after restart every payment charged exactly once",
       "status": "PASS",
-      "durationMs": 2772,
+      "durationMs": 5003,
       "details": {
         "payments": 30,
         "succeededBeforeKill": 14
@@ -53,26 +53,26 @@
     {
       "name": "R03: RabbitMQ restart — Payment and Notification reconnect and keep processing",
       "status": "PASS",
-      "durationMs": 19435,
+      "durationMs": 19412,
       "details": {
-        "paymentId": "5cffe04c-27de-417e-9355-a8ff3c7e5fc8"
+        "paymentId": "717baa51-7aa5-44df-8a44-4128a1fb20be"
       }
     },
     {
       "name": "F09: temporary failure then retry with the same paymentId succeeds; no double charge",
       "status": "PASS",
-      "durationMs": 4637,
+      "durationMs": 10225,
       "details": {
-        "paymentId": "8592f8cc-236f-4a8c-afb6-a6bf91b50917",
+        "paymentId": "588c869b-5929-4b70-b478-b7489773556f",
         "attempts": 2
       }
     },
     {
       "name": "F10: offer arriving after cancellation is not actionable; driver gets one cancel notice",
       "status": "PASS",
-      "durationMs": 648,
+      "durationMs": 344,
       "details": {
-        "tripId": "35842f03-1359-4344-92d4-1ce4de10a101",
+        "tripId": "dbdd2b35-6e1f-4b8b-bfff-f205f04cdde7",
         "notifications": 3
       }
     }

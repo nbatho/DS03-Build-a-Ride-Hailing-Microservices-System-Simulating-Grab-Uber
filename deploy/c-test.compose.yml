@@ -42,7 +42,8 @@ services:
     ports:
       - '127.0.0.1:${C_TEST_RABBITMQ_PORT:?set by test}:5672'
     healthcheck:
-      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'check_port_connectivity']
+      # Chạy bằng user rabbitmq: nếu chạy bằng root trước khi server tạo .erlang.cookie, file thuộc root và server thoát (eacces).
+      test: ['CMD', 'gosu', 'rabbitmq', 'rabbitmq-diagnostics', '-q', 'check_port_connectivity']
       interval: 2s
       timeout: 5s
       retries: 60

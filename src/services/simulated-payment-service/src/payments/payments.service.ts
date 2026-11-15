@@ -7,7 +7,7 @@ import {
   enqueueOutboxEvent,
   processEventOnce,
 } from '@app/messaging';
-import { ApiError } from '@app/runtime';
+import { ApiError, withDatabase } from '@app/runtime';
 import { Payment, PaymentAttempt } from './entities';
 import { attemptResult, decideAttempt, type AttemptResult } from './payment-rules';
 import { simulateCharge, type SimulatorConfig } from './payment-simulator';
@@ -105,17 +105,17 @@ export class PaymentsService {
     return outcome;
   }
 
-  async getForPassenger(passengerId: string, paymentId: string): Promise<PaymentDto> {
-    return ownedBy(passengerId, await this.payments.findOneBy({ id: paymentId }));
+  getForPassenger(passengerId: string, paymentId: string): Promise<PaymentDto> {
+    return withDatabase('Payment', async () => ownedBy(passengerId, await this.payments.findOneBy({ id: paymentId })));
   }
 
-  async getByTripForPassenger(passengerId: string, tripId: string): Promise<PaymentDto> {
-    return ownedBy(passengerId, await this.payments.findOneBy({ tripId }));
+  getByTripForPassenger(passengerId: string, tripId: string): Promise<PaymentDto> {
+    return withDatabase('Payment', async () => ownedBy(passengerId, await this.payments.findOneBy({ tripId })));
   }
 
   /** Trip đối soát: Payment là nguồn sự thật về kết quả thu tiền. */
-  async getForTrip(paymentId: string): Promise<PaymentDto> {
-    return toPaymentDto(found(await this.payments.findOneBy({ id: paymentId })));
+  getForTrip(paymentId: string): Promise<PaymentDto> {
+    return withDatabase('Payment', async () => toPaymentDto(found(await this.payments.findOneBy({ id: paymentId }))));
   }
 
   private async chargeInTransaction(manager: EntityManager, event: PaymentRequested): Promise<RequestOutcome> {

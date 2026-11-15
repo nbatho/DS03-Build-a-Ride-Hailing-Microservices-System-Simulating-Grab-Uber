@@ -1,6 +1,5 @@
 import { Column, Entity, PrimaryColumn } from 'typeorm';
-import type { MatchingJobStatus } from '@app/contracts';
-import type { TripRequestedEvent } from '../event-contracts';
+import type { MatchingJobStatus, RideEvent } from '@app/contracts';
 
 @Entity({ schema: 'matching_schema', name: 'matching_jobs' })
 export class MatchingJobEntity {
@@ -20,7 +19,7 @@ export class MatchingJobEntity {
   latestTripVersion!: number;
 
   @Column({ name: 'trip_snapshot', type: 'jsonb', nullable: true })
-  tripSnapshot!: TripRequestedEvent | null;
+  tripSnapshot!: RideEvent<'trip.requested'> | null;
 
   @Column({ name: 'search_deadline', type: 'timestamptz', nullable: true })
   searchDeadline!: Date | null;

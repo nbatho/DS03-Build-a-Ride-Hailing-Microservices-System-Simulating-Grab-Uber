@@ -67,6 +67,7 @@ async function main() {
                 ([name]) =>
                   !ERROR_HEADERS.includes(name) &&
                   name !== RETRY_COUNT_HEADER &&
+                  name !== 'x-matching-retry' &&
                   name !== 'x-publish-id',
               ),
             );

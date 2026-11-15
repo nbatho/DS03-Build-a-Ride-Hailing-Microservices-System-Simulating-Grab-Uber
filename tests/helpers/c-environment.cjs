@@ -188,6 +188,15 @@ async function createCEnvironment({ prefix = 'ds03-c' } = {}) {
     };
   }
 
+  /** Biến DB + RabbitMQ để test khác tự chạy Payment/Notification (không gồm cổng, JWT). */
+  function serviceEnv(name) {
+    const shared = Object.keys(appEnv('gateway', 0, {}));
+
+    return Object.fromEntries(
+      Object.entries(appEnv(name, 0, {})).filter(([key]) => !shared.includes(key) && key !== APPS[name].portEnv),
+    );
+  }
+
   async function waitReady(name, timeoutMs = 60_000) {
     const app = apps[name];
     const probe = name === 'gateway' ? '/health/live' : '/health/ready';
@@ -299,6 +308,13 @@ async function createCEnvironment({ prefix = 'ds03-c' } = {}) {
       env.C_TEST_NOTIFICATION_DB_PORT,
     );
   } catch (error) {
+    // Giữ log container trước khi xóa để biết vì sao không lên được.
+    const logs = spawnSync('docker', ['compose', '-p', project, '-f', composeFile, 'logs', '--tail', '40'], {
+      encoding: 'utf8',
+      env: { ...process.env, ...env },
+    });
+
+    error.message += '\n--- container logs ---\n' + (logs.stdout ?? '') + (logs.stderr ?? '');
     compose(['down', '-v', '--remove-orphans']);
     throw error;
   }
@@ -310,6 +326,7 @@ async function createCEnvironment({ prefix = 'ds03-c' } = {}) {
     apps,
     secrets: Object.values(env).filter(value => /^[0-9a-f]{48}$/.test(value)),
     compose,
+    serviceEnv,
     startApp,
     killApp,
     waitReady,

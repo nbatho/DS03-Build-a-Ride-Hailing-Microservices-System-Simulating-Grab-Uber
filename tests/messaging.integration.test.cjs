@@ -1,5 +1,5 @@
-// Test liên kết của từng queue trên RabbitMQ thật (BA mục 8.1). Cần: npm run mq:up, RABBITMQ_URL trong .env.
-// Không kết nối được thì skip. Chạy: npm run test:messaging:integration
+// Test liên kết của từng queue trên RabbitMQ thật (BA mục 8.1): tự dựng broker tạm (tests/helpers/c-environment.cjs),
+// xong thì xóa. Không có Docker thì skip. Chạy: npm run test:messaging:integration
 require('reflect-metadata');
 const assert = require('node:assert/strict');
 const { test, before, after } = require('node:test');
@@ -7,9 +7,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { setTimeout: sleep } = require('node:timers/promises');
-
-require('dotenv').config({ path: path.resolve(__dirname, '../.env'), quiet: true });
 const { connect } = require('amqplib');
+const { createCEnvironment, dockerAvailable } = require('./helpers/c-environment.cjs');
 const {
   RabbitConnection,
   EventPublisher,
@@ -27,6 +26,7 @@ const sample = type => {
   return { ...event, event_id: randomUUID() };
 };
 
+let environment;
 let config;
 let admin;
 let channel;
@@ -56,17 +56,17 @@ async function waitFor(check, timeoutMs) {
 }
 
 before(async () => {
-  try {
-    config = loadMessagingConfig(process.env);
-    admin = await connect(config.url, { timeout: 10_000 });
-    channel = await admin.createChannel();
-    await (await open()).close();
-  } catch (error) {
-    console.log('# RabbitMQ not available, skipping: ' + error.message);
-    admin = undefined;
+  if (!dockerAvailable()) {
+    console.log('# Docker not available, skipping RabbitMQ tests');
 
     return;
   }
+
+  environment = await createCEnvironment({ prefix: 'ds03-messaging' });
+  config = loadMessagingConfig({ ...process.env, RABBITMQ_URL: environment.rabbitUrl });
+  admin = await connect(config.url, { timeout: 10_000 });
+  channel = await admin.createChannel();
+  await (await open()).close();
 
   for (const queue of describeTopology().queues) {
     for (const name of [
@@ -85,6 +85,7 @@ after(async () => {
   }
 
   await admin?.close().catch(() => undefined);
+  await environment?.close();
 });
 
 test('each event reaches exactly the queues of its consumers', async t => {
@@ -195,5 +196,34 @@ test(
     assert.equal(JSON.parse(dead.content.toString()).event_id, event.event_id);
     assert.equal(dead.properties.headers['x-error-code'], 'RETRIES_EXHAUSTED');
     assert.equal(dead.properties.headers['x-retry-count'], 3);
+  },
+);
+
+test(
+  'a consumer cancelled by the broker makes the service not ready, then reconnects and keeps consuming',
+  { timeout: 30_000 },
+  async t => {
+    if (!admin) {
+      return t.skip('no broker');
+    }
+
+    const connection = await open();
+    const consumer = new EventConsumer(connection, config);
+    const received = [];
+
+    await consumer.subscribe('notification.events', {
+      'payment.succeeded': async event => {
+        received.push(event.event_id);
+      },
+    });
+
+    await channel.deleteQueue('notification.events');
+    await waitFor(() => !connection.isConnected(), 5_000);
+    await waitFor(() => connection.isConnected(), 15_000);
+
+    const event = sample('payment.succeeded');
+
+    await new EventPublisher(connection).publish(event);
+    await waitFor(() => received.includes(event.event_id), 10_000);
   },
 );

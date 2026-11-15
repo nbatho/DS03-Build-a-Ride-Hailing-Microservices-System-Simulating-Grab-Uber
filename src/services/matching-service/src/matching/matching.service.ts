@@ -1,14 +1,22 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
-import type { MatchingJob, MatchingFailedReason } from '@app/contracts';
+import type { MatchingJob, MatchingFailedReason, RideEvent } from '@app/contracts';
+import { recordProcessedEvent } from '@app/messaging';
 import type { InternalCaller } from '@app/shared-types';
 import { ApiError, runInTransaction, withCommandResult } from '@app/runtime';
-import { MatchingStateService, throwMatchingError, toJob } from './matching-state.service';
+import {
+  MATCHING_INBOX,
+  MatchingStateService,
+  throwMatchingError,
+  toJob,
+} from './matching-state.service';
 import { MatchingJobEntity } from './entities/matching-job.entity';
 import { ProcessedEventEntity } from './entities/processed-event.entity';
-import { readTripEvent, type TripRequestedEvent, type TripCancelledEvent } from './event-contracts';
 import { CancelMatchingJobDto } from './dto/cancel-matching-job.dto';
+
+type TripRequestedEvent = RideEvent<'trip.requested'>;
+type TripCancelledEvent = RideEvent<'trip.cancelled'>;
 
 @Injectable()
 export class MatchingService {
@@ -73,24 +81,13 @@ export class MatchingService {
     }
   }
 
-  async createJobFromRequested(envelope: unknown): Promise<void> {
-    const event = readTripEvent(envelope);
-
-    if (event.type !== 'trip.requested') {
-      throw new ApiError(400, 'INVALID_EVENT', 'Expected trip.requested');
-    }
-
-    await this.processEvent(event);
+  // Sự kiện đã được EventConsumer kiểm tra theo @app/contracts (cấu trúc, producer, aggregate khớp payload).
+  createJobFromRequested(event: TripRequestedEvent): Promise<void> {
+    return this.processEvent(event);
   }
 
-  async cancelJobFromEvent(envelope: unknown): Promise<void> {
-    const event = readTripEvent(envelope);
-
-    if (event.type !== 'trip.cancelled') {
-      throw new ApiError(400, 'INVALID_EVENT', 'Expected trip.cancelled');
-    }
-
-    await this.processEvent(event);
+  cancelJobFromEvent(event: TripCancelledEvent): Promise<void> {
+    return this.processEvent(event);
   }
 
   async failSearch(jobId: string, reason: MatchingFailedReason): Promise<void> {
@@ -145,25 +142,11 @@ export class MatchingService {
   private async processEvent(event: TripRequestedEvent | TripCancelledEvent): Promise<void> {
     try {
       await runInTransaction(this.database, async manager => {
-        const claimed = (await manager.query(
-          `
-          INSERT INTO matching_schema.processed_events
-            (consumer_name,event_id,event_type,aggregate_id,aggregate_version,correlation_id)
-          VALUES ('matching.events',$1,$2,$3,$4,$5) ON CONFLICT DO NOTHING RETURNING event_id
-        `,
-          [
-            event.event_id,
-            event.type,
-            event.aggregate_id,
-            event.aggregate_version,
-            event.correlation_id,
-          ],
-        )) as unknown[];
-
-        if (!claimed.length) {
+        if (!(await recordProcessedEvent(manager, MATCHING_INBOX, event))) {
+          // Trùng event_id nhưng khác nội dung là lỗi của bên gửi, không phải bản gửi lặp.
           const seen = await manager
             .getRepository(ProcessedEventEntity)
-            .findOneByOrFail({ consumerName: 'matching.events', eventId: event.event_id });
+            .findOneByOrFail({ consumerName: MATCHING_INBOX.consumerName, eventId: event.event_id });
 
           if (
             seen.eventType !== event.type ||

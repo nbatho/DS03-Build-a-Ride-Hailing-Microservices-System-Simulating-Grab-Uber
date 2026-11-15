@@ -1,121 +1,46 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import type { Channel, ConsumeMessage } from 'amqplib';
-import { ApiError, ReadinessRegistry } from '@app/runtime';
-import { MatchingBroker, MATCHING_QUEUE, RETRY_DELAYS } from './matching-broker';
+import { Injectable, type OnModuleInit } from '@nestjs/common';
+import { EVENT_QUEUES } from '@app/contracts';
+import { EventConsumer, NonRetryableEventError, type EventHandlers } from '@app/messaging';
+import { ApiError } from '@app/runtime';
 import { MatchingService } from './matching.service';
-import { readTripEvent } from './event-contracts';
+
+// Nhận trip.requested và trip.cancelled từ queue matching.events qua @app/messaging: kiểm tra cỡ, cấu trúc,
+// retry 1s/5s/15s và DLQ dùng chung với các service khác. ACK sau khi transaction của handler đã commit.
+
+/** Lỗi 4xx là dữ liệu sai, gửi lại cũng không đúng hơn: vào DLQ ngay. Lỗi khác (DB bận...) để thử lại. */
+export function toEventError(error: unknown): unknown {
+  if (error instanceof ApiError && error.getStatus() < 500) {
+    const code = (error.getResponse() as { code?: string }).code ?? 'INVALID_EVENT';
+
+    return new NonRetryableEventError(code, error.message);
+  }
+
+  return error;
+}
+
+async function rethrowAsEventError(work: Promise<void>): Promise<void> {
+  try {
+    await work;
+  } catch (error) {
+    throw toEventError(error);
+  }
+}
+
+export function matchingEventHandlers(service: MatchingService): EventHandlers {
+  return {
+    'trip.requested': event => rethrowAsEventError(service.createJobFromRequested(event)),
+    'trip.cancelled': event => rethrowAsEventError(service.cancelJobFromEvent(event)),
+  };
+}
 
 @Injectable()
-export class MatchingEventsConsumer implements OnModuleInit, OnModuleDestroy {
-  private timer?: NodeJS.Timeout;
-  private connecting?: Promise<void>;
-  private readonly pending = new Set<Promise<void>>();
-
+export class MatchingEventsConsumer implements OnModuleInit {
   constructor(
-    private readonly broker: MatchingBroker,
+    private readonly consumer: EventConsumer,
     private readonly service: MatchingService,
-    private readonly readiness: ReadinessRegistry,
   ) {}
 
-  onModuleInit(): void {
-    this.readiness.add(async () => {
-      if (!this.broker.isReady()) {
-        throw new Error('Matching RabbitMQ consumer is not ready');
-      }
-    });
-
-    const reconnect = () => {
-      if (!this.connecting && !this.broker.isReady()) {
-        this.connecting = this.broker
-          .consume((message, channel) => this.deliver(message, channel))
-          .catch(() =>
-            Logger.warn('RabbitMQ unavailable; reconnecting on the next tick', 'MatchingConsumer'),
-          )
-          .finally(() => {
-            this.connecting = undefined;
-          });
-      }
-    };
-
-    this.timer = setInterval(reconnect, 1000);
-    this.timer.unref();
-    reconnect();
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    clearInterval(this.timer);
-    await this.connecting;
-    await this.broker.stopConsuming();
-    await Promise.allSettled([...this.pending]);
-  }
-
-  handleTripRequested(envelope: unknown): Promise<void> {
-    return this.service.createJobFromRequested(envelope);
-  }
-
-  handleTripCancelled(envelope: unknown): Promise<void> {
-    return this.service.cancelJobFromEvent(envelope);
-  }
-
-  private deliver(message: ConsumeMessage, channel: Channel): void {
-    const task = this.process(message, channel)
-      .catch(async () => {
-        // Chưa ACK thì broker sẽ phát lại sau reconnect; tránh vòng lặp NACK nóng.
-        await this.broker.disconnect();
-      })
-      .finally(() => {
-        this.pending.delete(task);
-      });
-
-    this.pending.add(task);
-  }
-
-  private async process(message: ConsumeMessage, channel: Channel): Promise<void> {
-    try {
-      if (message.content.length > 65536) {
-        throw new ApiError(400, 'INVALID_EVENT', 'Event exceeds 64 KiB');
-      }
-
-      let body: unknown;
-
-      try {
-        body = JSON.parse(message.content.toString('utf8'));
-      } catch {
-        throw new ApiError(400, 'INVALID_EVENT', 'Invalid event JSON');
-      }
-
-      const event = readTripEvent(body);
-
-      if (message.properties.messageId && message.properties.messageId !== event.event_id) {
-        throw new ApiError(400, 'INVALID_EVENT', 'Message ID and event ID differ');
-      }
-
-      if (event.type === 'trip.requested') {
-        await this.handleTripRequested(event);
-      } else {
-        await this.handleTripCancelled(event);
-      }
-
-      channel.ack(message); // Transaction đã commit trước ACK.
-    } catch (error) {
-      const permanent = error instanceof ApiError && error.getStatus() < 500;
-      const attempts = Number(message.properties.headers?.['x-matching-retry'] ?? 0);
-      const retry =
-        !permanent && Number.isInteger(attempts) && attempts >= 0 && attempts < RETRY_DELAYS.length;
-      const queue = retry
-        ? MATCHING_QUEUE + '.retry.' + RETRY_DELAYS[attempts] / 1000 + 's'
-        : MATCHING_QUEUE + '.dlq';
-
-      await this.broker.publish('', queue, message.content, {
-        contentType: 'application/json',
-        messageId: message.properties.messageId,
-        correlationId: message.properties.correlationId,
-        headers: {
-          ...message.properties.headers,
-          'x-matching-retry': retry ? attempts + 1 : attempts,
-        },
-      });
-      channel.ack(message);
-    }
+  async onModuleInit(): Promise<void> {
+    await this.consumer.subscribe(EVENT_QUEUES.MATCHING, matchingEventHandlers(this.service));
   }
 }

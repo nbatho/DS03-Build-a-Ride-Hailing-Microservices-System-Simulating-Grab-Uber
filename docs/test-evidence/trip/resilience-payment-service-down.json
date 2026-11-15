@@ -7,10 +7,10 @@
   "actual": [
     {
       "phase": "payment-down",
-      "tripId": "1377fc65-2f1b-4b33-864e-0d7540cf2533",
-      "paymentId": "8b235961-f083-451f-a70b-0793eb6c76b2",
-      "correlationId": "eb9130e0-3871-42bc-b8c3-b837577d5c9b",
-      "operationId": "fd6b6a41-3b7d-4712-bbbd-64f8bd87f08e",
+      "tripId": "6ca75ccd-1475-47e0-a9ce-469c94234ce8",
+      "paymentId": "70691105-32fc-4ff5-81a2-e6821e9b4546",
+      "correlationId": "64d10e11-7b55-42d6-9531-d3f5bf3ea7f9",
+      "operationId": "7eaf6ca4-5d63-4ab6-8441-022d5c46ead2",
       "operationStatus": "SUCCEEDED",
       "tripStatus": "COMPLETED",
       "paymentStatus": "PENDING",
@@ -35,8 +35,8 @@
   },
   "summary": "Yêu cầu chờ trong queue khi Payment tắt, xử lý đúng một lần sau khi bật lại",
   "status": "PASS",
-  "commit": "500f59e",
-  "executedAt": "2026-11-02T03:21:45.502Z",
-  "durationMs": 22877,
+  "commit": "e22365f",
+  "executedAt": "2026-11-04T09:01:31.176Z",
+  "durationMs": 26292,
   "tokens": "[REDACTED]"
 }

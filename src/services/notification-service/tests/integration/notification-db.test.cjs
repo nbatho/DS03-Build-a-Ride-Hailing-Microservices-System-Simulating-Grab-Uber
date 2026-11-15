@@ -1,19 +1,19 @@
-// Notification trên notification_db thật (cần: npm run c:db:up && npm run migration:notification:run). Không có DB thì skip.
-// Chạy: npm run test:notification:integration
+// Notification trên notification_db thật: tự dựng DB tạm đã migrate (tests/helpers/c-environment.cjs), xong thì xóa.
+// Không có Docker thì skip. Chạy: npm run test:notification:integration
 require('reflect-metadata');
 const assert = require('node:assert/strict');
 const { test, before, after } = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
-
-require('dotenv').config({ path: path.resolve(__dirname, '../../../../../.env'), quiet: true });
 const { DataSource } = require('typeorm');
 const { databaseOptions } = require('../../src/database/options');
 const { Notification, TripProjection, ProcessedEvent } = require('../../src/notifications/entities');
 const { NotificationsService } = require('../../src/notifications/notifications.service');
+const { createCEnvironment, dockerAvailable } = require('../../../../../tests/helpers/c-environment.cjs');
 
 const samplesDir = path.resolve(__dirname, '../../../../../docs/events/samples');
+let environment;
 let dataSource;
 let service;
 
@@ -33,23 +33,25 @@ function fresh(type, ids, changes = {}) {
 const newIds = () => ({ trip: randomUUID(), passenger: randomUUID(), driver: randomUUID() });
 
 before(async () => {
-  try {
-    dataSource = new DataSource({
-      ...databaseOptions(process.env),
-      entities: [Notification, TripProjection, ProcessedEvent],
-    });
+  if (!dockerAvailable()) {
+    console.log('# Docker not available, skipping notification_db tests');
 
-    await dataSource.initialize();
-    await dataSource.query('SELECT 1 FROM notification_schema.notifications LIMIT 0');
-    service = new NotificationsService(dataSource);
-  } catch (error) {
-    console.log('# notification_db not available, skipping: ' + error.message);
-    dataSource = undefined;
+    return;
   }
+
+  environment = await createCEnvironment({ prefix: 'ds03-notification-db' });
+  dataSource = new DataSource({
+    ...databaseOptions({ ...process.env, ...environment.serviceEnv('notification') }),
+    entities: [Notification, TripProjection, ProcessedEvent],
+  });
+
+  await dataSource.initialize();
+  service = new NotificationsService(dataSource);
 });
 
 after(async () => {
   await dataSource?.destroy();
+  await environment?.close();
 });
 
 test('duplicate delivery creates no second notification', async t => {
@@ -128,4 +130,28 @@ test('cursor pagination, unreadOnly and mark-read rules', async t => {
   assert.equal((await service.list(ids.passenger, { unreadOnly: true })).items.length, 2);
   await assert.rejects(service.markRead(ids.driver, target.id), error => error.getStatus() === 403);
   await assert.rejects(service.markRead(ids.passenger, randomUUID()), error => error.getStatus() === 404);
+});
+
+test('notification_db down: list and mark-read return 503 DEPENDENCY_UNAVAILABLE instead of 500', { timeout: 120_000 }, async t => {
+  if (!dataSource) {
+    return t.skip('no database');
+  }
+
+  environment.compose(['stop', 'notification-db']);
+
+  try {
+    for (const call of [
+      () => service.list(randomUUID(), {}),
+      () => service.markRead(randomUUID(), randomUUID()),
+    ]) {
+      await assert.rejects(call, error => {
+        assert.equal(error.getStatus?.(), 503);
+        assert.equal(error.getResponse().code, 'DEPENDENCY_UNAVAILABLE');
+
+        return true;
+      });
+    }
+  } finally {
+    environment.compose(['start', 'notification-db']);
+  }
 });

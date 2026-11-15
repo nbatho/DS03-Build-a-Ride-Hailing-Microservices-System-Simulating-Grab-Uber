@@ -1,8 +1,6 @@
 const fs = require('node:fs');
 const amqp = require('amqplib');
-const {
-  readTripEvent,
-} = require('../../src/services/matching-service/src/matching/event-contracts');
+const { assertRideEvent } = require('@app/contracts');
 
 require('dotenv').config({ quiet: true });
 
@@ -13,7 +11,13 @@ async function main() {
     throw new Error('Usage: npm run matching:emit -- path/to/event.json (requires RABBITMQ_URL)');
   }
 
-  const event = readTripEvent(JSON.parse(fs.readFileSync(file, 'utf8')));
+  const event = assertRideEvent(JSON.parse(fs.readFileSync(file, 'utf8')));
+
+  if (event.type !== 'trip.requested' && event.type !== 'trip.cancelled') {
+    throw Object.assign(new Error('Only trip.requested and trip.cancelled go to Matching'), {
+      code: 'INVALID_EVENT',
+    });
+  }
   const connection = await amqp.connect(process.env.RABBITMQ_URL, { timeout: 3000 });
 
   connection.on('error', () => {});
@@ -65,7 +69,7 @@ main().catch(error => {
   // Không in URL broker chứa mật khẩu hoặc stack của lỗi network.
   console.error(
     error.code ||
-      (error.name === 'ApiError'
+      (error.name === 'EventValidationError'
         ? 'INVALID_EVENT'
         : 'Failed to publish event; check the JSON file and RabbitMQ configuration'),
   );

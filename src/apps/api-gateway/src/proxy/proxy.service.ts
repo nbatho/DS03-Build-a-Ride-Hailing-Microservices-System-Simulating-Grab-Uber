@@ -94,17 +94,35 @@ export class ProxyService {
       headers['Content-Type'] = 'application/json';
     }
 
-    let upstream: globalThis.Response;
+    let upstream: globalThis.Response | undefined;
+    let text: string;
+    const deadline = new AbortController();
+    const expired = new Promise<never>((_resolve, reject) =>
+      deadline.signal.addEventListener('abort', () => reject(deadline.signal.reason as Error), { once: true }),
+    );
+    const timer = setTimeout(
+      () => deadline.abort(new DOMException('Upstream deadline exceeded', 'TimeoutError')),
+      UPSTREAM_TIMEOUT_MS,
+    );
+
+    expired.catch(() => undefined);
 
     try {
-      upstream = await fetch(this.origins[route.upstream] + pathname + search, {
-        method: route.method,
-        headers,
-        redirect: 'error',
-        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-        ...(hasBody ? { body: JSON.stringify(req.body ?? {}) } : {}),
-      });
+      upstream = await Promise.race([
+        fetch(this.origins[route.upstream] + pathname + search, {
+          method: route.method,
+          headers,
+          redirect: 'error',
+          signal: deadline.signal,
+          ...(hasBody ? { body: JSON.stringify(req.body ?? {}) } : {}),
+        }),
+        expired,
+      ]);
+
+      text = await Promise.race([upstream.text(), expired]);
     } catch (error) {
+      void upstream?.body?.cancel().catch(() => undefined);
+
       const timeout = error instanceof Error && ['TimeoutError', 'AbortError'].includes(error.name);
 
       // 504 không chứng minh request chưa được ghi; client dùng lại Idempotency-Key để hỏi kết quả.
@@ -113,6 +131,8 @@ export class ProxyService {
         timeout ? 'GATEWAY_TIMEOUT' : 'BAD_GATEWAY',
         route.upstream.toLowerCase() + ' upstream unavailable',
       );
+    } finally {
+      clearTimeout(timer);
     }
 
     for (const name of FORWARDED_RESPONSE_HEADERS) {
@@ -122,8 +142,6 @@ export class ProxyService {
         res.setHeader(name, value);
       }
     }
-
-    const text = await upstream.text();
 
     if (!text) {
       res.status(upstream.status).end();

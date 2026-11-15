@@ -75,11 +75,15 @@ export class EventConsumer {
         this.logger.warn(queue + ' channel error: ' + error.message),
       );
 
+      channel.on('close', () => this.connection.restart(model, queue + ' consumer channel closed'));
+
       await channel.prefetch(this.config.prefetch);
       await channel.consume(
         queue,
         message => {
           if (!message) {
+            this.connection.restart(model, queue + ' consumer cancelled by the broker');
+
             return;
           }
 
