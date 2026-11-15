@@ -762,15 +762,35 @@ test('Start, complete and payment with real Payment, Notification and RabbitMQ',
     assert.equal((await outbox(exhausted.id, 'payment.requested')).length, 0);
   });
 
+  // payment.failed bị mất: Payment báo lỗi tạm thời ở lần 1 thì Trip lên lịch lần 2, cùng paymentId.
+  await t.test('a retryable failure found by reconciliation schedules the next attempt', async () => {
+    const trip = await seedOverdue({ status: 'FAILED', attemptNo: 1, retryable: true });
+
+    await eventually(async () =>
+      assert.equal((await tripRow(trip.id)).payment_status, 'PENDING_RETRY'),
+    );
+
+    const row = await tripRow(trip.id);
+
+    assert.equal(row.status, 'COMPLETED');
+    assert.equal(row.version, 2);
+    assert.equal(row.payment_attempt_no, 2);
+
+    const retries = await outbox(trip.id, 'payment.requested');
+
+    assert.equal(retries.length, 1);
+    assert.equal(retries[0].envelope_json.payload.paymentId, trip.paymentId);
+    assert.equal(retries[0].envelope_json.payload.attemptNo, 2);
+  });
+
   await t.test('a result that is not final or does not match leaves the trip waiting', async () => {
-    const retryable = await seedOverdue({ status: 'FAILED', retryable: true });
     const pending = await seedOverdue({ status: 'PENDING', attemptNo: 0, retryable: true });
     const missing = await seedOverdue({}, null);
     const down = await seedOverdue({}, UNAVAILABLE);
     const otherTrip = await seedOverdue({ tripId: randomUUID() });
     const otherAmount = await seedOverdue({ amount: '1' });
     const broken = await seedOverdue({}, { status: 200, body: { id: randomUUID() } });
-    const trips = [retryable, pending, missing, down, otherTrip, otherAmount, broken];
+    const trips = [pending, missing, down, otherTrip, otherAmount, broken];
 
     await eventually(() => {
       for (const trip of trips) {
