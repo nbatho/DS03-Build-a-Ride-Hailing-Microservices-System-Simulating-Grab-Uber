@@ -6,7 +6,8 @@ import { Trip } from '../entities/trip.entity';
 import { MatchingClient } from '../matching.client';
 import { paymentRequestedEvent } from '../trip-payment-rules';
 import { transitionTrip } from '../trip-transition';
-import { TRIP_OUTBOX_TABLE, isUniqueViolation } from '../trips.service';
+import { isUniqueViolation } from '../database-error';
+import { TRIP_OUTBOX_TABLE } from '../trip-tables';
 import { isClosedResolution, type SagaStepName } from './saga-rules';
 import { SagaStore, type ClaimedOperation, type StepOutcome } from './saga.store';
 
@@ -176,7 +177,6 @@ export class SagaSteps {
     return async manager => {
       const updated = await transitionTrip(manager, {
         tripId: operation.tripId,
-        from: ['ASSIGNING'],
         to: 'ASSIGNED',
         assignmentId: operation.assignmentId!,
         set: { driverId: operation.driverId! },
@@ -294,7 +294,6 @@ export class SagaSteps {
     return async manager => {
       const updated = await transitionTrip(manager, {
         tripId: operation.tripId,
-        from: ['ASSIGNING'],
         to: 'MATCHING',
         assignmentId: operation.assignmentId!,
         set: { assignmentId: null },
@@ -324,7 +323,6 @@ export class SagaSteps {
     return async manager => {
       const updated = await transitionTrip(manager, {
         tripId: operation.tripId,
-        from: ['MATCHING'],
         to: 'NO_DRIVER',
         actorId: null,
         commandId,
@@ -434,7 +432,6 @@ export class SagaSteps {
     return async manager => {
       const updated = await transitionTrip(manager, {
         tripId: operation.tripId,
-        from: ['CANCELLING'],
         to: 'CANCELLED',
         actorId: operation.actorId,
         commandId,

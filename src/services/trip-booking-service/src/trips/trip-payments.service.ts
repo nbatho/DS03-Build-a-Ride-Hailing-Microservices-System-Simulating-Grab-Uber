@@ -13,7 +13,7 @@ import {
   paymentRequestedEvent,
   type ReconcileDecision,
 } from './trip-payment-rules';
-import { TRIP_INBOX, TRIP_OUTBOX_TABLE } from './trips.service';
+import { TRIP_INBOX, TRIP_OUTBOX_TABLE } from './trip-tables';
 
 type PaymentResult = RideEvent<'payment.succeeded' | 'payment.failed'>;
 
