@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ApiError, InternalHttpClient } from '@app/runtime';
-import { readTrip, type TripView } from './event-contracts';
+import { readTrip, type TripView } from './upstream-contracts';
 
 @Injectable()
 export class TripClient {

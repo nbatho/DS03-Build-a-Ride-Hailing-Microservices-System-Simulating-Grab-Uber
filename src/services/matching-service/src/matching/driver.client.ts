@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { Candidates, ZoneId } from '@app/contracts';
 import { ApiError, InternalHttpClient } from '@app/runtime';
-import { readCandidates } from './event-contracts';
+import { readCandidates } from './upstream-contracts';
 
 @Injectable()
 export class DriverClient {

@@ -23,7 +23,7 @@ const {
 const { createMatchingBroker } = require('../../../../../tests/helpers/matching-environment.cjs');
 const { createPricingDatabase } = require('../../../../../tests/helpers/pricing-environment.cjs');
 const { createTripDatabase } = require('../../../../../tests/helpers/trip-environment.cjs');
-const matchingEvents = require('../../../matching-service/src/matching/events.schema.json');
+const matchingEvents = require('../../../../../docs/api/events.schema.json');
 const matchingHttp = require('../../../matching-service/src/matching/http.schema.json');
 
 const POINT = { lat: 10.77, lng: 106.69, zoneId: 'ZONE_A' };

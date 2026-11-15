@@ -805,7 +805,9 @@ test('Matching APIs, workers and real PostgreSQL/RabbitMQ', { timeout: 300000 },
     'unroutable outbox events stay pending, then publish the same event ID after routing is restored',
     async () => {
       roster = [];
+      // Topology chung còn bind matching.failed vào trip.events; bỏ cả hai để tin thật sự không có chỗ nhận.
       await monitor.unbindQueue(outputQueue, 'ride.events', 'matching.failed');
+      await monitor.unbindQueue('trip.events', 'ride.events', 'matching.failed');
       const event = requested();
 
       await publish(event);
@@ -823,6 +825,7 @@ test('Matching APIs, workers and real PostgreSQL/RabbitMQ', { timeout: 300000 },
       } finally {
         roster = [...driverIds];
         await monitor.bindQueue(outputQueue, 'ride.events', 'matching.failed');
+        await monitor.bindQueue('trip.events', 'ride.events', 'matching.failed');
       }
 
       await db.query(

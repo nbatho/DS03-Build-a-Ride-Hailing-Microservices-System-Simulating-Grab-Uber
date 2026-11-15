@@ -1,17 +1,25 @@
-import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import type {
+  EventPayloads,
+  MatchingEventType,
   MatchingJob,
   MatchingFailedReason,
   Offer,
   OfferResolutionResult,
+  RideEvent,
 } from '@app/contracts';
+import { createRideEvent, enqueueOutboxEvent } from '@app/messaging';
 import { ApiError } from '@app/runtime';
-import { checkEvent } from './event-contracts';
 import { MatchingJobEntity } from './entities/matching-job.entity';
 import { OfferEntity } from './entities/offer.entity';
-import { OutboxEventEntity } from './entities/outbox-event.entity';
+
+export const MATCHING_OUTBOX_TABLE = 'matching_schema.outbox_events';
+export const MATCHING_INBOX = {
+  table: 'matching_schema.processed_events',
+  // Giữ tên cũ để bản ghi "đã xử lý" từ trước vẫn chặn được sự kiện gửi lặp.
+  consumerName: 'matching.events',
+} as const;
 
 export function throwMatchingError(error: unknown): never {
   if (error instanceof ApiError) {
@@ -118,46 +126,25 @@ export class MatchingStateService {
     await this.saveJob(manager, job);
   }
 
-  async enqueue(
+  /** Ghi sự kiện vào outbox trong transaction của `manager`; OutboxRelay chung gửi đi sau khi commit. */
+  async enqueue<T extends MatchingEventType>(
     manager: EntityManager,
     job: MatchingJobEntity,
-    type: string,
-    payload: unknown,
+    type: T,
+    payload: EventPayloads[T],
   ): Promise<void> {
     const source = job.tripSnapshot!;
-    const now = await this.now(manager);
-    const envelope = {
-      event_id: randomUUID(),
-      type,
-      schema_version: 1,
-      aggregate_id: job.id,
-      aggregate_version: job.version,
-      occurred_at: now.toISOString(),
-      correlation_id: source.correlation_id,
-      causation_id: source.event_id,
-      producer: 'matching-service',
-      payload,
-    };
-
-    checkEvent(envelope);
-    await manager.getRepository(OutboxEventEntity).save({
-      eventId: envelope.event_id,
-      type,
+    // RideEvent<T> với T còn generic thì TypeScript không tự thu về union RideEvent.
+    const event = createRideEvent(type, {
       aggregateId: job.id,
       aggregateVersion: job.version,
-      schemaVersion: 1,
-      correlationId: envelope.correlation_id,
-      causationId: envelope.causation_id,
-      envelopeJson: envelope,
-      status: 'PENDING',
-      attempts: 0,
-      nextRetryAt: now,
-      leaseToken: null,
-      leaseUntil: null,
-      lastError: null,
-      createdAt: now,
-      publishedAt: null,
-    });
+      correlationId: source.correlation_id,
+      causationId: source.event_id,
+      occurredAt: await this.now(manager),
+      payload,
+    }) as RideEvent;
+
+    await enqueueOutboxEvent(manager, MATCHING_OUTBOX_TABLE, event);
   }
 
   async fail(

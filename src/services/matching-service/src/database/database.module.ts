@@ -7,7 +7,6 @@ import { databaseOptions } from './options';
 import { MatchingJobEntity } from '../matching/entities/matching-job.entity';
 import { OfferEntity } from '../matching/entities/offer.entity';
 import { AttemptedCandidateEntity } from '../matching/entities/attempted-candidate.entity';
-import { OutboxEventEntity } from '../matching/entities/outbox-event.entity';
 import { ProcessedEventEntity } from '../matching/entities/processed-event.entity';
 import { CommandResultEntity } from '../matching/entities/command-result.entity';
 
@@ -52,7 +51,6 @@ class MatchingReadiness implements OnModuleInit {
           MatchingJobEntity,
           OfferEntity,
           AttemptedCandidateEntity,
-          OutboxEventEntity,
           ProcessedEventEntity,
           CommandResultEntity,
         ],
