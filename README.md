@@ -310,9 +310,7 @@ npm run mq:up
 npm run start:dev:all   # 8 app trong một terminal, Ctrl+C dừng tất cả
 ```
 
-Tài liệu riêng từng service: [Driver/Vehicle/Location](docs/services/driver-vehicle-location-service.md),
-[Pricing](docs/services/pricing-service.md). Postman collection: [tests/postman/](tests/postman/); có thể import
-trực tiếp file OpenAPI trong `docs/api/`. API nội bộ cần header `X-Service-Token` lấy từ `.env`.
+Postman collection: [tests/postman/](tests/postman/); có thể import trực tiếp file OpenAPI trong `docs/api/`. API nội bộ cần header `X-Service-Token` lấy từ `.env`.
 
 ### 5.4. Script hỗ trợ (`scripts/`)
 
@@ -417,7 +415,6 @@ Chi tiết kết quả và phân tích: chương 5 của [báo cáo](docs/report
     ├── api/                    # OpenAPI và JSON Schema sự kiện
     ├── events/samples/         # 11 sự kiện mẫu
     ├── demo/                   # kịch bản demo
-    ├── services/               # hướng dẫn từng service
     └── test-evidence/          # bằng chứng kiểm thử (JSON)
 ```
 
