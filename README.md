@@ -3,6 +3,34 @@
 API Gateway và 7 service nghiệp vụ chạy độc lập bằng NestJS. Nest CLI quản lý app
 qua `nest-cli.json`; dependency và lockfile dùng chung tại root.
 
+Đề tài DS03 (môn Hệ phân tán): hệ thống gọi xe theo kiến trúc microservices mô phỏng Grab/Uber.
+Service giao tiếp đồng bộ bằng REST và bất đồng bộ qua RabbitMQ; có Saga và bù trừ cho
+nhận chuyến, outbox, retry, bỏ trùng, DLQ và correlation ID. Báo cáo: [docs/report.pdf](docs/report.pdf).
+
+## Thành viên và phân công
+
+| Vai | Thành viên | Phụ trách | Mã nguồn chính | Test và bằng chứng |
+| --- | --- | --- | --- | --- |
+| A | Phạm Quốc Hùng | Identity/User (đăng ký, đăng nhập, bcrypt, JWT RS256, vai trò khách/tài xế); Trip/Booking (vòng đời chuyến, Saga nhận chuyến và bù trừ, hủy, kết thúc, đối soát thanh toán, `ops:retry`) | `src/services/identity-user-service/`, `src/services/trip-booking-service/`, `src/packages/auth/` | `test:identity:*`, `test:trip:*`, `test:e2e`, `test:contract`; `docs/test-evidence/identity/`, `docs/test-evidence/trip/` |
+| B | Nguyễn Bá Thọ | Driver/Vehicle/Location (hồ sơ, xe, GPS, bật/tắt, giữ xe chống gán trùng); Pricing (báo giá CAR_V1); Matching (nhận `trip.requested`, mời tài xế, hết hạn lời mời); token nội bộ và idempotency trong `@app/runtime` | `src/services/driver-vehicle-location-service/`, `src/services/pricing-service/`, `src/services/matching-service/`, `src/packages/runtime/` | `test:driver:*`, `test:pricing:*`, `test:matching:*`, `test:runtime:*`, `b:db:verify`; `docs/test-evidence/driver/`, `pricing/`, `matching/` |
+| C | Lê Hải Sơn | Simulated Payment; Notification; messaging RabbitMQ (`@app/messaging`: outbox, retry 1s/5s/15s, DLQ); API Gateway; Docker Compose toàn hệ thống; demo 9 bước; test tải P01 | `src/services/simulated-payment-service/`, `src/services/notification-service/`, `src/packages/messaging/`, `src/apps/api-gateway/`, `deploy/`, `scripts/demo/` | `test:c:*`, `test:gateway`, `test:p01`, `demo`; `docs/test-evidence/c/`, `docs/test-evidence/demo/`, `docs/test-evidence/performance/` |
+
+Mỗi người tự làm migration, test và tài liệu service của mình; C tích hợp môi trường chung.
+Lịch sử commit của từng người xem bằng `git shortlog -sn --all`.
+
+## Kịch bản demo
+
+Demo 9 bước theo mục 7.4 của đề, chạy trên stack Compose thật:
+
+```powershell
+npm run stack:up
+npm run demo
+```
+
+- Phần kỹ thuật (script làm gì ở từng bước, xử lý sự cố): [docs/demo/kich-ban-demo.md](docs/demo/kich-ban-demo.md).
+- Phần trình bày (đối chiếu đề bài, phân vai, lời thoại, câu hỏi vấn đáp): [docs/demo/kich-ban-demo-chi-tiet.md](docs/demo/kich-ban-demo-chi-tiet.md).
+- Mỗi lần chạy ghi bằng chứng vào `docs/test-evidence/demo/demo-run.json`.
+
 ## Chạy nhanh
 
 Yêu cầu Node.js >=22, npm và Docker Desktop có Linux Engine hoạt động.
@@ -160,7 +188,7 @@ nếu một app thoát để tránh sót process. Mỗi bộ port chỉ chạy m
 └── docs/                    # api/, plans/, services/, test-evidence/
 ```
 
-Phân công và kế hoạch của A, B, C nằm trong báo cáo BA (mục 11), không còn file task riêng.
+Phân công của A, B, C: xem [Thành viên và phân công](#thành-viên-và-phân-công); kế hoạch chi tiết ở báo cáo BA (mục 11).
 
 Mỗi service giữ `tsconfig.app.json`, `src/main.ts`, `src/app.module.ts` và
 module nghiệp vụ đã tạo, gồm Controller/Service/Module. Ví dụ Identity có
@@ -252,15 +280,13 @@ Các module chính là `users`, `drivers`, `trips`, `payments`, `notifications`,
   `events:dlq -- trip.events [--replay]`, `test:messaging:unit`, `test:messaging:integration`.
 
 `deploy/postgres/init/` và `deploy/rabbitmq/` chứa bootstrap/cấu hình hạ tầng;
-file Compose sẽ đặt trong `deploy/`, Dockerfile đặt trong từng app khi triển khai.
+Compose toàn hệ thống là `deploy/docker-compose.yml`, mọi app dùng chung `deploy/node-service.Dockerfile`.
 `scripts/seed/` và `scripts/simulation/` chứa tạo dữ liệu và simulator demo.
 Test trong service kiểm tra riêng service; test ở root kiểm tra luồng liên thông,
 concurrency, recovery, security, performance và contract của hệ thống.
 
-Thư mục chuẩn bị trước chỉ chứa `.gitkeep` để Git giữ cấu trúc, chưa có nghiệp vụ
-hay test thực thi. Giữ phần này ở phạm vi cần cho BA; repository/UseCase/worker
-được tách khi implementation cần. Nest Controller đảm nhiệm routing nên không
-thêm thư mục `routes` riêng.
+Repository/UseCase/worker được tách khi implementation cần. Nest Controller đảm nhiệm
+routing nên không thêm thư mục `routes` riêng.
 
 Ví dụ tạo tính năng mới từ root:
 
@@ -279,36 +305,39 @@ Webpack dùng `tsconfig.outDir`, đóng gói alias thư viện vào
 `dist/<project>/main.js`. `dist` và `node_modules` là thư mục sinh tự động,
 được Git bỏ qua. Chỉ chia sẻ contract/tiện ích; mỗi service quản lý dữ liệu riêng.
 
-## Kiểm tra và phần việc tiếp theo
+## Kiểm tra
 
 ```powershell
 npm run typecheck
 npm test
 ```
 
-`npm test` build 8 app và artifact migration, chạy smoke/integration với
-PostgreSQL test container riêng, port/key tạm. `npm run test:identity:unit`
-kiểm tra JWT/role/DTO. Docker Engine cần chạy cho integration/smoke.
+`npm test` chạy unit test rồi build 8 app và artifact migration, chạy smoke/integration với
+PostgreSQL test container riêng, port/key tạm, cuối cùng chạy bộ test của C (Gateway, messaging,
+Payment, Notification, phục hồi, bảo mật). Docker Engine cần chạy.
 
-Đã có register/login/me, bcrypt, JWT RS256, Guard dùng chung, PostgreSQL
-Identity/migration, Gateway allowlist 3 route và Docker dev của A.
-Driver đã có hồ sơ, xe, GPS, bật/tắt, tìm ứng viên, giữ/xác nhận/trả xe và worker hết hạn;
-xem [hướng dẫn Driver](docs/services/driver-vehicle-location-service.md). Trip đã có vòng đời chuyến, Saga nhận, hủy, kết thúc, đối soát thanh toán và API vận hành; xem [hướng dẫn Trip](docs/services/trip-booking-service.md). RabbitMQ,
-Payment/Notification/Matching và Compose chung còn cần triển khai. Pricing đã có
-tạo/đọc báo giá, JWT/token nội bộ, DB/readiness và test; xem [hướng dẫn Pricing](docs/services/pricing-service.md).
+Test trên stack Compose thật (cần `npm run stack:up` trước):
 
-Identity readiness kiểm tra DB/bảng/quyền thật và trả 503 khi DB lỗi. Các service
-chưa có dependency giữ health của bộ khung. Runtime có error/correlation chung;
-route internal được giữ ngoài public prefix.
+```powershell
+npm run test:stack
+```
 
-Phân công theo BA:
+`test:stack` gồm `test:e2e`, `test:contract`, `test:trip:security`, `test:trip:concurrency`, `test:trip:recovery`.
+`npm run test:all` chạy cả `npm test` và `test:stack`. Test tải: `npm run test:p01`.
 
-- A: [Identity/JWT](docs/services/identity-user-service.md) và [Trip/Saga](docs/services/trip-booking-service.md) đã triển khai.
-- B: Driver và Pricing đã có nghiệp vụ/test riêng; tiếp theo Matching và tích hợp A/C.
-- C: Payment, Notification, messaging, mở rộng Gateway và Compose chung.
+| Nhóm test (mục 9 của đề) | Lệnh | Bằng chứng |
+| --- | --- | --- |
+| Chức năng | `test:e2e`, `test:contract`, integration của từng service | `docs/test-evidence/e2e/`, `docs/test-evidence/trip/` |
+| Đồng thời | `test:trip:concurrency` | `concurrency-driver-double-booking.json`, `concurrency-start-vs-cancel-trip.json` |
+| Lỗi và phục hồi | `test:trip:recovery`, `test:c:recovery` | `resilience-*.json`, `docs/test-evidence/c/recovery.json` |
+| Bảo mật, dữ liệu sai | `test:trip:security`, `test:c:security` | `security-trip-access-control.json`, `docs/test-evidence/c/security.json` |
+| Hiệu năng | `test:p01` | `docs/test-evidence/performance/` |
 
-Mỗi owner tự làm migration, Dockerfile và test service mình; C tích hợp môi trường chung.
-Bằng chứng Identity: docs/test-evidence/identity/. Chưa dùng kết quả này thay bộ test toàn hệ thống.
+Hiện trạng: đủ 7 service nghiệp vụ và Gateway, mỗi service một PostgreSQL riêng, RabbitMQ với
+outbox/retry/DLQ, Compose toàn hệ thống. Hướng dẫn từng service: [Identity](docs/services/identity-user-service.md),
+[Driver](docs/services/driver-vehicle-location-service.md), [Trip](docs/services/trip-booking-service.md),
+[Pricing](docs/services/pricing-service.md). Readiness của mỗi service kiểm tra DB (và RabbitMQ nếu dùng),
+trả 503 khi phụ thuộc lỗi. Hạn chế: chưa có circuit breaker, TLS, nhiều instance cho một service.
 
 ## DB của B (Driver, Matching, Pricing)
 

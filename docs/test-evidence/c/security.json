@@ -1,8 +1,8 @@
 {
-  "executedAt": "2026-11-02T09:06:07.438Z",
+  "executedAt": "2026-11-22T04:11:28.578Z",
   "status": "PASS",
-  "commit": "4c5e84b",
-  "infrastructure": "disposable PostgreSQL 17 + RabbitMQ 4.1 (deploy/c-test.compose.yml), project ds03-c-security-a7d71da2",
+  "commit": "83f23d1",
+  "infrastructure": "disposable PostgreSQL 17 + RabbitMQ 4.1 (deploy/c-test.compose.yml), project ds03-c-security-4d50e831",
   "path": "client -> dist/api-gateway -> dist/simulated-payment-service | dist/notification-service",
   "cases": [
     "S03 (C part)",
@@ -12,7 +12,7 @@
     {
       "name": "S03: unknown fields and out-of-range values are rejected with 400 by the service behind the Gateway",
       "status": "PASS",
-      "durationMs": 361,
+      "durationMs": 58,
       "details": {
         "rejected": 12
       }
@@ -20,22 +20,22 @@
     {
       "name": "S03: body over 64 KiB is 413 at the Gateway and at the service itself",
       "status": "PASS",
-      "durationMs": 37
+      "durationMs": 4
     },
     {
       "name": "S02: cross-user access, wrong role and internal routes are refused",
       "status": "PASS",
-      "durationMs": 111
+      "durationMs": 18
     },
     {
       "name": "S02: bad JWTs are refused at the Gateway and at the service",
       "status": "PASS",
-      "durationMs": 66
+      "durationMs": 10
     },
     {
       "name": "S03: event over 128 KiB goes to notification.events.dlq truncated; sender refuses it; consumer keeps running",
       "status": "PASS",
-      "durationMs": 233,
+      "durationMs": 214,
       "details": {
         "originalSize": 133641,
         "storedBytes": 1024
@@ -44,7 +44,7 @@
     {
       "name": "S03: secret scan — no JWT, DB/RabbitMQ password or key material in logs or response bodies",
       "status": "PASS",
-      "durationMs": 503,
+      "durationMs": 510,
       "details": {
         "scannedLogs": 3,
         "scannedResponses": 34,

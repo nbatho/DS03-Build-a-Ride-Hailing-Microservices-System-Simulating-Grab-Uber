@@ -1,8 +1,12 @@
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 const { test } = require('node:test');
+const dotenv = require('dotenv');
 const { testEvidence } = require('../helpers/test-evidence.cjs');
 const {
+  ROOT,
   acceptOffer,
   account,
   bringOnline,
@@ -19,8 +23,17 @@ const {
 
 const POINT = { lat: 10.77, lng: 106.69, zoneId: 'ZONE_A' };
 
+// Vhost theo RABBITMQ_VHOST trong .env (giống Compose và script demo), mặc định 'ride'.
+function rabbitVhost() {
+  try {
+    return dotenv.parse(fs.readFileSync(path.join(ROOT, '.env'))).RABBITMQ_VHOST || 'ride';
+  } catch {
+    return 'ride';
+  }
+}
+
 function paymentQueueDepth() {
-  const output = compose(['exec', '-T', 'rabbitmq', 'rabbitmqctl', '-q', '-p', 'ride', 'list_queues', 'name', 'messages']);
+  const output = compose(['exec', '-T', 'rabbitmq', 'rabbitmqctl', '-q', '-p', rabbitVhost(), 'list_queues', 'name', 'messages']);
   const line = output.split('\n').find(item => item.startsWith('payment.events\t'));
 
   return Number(line?.split('\t')[1]);
