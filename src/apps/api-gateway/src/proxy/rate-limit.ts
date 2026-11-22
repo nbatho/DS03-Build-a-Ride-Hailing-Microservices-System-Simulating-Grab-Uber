@@ -4,7 +4,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { ApiError } from '@app/runtime';
 import { API_PREFIX, requestTarget } from './routes';
 
-// Giới hạn số request theo IP tại Gateway (BA mục 4.1: 429 gọi quá nhiều; mục 10.1; test S03).
+// Giới hạn số request theo IP tại Gateway (quá giới hạn trả 429; test S03).
 // Chạy trước kiểm tra JWT để request rác cũng bị chặn sớm. Đếm trong RAM của một instance Gateway:
 // đủ cho demo một instance; nhiều instance thì mỗi instance đếm riêng.
 //   GATEWAY_AUTH_RATE_LIMIT        đăng ký/đăng nhập, mặc định 10/phút/IP (khớp giới hạn của Tài khoản)

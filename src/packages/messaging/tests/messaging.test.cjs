@@ -38,7 +38,7 @@ const samples = fs
 const sample = type => structuredClone(samples.find(item => item.event.type === type).event);
 const silent = { warn() {}, error() {} };
 
-test('catalog has the 11 events of Phụ lục C with their codes and samples', () => {
+test('catalog has the 11 events with their codes and samples', () => {
   assert.equal(EVENT_TYPES.length, 11);
   assert.equal(samples.length, 11);
   for (const { file, event } of samples) {
@@ -114,7 +114,7 @@ test('validation rejects contract drift', () => {
   );
 });
 
-test('queue bindings follow BA mục 8.1', () => {
+test('queue bindings follow the event catalog', () => {
   const topology = describeTopology();
 
   assert.equal(topology.exchange, 'ride.events');

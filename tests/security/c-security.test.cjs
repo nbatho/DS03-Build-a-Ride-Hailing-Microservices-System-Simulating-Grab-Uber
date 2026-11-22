@@ -58,7 +58,7 @@ function expectError(response, status, code, label) {
     assert.equal(response.body.code, code, label);
   }
 
-  // Lỗi luôn có dạng {code, message, correlationId, details?} (BA mục 4.1).
+  // Lỗi luôn có dạng {code, message, correlationId, details?}.
   assert.ok(
     response.body.code && response.body.message && response.body.correlationId,
     label + ' error shape',
@@ -211,7 +211,7 @@ scenario('S03: body over 64 KiB is 413 at the Gateway and at the service itself'
     'gateway',
   );
 
-  // Service tự giới hạn, không chỉ trông vào Gateway (BA mục 10.1).
+  // Service tự giới hạn, không chỉ trông vào Gateway.
   expectError(
     await call(envC.apps.notification.url, pathname, {
       method: 'PATCH',

@@ -17,7 +17,7 @@ test('every trip status has an entry and only targets known statuses', () => {
   }
 });
 
-test('source states derived for each target match the BA lifecycle', () => {
+test('source states derived for each target match the trip lifecycle', () => {
   assert.deepEqual(sourcesOf('ASSIGNING'), ['MATCHING']);
   assert.deepEqual(sourcesOf('ASSIGNED'), ['ASSIGNING']);
   assert.deepEqual(sourcesOf('MATCHING'), ['ASSIGNING']);

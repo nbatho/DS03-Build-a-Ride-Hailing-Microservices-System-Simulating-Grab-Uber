@@ -6,7 +6,7 @@ const { randomBytes } = require('node:crypto');
 
 const root = path.resolve(__dirname, '../..');
 
-// Cặp bên gọi -> bên nhận theo x-callers trong openapi.json của BA. Thêm API nội bộ mới thì thêm cặp ở đây.
+// Cặp bên gọi -> bên nhận theo x-callers trong docs/api/*.openapi.json. Thêm API nội bộ mới thì thêm cặp ở đây.
 const pairs = [
   ['TRIP', 'PRICING'], // API-17 đọc báo giá
   ['TRIP', 'DRIVER'], // API-11..14 giữ/xem/xác nhận/trả xe

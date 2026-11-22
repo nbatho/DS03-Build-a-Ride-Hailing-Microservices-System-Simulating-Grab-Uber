@@ -2,7 +2,7 @@ import type { Currency, MoneyAmount, Point } from './common';
 import type { Offer } from './matching';
 import type { PaymentStatus } from './payment';
 
-// Thông báo (Phụ lục A API-36, 37; Phụ lục B "Notification", "NotificationsPage", "ReadNotificationRequest").
+// Thông báo (schema "Notification", "NotificationsPage", "ReadNotificationRequest").
 
 export const NOTIFICATION_TYPES = ['OFFER', 'TRIP_STATUS', 'PAYMENT_STATUS'] as const;
 export type NotificationType = typeof NOTIFICATION_TYPES[number];

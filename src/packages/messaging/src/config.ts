@@ -1,4 +1,4 @@
-// Cấu hình RabbitMQ (BA mục 9.2): địa chỉ (gồm vhost), số tin lấy trước (mẫu 10). Thiếu thì dừng khi khởi động.
+// Cấu hình RabbitMQ: địa chỉ (gồm vhost), số tin lấy trước (mẫu 10). Thiếu thì dừng khi khởi động.
 
 export interface MessagingConfig {
   url: string;

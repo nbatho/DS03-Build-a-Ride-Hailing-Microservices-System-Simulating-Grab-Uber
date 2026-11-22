@@ -1,6 +1,6 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-// Bảng của Payment trong payment_db. Căn cứ: trien-khai-db-ds03.md mục 4.8, 5; BA mục 5.6, 8.2.
+// Bảng của Payment trong payment_db.
 export class InitialPayment1792454400000 implements MigrationInterface {
   name = 'InitialPayment1792454400000';
 

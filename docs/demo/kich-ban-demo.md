@@ -1,6 +1,6 @@
 # Kịch bản demo 9 bước
 
-Theo BA mục 13.3. Mọi thao tác của người dùng đi qua Gateway; script `scripts/demo/run-demo.cjs` chạy từng bước trên stack Compose thật, in ra mã, trạng thái DB, sự kiện và hàng đợi để người trình bày chỉ vào, rồi dừng chờ Enter.
+Theo mục 7.4 của đề. Mọi thao tác của người dùng đi qua Gateway; script `scripts/demo/run-demo.cjs` chạy từng bước trên stack Compose thật, in ra mã, trạng thái DB, sự kiện và hàng đợi để người trình bày chỉ vào, rồi dừng chờ Enter.
 
 Thời lượng: khoảng 6–8 phút chạy script, cộng phần giải thích.
 
@@ -31,7 +31,7 @@ Mỗi bước in theo cùng một khuôn: `BƯỚC n/9` và **Mục tiêu** → 
 npm run demo
 ```
 
-| Bước | Script làm gì | Chỉ vào | Phải cho thấy (BA) |
+| Bước | Script làm gì | Chỉ vào | Phải cho thấy |
 |---|---|---|---|
 | 1 | Gọi `/health/ready` trong từng container, liệt kê container DB | 8 dòng `200 UP` với `instance` khác nhau; 7 DB riêng | Tên service, mã instance, cổng, health, log song song; 7 container DB riêng |
 | 2 | Tạo tài xế, hồ sơ, xe, gửi GPS ZONE_A, bật nhận chuyến | Trạng thái `AVAILABLE`, vị trí mới nhất đọc từ DB Tài xế | Dữ liệu hợp lệ; tài xế là ứng viên đúng vùng |

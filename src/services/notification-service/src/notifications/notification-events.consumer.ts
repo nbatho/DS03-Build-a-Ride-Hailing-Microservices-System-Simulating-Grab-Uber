@@ -4,7 +4,7 @@ import { EventConsumer, type EventHandlers } from '@app/messaging';
 import { NOTIFICATION_EVENT_TYPES, type NotificationEvent } from './notification-rules';
 import { NotificationsService } from './notifications.service';
 
-// Nhận 8 loại sự kiện từ queue notification.events (Phụ lục C). Notification chỉ nhận, không phát sự kiện.
+// Nhận 8 loại sự kiện từ queue notification.events. Notification chỉ nhận, không phát sự kiện.
 @Injectable()
 export class NotificationEventsConsumer implements OnModuleInit {
   constructor(

@@ -1,4 +1,4 @@
-// Demo 9 bước (mục 7.4 của đề, BA mục 13.3) trên stack Compose thật, mọi lệnh của người dùng đi qua Gateway.
+// Demo 9 bước (mục 7.4 của đề) trên stack Compose thật, mọi lệnh của người dùng đi qua Gateway.
 // Mỗi bước in: mục tiêu → việc đang làm → số liệu đọc từ API/DB/RabbitMQ → một dòng kết luận.
 // Người dùng được đặt tên (Khách A, Khách B, Tài xế 1), mã UUID rút còn 8 ký tự cho dễ đọc.
 //   npm run demo             dừng sau mỗi bước, bấm Enter để sang bước tiếp
@@ -51,7 +51,7 @@ const VHOST = env.RABBITMQ_VHOST || 'ride';
 const COMPOSE_CMD = 'docker compose --env-file .env -f deploy/docker-compose.yml';
 const evidenceFile = path.join(ROOT, 'docs/test-evidence/demo/demo-run.json');
 const evidence = {
-  demo: 'Mục 7.4 của đề (BA mục 13.3) — demo 9 bước',
+  demo: 'Mục 7.4 của đề — demo 9 bước',
   gateway: GATEWAY,
   startedAt: new Date().toISOString(),
   steps: [],

@@ -5,7 +5,7 @@ import { EventValidationError, type RideEvent } from '@app/contracts';
 import type { EventPublisher } from './event-publisher';
 import { assertTableName } from './sql';
 
-// Hàng chờ gửi (BA mục 8.2): ghi dòng nghiệp vụ + dòng outbox trong cùng transaction; relay gửi qua
+// Hàng chờ gửi (Transactional Outbox): ghi dòng nghiệp vụ + dòng outbox trong cùng transaction; relay gửi qua
 // confirm channel có mandatory, chỉ đánh dấu PUBLISHED khi được xác nhận và không bị trả lại.
 // Chết giữa lúc gửi và lúc đánh dấu thì có thể gửi lặp; bên nhận bỏ trùng theo event_id.
 
@@ -126,7 +126,7 @@ export class OutboxRelay {
     );
     let published = 0;
 
-    // Gửi ngoài transaction, theo thứ tự tạo. Thứ tự vẫn có thể đảo khi gửi lại; bên nhận dựa vào phiên bản (BA mục 8.3).
+    // Gửi ngoài transaction, theo thứ tự tạo. Thứ tự vẫn có thể đảo khi gửi lại; bên nhận dựa vào phiên bản (aggregate_version).
     for (const row of rows) {
       try {
         await this.publisher.publish(row.envelope_json);

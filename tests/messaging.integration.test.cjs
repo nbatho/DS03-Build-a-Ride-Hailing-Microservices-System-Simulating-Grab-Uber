@@ -1,4 +1,4 @@
-// Test liên kết của từng queue trên RabbitMQ thật (BA mục 8.1): tự dựng broker tạm (tests/helpers/c-environment.cjs),
+// Test liên kết của từng queue trên RabbitMQ thật: tự dựng broker tạm (tests/helpers/c-environment.cjs),
 // xong thì xóa. Không có Docker thì skip. Chạy: npm run test:messaging:integration
 require('reflect-metadata');
 const assert = require('node:assert/strict');

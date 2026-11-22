@@ -3,7 +3,7 @@ import type { RideEvent } from '@app/contracts';
 import { runInTransaction, type TransactionOptions } from '@app/runtime';
 import { assertTableName } from './sql';
 
-// Bỏ trùng phía nhận (BA mục 8.2): trong cùng một transaction ghi "đã xử lý" theo (consumer_name, event_id),
+// Bỏ trùng phía nhận: trong cùng một transaction ghi "đã xử lý" theo (consumer_name, event_id),
 // cập nhật nghiệp vụ, ghi sự kiện kết quả vào outbox. Bảng chuẩn: xem processedEventsTableDdl.
 
 export interface InboxOptions {

@@ -1,6 +1,6 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-// Bảng của Pricing trong pricing_db và bảng giá CAR_V1. Căn cứ: trien-khai-db-ds03.md mục 4.7, 5.
+// Bảng của Pricing trong pricing_db và bảng giá CAR_V1.
 export class InitialPricing1792368000000 implements MigrationInterface {
   name = 'InitialPricing1792368000000';
 

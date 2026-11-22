@@ -7,7 +7,7 @@ import {
   type EventType,
 } from '@app/contracts';
 
-// Exchange, queue, binding dựng từ EVENT_CATALOG (Phụ lục C, BA mục 8.1, 15.2).
+// Exchange, queue, binding dựng từ EVENT_CATALOG.
 // Mỗi queue gốc có ba queue chờ thử lại 1s/5s/15s và một queue lỗi: <tên>.retry.1s, .retry.5s, .retry.15s, .dlq.
 
 export const RETRY_DELAYS_MS = [1_000, 5_000, 15_000] as const;

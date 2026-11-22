@@ -1,4 +1,4 @@
-# DB dev của C: mỗi service một PostgreSQL riêng (BA mục 3.2), không dùng DB cloud.
+# DB dev của C: mỗi service một PostgreSQL riêng, không dùng DB cloud.
 # Chạy qua npm: c:setup:dev (tạo mật khẩu), c:db:up, c:db:stop, c:db:start, c:db:verify.
 name: ds03-c-dev
 services:

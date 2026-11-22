@@ -1,6 +1,6 @@
 import type { Currency, MoneyAmount } from './common';
 
-// Thanh toán mô phỏng (Phụ lục A API-33..35, Phụ lục B "Payment").
+// Thanh toán mô phỏng (schema "Payment").
 
 export const PAYMENT_STATUSES = ['PENDING', 'SUCCEEDED', 'FAILED'] as const;
 export type PaymentStatus = typeof PAYMENT_STATUSES[number];

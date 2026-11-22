@@ -1,4 +1,4 @@
-// Xem và gửi lại tin trong hàng đợi lỗi (BA mục 7.3, 8.1).
+// Xem và gửi lại tin trong hàng đợi lỗi.
 //   npm run events:dlq -- trip.events                 xem tối đa 20 tin, không lấy ra
 //   npm run events:dlq -- trip.events --limit 5
 //   npm run events:dlq -- trip.events --replay        chuyển về queue gốc (cùng event_id, đặt lại số lần thử)

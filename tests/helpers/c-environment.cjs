@@ -251,7 +251,7 @@ async function createCEnvironment({ prefix = 'ds03-c' } = {}) {
     }
   }
 
-  /** Đọc DB bằng user postgres của container test (BA mục 12.2), không bằng user app. */
+  /** Đọc DB bằng user postgres của container test, không bằng user app. */
   async function sql(database, text, values = []) {
     const port =
       database === 'payment' ? env.C_TEST_PAYMENT_DB_PORT : env.C_TEST_NOTIFICATION_DB_PORT;
@@ -343,7 +343,7 @@ async function createCEnvironment({ prefix = 'ds03-c' } = {}) {
 }
 
 /**
- * Ghi kết quả từng kịch bản cho file bằng chứng (BA mục 12.2). `skip()` trả lý do skip nếu hạ tầng không có.
+ * Ghi kết quả từng kịch bản cho file bằng chứng. `skip()` trả lý do skip nếu hạ tầng không có.
  * Dùng: const { scenario, outcomes } = scenarioRecorder(test, () => skipReason);
  */
 function scenarioRecorder(test, skip) {

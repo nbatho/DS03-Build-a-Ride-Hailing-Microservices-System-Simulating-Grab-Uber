@@ -1,7 +1,7 @@
 import { randomInt } from 'node:crypto';
 import type { AttemptOutcome } from './payment.types';
 
-// Mô phỏng cổng thanh toán (BA mục 2.1, 9.2 "mô phỏng thanh toán lỗi"). Không thu tiền thật.
+// Mô phỏng cổng thanh toán, kể cả các chế độ lỗi. Không thu tiền thật.
 // PAYMENT_SIMULATION_MODE:
 //   SUCCEED     mọi lần thử thành công (mặc định)
 //   FAIL_ONCE   lần thử 1 lỗi tạm thời, các lần sau thành công (demo thử lại)

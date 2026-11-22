@@ -1,6 +1,6 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-// Bảng của Matching trong matching_db. Căn cứ: trien-khai-db-ds03.md mục 4.6, 5.
+// Bảng của Matching trong matching_db.
 export class InitialMatching1792368000000 implements MigrationInterface {
   name = 'InitialMatching1792368000000';
 

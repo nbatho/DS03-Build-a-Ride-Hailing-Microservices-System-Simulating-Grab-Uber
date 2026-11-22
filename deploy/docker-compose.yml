@@ -1,4 +1,4 @@
-# Compose chung của cả hệ thống (BA mục 3.2, 9.1–9.3): 7 PostgreSQL riêng + RabbitMQ + migration + 8 app.
+# Compose chung của cả hệ thống: 7 PostgreSQL riêng + RabbitMQ + migration + 8 app.
 # Chạy qua npm: stack:up, stack:down, stack:ps, stack:logs. Cần .env do các lệnh setup tạo
 # (identity:setup:dev, b:setup:dev, c:setup:dev, trip:setup:dev, svc:tokens) và khóa JWT trong deploy/secrets.
 # Bản demo chỉ mở cổng 8080 của Gateway; DB, RabbitMQ và 3001–3007 chỉ đi trong mạng của Compose.

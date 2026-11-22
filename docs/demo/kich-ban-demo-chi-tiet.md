@@ -49,9 +49,9 @@ Ký hiệu: ✅ đạt · ⚠️ đạt một phần / cần bổ sung · ❌ ch
 | 10.1 | `docs/report.pdf` | ✅ có |
 | 10.1 | `docs/slides.pdf` | ❌ chưa có (đề ghi "if available" nhưng nên có) |
 | 10.1 | Commit của từng thành viên | ✅ 3 người đều có commit |
-| 10.1 | **Bảng phân công trong repo** | ⚠️ README chỉ ghi "nằm trong báo cáo BA mục 11", chưa có bảng |
+| 10.1 | **Bảng phân công trong repo** | ✅ README mục 1 có bảng phân công |
 | 10.1 | **Tag/release cuối, ví dụ `v1.0.0`** | ❌ chưa có tag nào trên remote |
-| 10.1 | README có kịch bản demo | ⚠️ README chưa trỏ tới `docs/demo/` |
+| 10.1 | README có kịch bản demo | ✅ README mục 6 trỏ tới `docs/demo/` |
 | 11 | Demo ≥ 3 node, có đồng thời, có lỗi live, có log, đủ thành viên | ✅ nếu theo kịch bản dưới |
 
 ### 1.3 Tính năng nâng cao (mục 7.5) – điểm cộng
@@ -170,6 +170,7 @@ Mỗi bước ứng với một gạch đầu dòng của đề mục 7.4.
 
 - **Đề yêu cầu:** *The Matching Service selects a driver.*
 - **Thao tác:** Enter. Script chờ lời mời xuất hiện trong Notification của tài xế.
+- **Lưu ý nhịp trình bày:** lời mời chỉ sống 15 giây kể từ lúc đặt chuyến ở bước 3. Nói lâu ở bước 3 hoặc bước 4 thì lời mời hết hạn; khi đó script tự hủy chuyến cũ, đặt lại và in dòng giải thích (bước 4 hoặc trước khi nhận ở bước 5). Nên đọc *Kết luận* bước 3 và 4 rồi Enter ngay, phần giải thích để nói trong bước 5. Nếu bị đặt lại, có thể dùng luôn làm ví dụ: "hết 15 giây là lời mời hết hạn, đúng như thiết kế".
 - **Chỉ vào:** việc tìm (matching job) trong DB Matching; lời mời có hạn 15 giây; người nhận đúng tài xế; các queue gắn vào exchange `ride.events`.
 - **Lời thoại:** "Matching không bị Trip gọi trực tiếp mà nhận `trip.requested` qua queue. Nó hỏi Driver danh sách ứng viên cùng vùng, mời từng người, hết 15 giây thì mời người tiếp theo. Nếu nhận trùng sự kiện, bảng `processed_events` bỏ qua."
 
@@ -222,7 +223,8 @@ Mỗi bước ứng với một gạch đầu dòng của đề mục 7.4.
 
 | Tình huống | Cách xử lý |
 |---|---|
-| Bước 4/6 chờ lời mời > 30 giây | Tài xế mất vị trí hoặc đang bận từ lần trước: Ctrl+C, chạy lại `npm run demo` |
+| Bước 4/5 in "Lời mời … đã hết hạn 15 s … đặt lại chuyến" | Bình thường: đã dừng trình bày quá 15 s sau khi đặt chuyến; script tự đặt lại, cứ tiếp tục |
+| Bước 4/6 chờ lời mời > 30 giây | Hiếm khi xảy ra vì script đã gửi GPS nền mỗi 20 s. Kiểm tra `npm run stack:ps` (Matching, Notification, RabbitMQ còn chạy?) rồi Ctrl+C, chạy lại `npm run demo` |
 | Dừng giữa bước 7–8 mà Payment vẫn tắt | `docker compose --env-file .env -f deploy/docker-compose.yml start payment` |
 | Demo hỏng hẳn | Mở `docs/test-evidence/demo/demo-run.json` của lần tập dượt và giải thích từng bước |
 | Giám khảo muốn xem DLQ live | `npm run events:dlq -- trip.events` (xem), thêm `--replay` để đẩy lại |

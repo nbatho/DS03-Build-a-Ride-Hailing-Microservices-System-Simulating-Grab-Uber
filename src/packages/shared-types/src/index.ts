@@ -11,7 +11,7 @@ export const SERVICE_CONFIG = {
 
 export type ServiceName = keyof typeof SERVICE_CONFIG;
 
-// Tên bên gọi/bên nhận trong token nội bộ SVC_TOKEN_<BÊN GỌI>_<BÊN NHẬN> (BA mục 9.2, 11.2).
+// Tên bên gọi/bên nhận trong token nội bộ SVC_TOKEN_<BÊN GỌI>_<BÊN NHẬN>.
 // OPS là người vận hành, không phải service; Gateway không gọi API nội bộ nên không có tên.
 export const INTERNAL_CALLERS = [
   'IDENTITY', 'DRIVER', 'TRIP', 'PAYMENT', 'NOTIFICATION', 'MATCHING', 'PRICING', 'OPS',

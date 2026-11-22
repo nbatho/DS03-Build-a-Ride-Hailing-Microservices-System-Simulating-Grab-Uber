@@ -1,4 +1,4 @@
-// Danh sách đường public qua Gateway (BA mục 9.1, Phụ lục A, cột "Gateway: có").
+// Danh sách đường public qua Gateway; route nào không có ở đây thì Gateway trả 404.
 // Chỉ đúng từng cặp method + đường dẫn ở đây được chuyển tiếp; mọi đường khác, kể cả /internal/..., bị chặn.
 
 export const UPSTREAMS = {

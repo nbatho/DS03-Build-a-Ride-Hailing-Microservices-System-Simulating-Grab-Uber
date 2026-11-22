@@ -1,4 +1,4 @@
-// Test phục hồi của C trên RabbitMQ + PostgreSQL thật (BA mục 12.1: R01, R03, F09, F10).
+// Test phục hồi của C trên RabbitMQ + PostgreSQL thật (R01, R03, F09, F10).
 // Tự dựng hạ tầng dùng một lần (tests/helpers/c-environment.cjs), chạy Payment và Notification bản build thật,
 // đóng vai Trip bằng cách gửi sự kiện đúng contract. Không có Docker thì skip.
 // Chạy: npm run test:c:recovery     Bằng chứng: docs/test-evidence/c/recovery.json

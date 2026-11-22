@@ -265,7 +265,7 @@ test('upstream that sends headers then stalls gives 504 after the 10 s deadline'
   assert.ok(Date.now() - started < 15_000, 'Gateway must give up after its 10 s deadline');
 });
 
-// ---------- S03: dữ liệu xấu và giới hạn (BA mục 12.1 test 19) ----------
+// ---------- S03: dữ liệu xấu và giới hạn ----------
 
 test('S03: body over 64 KiB is 413 and malformed JSON is 400, neither reaches the upstream', async () => {
   received.length = 0;

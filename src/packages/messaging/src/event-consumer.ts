@@ -15,7 +15,7 @@ import { MAX_DELIVERY_RETRIES, deadLetterQueueName, retryQueueName } from './top
 export const RETRY_COUNT_HEADER = 'x-retry-count';
 export const ERROR_CODE_HEADER = 'x-error-code';
 export const ERROR_MESSAGE_HEADER = 'x-error-message';
-/** Tin quá cỡ chỉ giữ phần đầu trong DLQ (BA mục 10.1), không chép toàn bộ. */
+/** Tin quá cỡ chỉ giữ phần đầu trong DLQ, không chép toàn bộ. */
 export const DLQ_TRUNCATED_BYTES = 1024;
 
 export interface DeliveryContext {
@@ -51,7 +51,7 @@ export interface ConfirmedSender {
 }
 
 /**
- * Nhận sự kiện từ queue riêng của service (BA mục 8.1–8.2):
+ * Nhận sự kiện từ queue riêng của service:
  * - handler tự ghi "đã xử lý" + nghiệp vụ trong một transaction (xem processEventOnce); ACK sau khi handler xong;
  * - lỗi tạm thời: gửi bản sao (cùng event_id) vào <queue>.retry.1s/5s/15s, chờ confirm rồi mới ACK bản gốc;
  * - sai cấu trúc, lỗi không thử lại được, hoặc hết 3 lần thử: gửi vào <queue>.dlq kèm mã lỗi, confirm rồi ACK;

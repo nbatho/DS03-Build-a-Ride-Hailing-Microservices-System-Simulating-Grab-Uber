@@ -1,4 +1,4 @@
-// Ghi docs/api/events.schema.json từ contract (Phụ lục C). Không cần RabbitMQ.
+// Ghi docs/api/events.schema.json từ contract (src/packages/contracts/src/events). Không cần RabbitMQ.
 const fs = require('node:fs');
 const path = require('node:path');
 const { buildEventsJsonSchema } = require('@app/contracts');

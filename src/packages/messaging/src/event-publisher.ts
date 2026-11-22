@@ -31,14 +31,14 @@ export function assertEventSize(event: unknown): Buffer {
 
   if (body.length > MAX_EVENT_BYTES) {
     throw new EventValidationError([
-      'event is ' + body.length + ' bytes, limit ' + MAX_EVENT_BYTES + ' (BA 10.1)',
+      'event is ' + body.length + ' bytes, limit ' + MAX_EVENT_BYTES,
     ]);
   }
 
   return body;
 }
 
-/** Dựng envelope đúng Phụ lục C (producer lấy từ catalog) và kiểm tra trước khi ghi outbox. */
+/** Dựng envelope đúng docs/api/events.schema.json (producer lấy từ catalog) và kiểm tra trước khi ghi outbox. */
 export function createRideEvent<T extends EventType>(
   type: T,
   input: CreateEventInput<T>,
@@ -66,7 +66,7 @@ export function createRideEvent<T extends EventType>(
 
 /**
  * Gửi sự kiện lên ride.events, routing key = type. Service nghiệp vụ không gọi trực tiếp sau khi ghi DB:
- * ghi outbox trong transaction rồi để OutboxRelay gửi (BA mục 8.2). Gọi thẳng chỉ dành cho relay và script.
+ * ghi outbox trong transaction rồi để OutboxRelay gửi. Gọi thẳng chỉ dành cho relay và script.
  */
 @Injectable()
 export class EventPublisher {

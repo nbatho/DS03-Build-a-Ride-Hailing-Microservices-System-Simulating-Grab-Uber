@@ -11,7 +11,7 @@ import {
   type Upstream,
 } from './routes';
 
-/** Chờ service phía sau tối đa 10 giây (BA mục 4.2); không tự gửi lại request. */
+/** Chờ service phía sau tối đa 10 giây; không tự gửi lại request. */
 export const UPSTREAM_TIMEOUT_MS = 10_000;
 
 // Header client được chuyển tiếp. Mọi header khác (X-Service-Token, X-User-Id, X-Role, X-Forwarded-*...) bị bỏ.

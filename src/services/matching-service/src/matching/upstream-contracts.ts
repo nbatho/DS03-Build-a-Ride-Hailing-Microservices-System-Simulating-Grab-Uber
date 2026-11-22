@@ -3,7 +3,7 @@ import addFormats from 'ajv-formats';
 import type { Candidates } from '@app/contracts';
 import { ApiError } from '@app/runtime';
 
-// Bản trích openapi.json của BA để kiểm tra response của Driver và Trip; webpack đóng gói cùng app.
+// Bản trích hợp đồng API (docs/api) để kiểm tra response của Driver và Trip; webpack đóng gói cùng app.
 // Sự kiện không kiểm tra ở đây: EventConsumer/createRideEvent của @app/messaging dùng contract chung.
 const httpSchema = require('./http.schema.json');
 const ajv = new Ajv2020({ strict: false });
