@@ -1,0 +1,4 @@
+# Gộp các tên/email commit của cùng một thành viên để `git shortlog -sn` hiện đúng tên thật.
+Nguyễn Bá Thọ <nguyenbatho2k5@gmail.com> Pe <nguyenbatho2k5@gmail.com>
+Nguyễn Bá Thọ <nguyenbatho2k5@gmail.com> Pe <127192174+nbatho@users.noreply.github.com>
+Lê Hải Sơn <lehaison030205@gmail.com> sonle325 <lehaison030205@gmail.com>
