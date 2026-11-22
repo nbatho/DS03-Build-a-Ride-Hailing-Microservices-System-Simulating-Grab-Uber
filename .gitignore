@@ -57,6 +57,5 @@ Thumbs.db
 .pnpm-store/
 .yarn/
 
-*.md
-*.pdf
-
+# Office temp/lock files
+~$*
