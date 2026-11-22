@@ -189,8 +189,8 @@
   },
   "summary": "Mọi lần gọi sai đều bị từ chối, trạng thái và version của chuyến giữ nguyên",
   "status": "PASS",
-  "commit": "e22365f",
-  "executedAt": "2026-11-04T08:56:09.066Z",
-  "durationMs": 55045,
+  "commit": "83f23d1",
+  "executedAt": "2026-11-22T03:57:12.935Z",
+  "durationMs": 59240,
   "tokens": "[REDACTED]"
 }

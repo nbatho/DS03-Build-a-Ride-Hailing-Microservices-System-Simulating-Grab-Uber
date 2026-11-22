@@ -1,5 +1,5 @@
 {
-  "executedAt": "2026-11-02T08:56:32.825Z",
+  "executedAt": "2026-11-22T04:04:20.341Z",
   "status": "PASS",
   "outcomes": [
     {
@@ -45,9 +45,9 @@
     "Identity DB/process recovery",
     "login rate limit"
   ],
-  "correlationId": "ae3b722c-d8bb-4ed4-a5be-7acbf1059c28",
-  "passengerId": "f827605c-1bf3-4478-8cac-dfa239eb8d27",
-  "driverUserId": "6f5e6615-7538-46ec-baed-1273c9b6ad6d",
+  "correlationId": "c3d17f6f-ad67-4976-bfc8-cfbe42284fa4",
+  "passengerId": "55d5e7fe-fb20-4b6c-ad4e-959f9e13fcdf",
+  "driverUserId": "74552e7c-b8a3-4030-99d3-f91c6412d4e1",
   "tokens": "[REDACTED]",
   "scope": "Identity API and JWT integration; full-system Saga/payment tests are not implemented here"
 }
