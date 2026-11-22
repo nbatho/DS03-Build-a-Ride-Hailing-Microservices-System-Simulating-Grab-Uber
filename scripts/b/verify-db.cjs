@@ -1,5 +1,5 @@
 // Kiểm tra ba DB của B sau khi migrate: đúng DB, đủ bảng, quyền hẹp, không đăng nhập chéo được.
-// Dùng làm bằng chứng cho test DB-S01 (trien-khai-db-ds03.md mục 9.4). Không in mật khẩu.
+// Dùng làm bằng chứng cho test DB-S01. Không in mật khẩu.
 const path = require('node:path');
 const { Client } = require('pg');
 

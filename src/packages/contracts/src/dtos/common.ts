@@ -1,4 +1,4 @@
-// Kiểu dùng chung giữa Driver, Pricing, Trip và sự kiện (openapi: Point; BA mục 4.1, 15).
+// Kiểu dùng chung giữa Driver, Pricing, Trip và sự kiện (openapi: Point).
 export const ZONE_IDS = ['ZONE_A', 'ZONE_B'] as const;
 export type ZoneId = typeof ZONE_IDS[number];
 

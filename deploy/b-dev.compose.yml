@@ -1,4 +1,4 @@
-# DB dev của B: mỗi service một PostgreSQL riêng (BA mục 3.2).
+# DB dev của B: mỗi service một PostgreSQL riêng.
 # Chạy qua npm: b:setup:dev (tạo mật khẩu), b:db:up, b:db:stop, b:db:start.
 name: ds03-b-dev
 services:

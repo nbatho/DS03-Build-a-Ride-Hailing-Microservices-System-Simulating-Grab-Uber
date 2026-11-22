@@ -5,7 +5,7 @@ import { ApiError } from './api-error';
 import { SERVICE_NAME } from './health.controller';
 import { outboundToken, SERVICE_TOKEN_HEADER } from './internal-auth';
 
-// BA mục 4.2: chờ 2 giây mỗi lần, tối đa 3 lần, nghỉ 0,5 giây rồi 1,5 giây cộng một khoảng ngẫu nhiên nhỏ.
+// Chờ 2 giây mỗi lần, tối đa 3 lần, nghỉ 0,5 giây rồi 1,5 giây cộng một khoảng ngẫu nhiên nhỏ.
 const ATTEMPT_TIMEOUT_MS = 2000;
 const RETRY_DELAYS_MS = [500, 1500];
 const MAX_JITTER_MS = 100;

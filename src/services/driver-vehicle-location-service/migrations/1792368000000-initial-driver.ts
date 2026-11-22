@@ -1,6 +1,6 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-// Bảng của Driver trong driver_db. Căn cứ: trien-khai-db-ds03.md mục 4.2, 4.3, 5.
+// Bảng của Driver trong driver_db.
 export class InitialDriver1792368000000 implements MigrationInterface {
   name = 'InitialDriver1792368000000';
 
