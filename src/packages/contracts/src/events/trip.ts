@@ -1,6 +1,6 @@
 import type { Currency, MoneyAmount, Point } from '../dtos/common';
 
-// Sự kiện do trip-booking-service phát (Phụ lục C, EVT-01, 04–09). aggregate_id của envelope = tripId.
+// Sự kiện do trip-booking-service phát (EVT-01, 04–09 trong docs/events/samples). aggregate_id của envelope = tripId.
 
 export const TRIP_EVENT_PRODUCER = 'trip-booking-service';
 
