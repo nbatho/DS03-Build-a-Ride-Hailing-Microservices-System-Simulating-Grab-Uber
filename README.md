@@ -335,8 +335,12 @@ npm run stack:up
 npm run demo
 ```
 
-Nên mở thêm một terminal chạy `npm run stack:logs` để chỉ log song song theo `correlationId`.
+Nên mở thêm một terminal chạy `npm run stack:logs` để cho thấy log song song. Ở bước 3 và 8, script in sẵn
+lệnh lọc log theo `correlationId` để lần theo đúng một luồng qua nhiều service.
 `.env` phải để `PAYMENT_SIMULATION_MODE=SUCCEED` (mặc định).
+
+Mỗi bước in **Mục tiêu**, việc đang làm, số liệu đọc từ API/DB/RabbitMQ và một dòng **→ Kết luận**; người dùng
+được đặt tên Tài xế 1, Khách A, Khách B. Chi tiết lời thoại và phân vai: [kich-ban-demo-chi-tiet.md](docs/demo/kich-ban-demo-chi-tiet.md).
 
 | Bước | Yêu cầu của đề (mục 7.4) | Script làm gì | Kết quả cần thấy |
 | --- | --- | --- | --- |
@@ -345,7 +349,7 @@ Nên mở thêm một terminal chạy `npm run stack:logs` để chỉ log song 
 | 3 | Khách đặt xe | Báo giá rồi đặt chuyến | Giá 41.000 đ (3 km, 10 phút); `trip.requested` đã `PUBLISHED` |
 | 4 | Matching chọn tài xế | Chờ lời mời đến tài xế | Việc tìm trong DB Matching, lời mời hạn 15 s, đi qua RabbitMQ |
 | 5 | Tài xế nhận và hoàn thành | Nhận → bắt đầu → kết thúc | `MATCHING → ASSIGNING → ASSIGNED → IN_PROGRESS → COMPLETED`; thanh toán `SUCCEEDED` |
-| 6 | Hai khách cùng giành một tài xế | Hai khách đặt cùng lúc, tài xế nhận mọi lời mời cùng lúc | Một chuyến thắng, tối đa 1 reservation, chuyến còn lại `NO_DRIVER` |
+| 6 | Hai khách cùng giành một tài xế | Khách A, Khách B đặt cùng lúc; Tài xế 1 nhận cả hai lời mời cùng lúc nên hai Saga cùng xin giữ một tài xế | Một chuyến thắng; chuyến kia `FAILED_COMPENSATED` (được bù trừ) rồi `NO_DRIVER`; đúng 1 reservation |
 | 7 | Dừng một service giữa luồng | `docker compose stop payment`, chạy một chuyến đến khi kết thúc | Chuyến `COMPLETED`/`PENDING`; tin chờ trong `payment.events`; đọc chuyến vẫn 200 |
 | 8 | Retry, hàng đợi, bù trừ | Đọc outbox của Trip và hàng đợi | `payment.requested` đã gửi, số tin chờ, `correlationId` để tra log |
 | 9 | Khởi động lại và xử lý tiếp | `docker compose start payment` | Thanh toán `SUCCEEDED`, đúng 1 khoản, 1 lần thử; hàng đợi về 0 |
