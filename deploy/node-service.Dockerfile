@@ -1,4 +1,4 @@
-# Dockerfile dùng chung cho một app NestJS trong monorepo (BA mục 9, 13.2).
+# Dockerfile dùng chung cho một app NestJS trong monorepo.
 #   docker build -f deploy/node-service.Dockerfile --build-arg SERVICE=simulated-payment-service --target runtime .
 # Stage "migrate" chạy migration TypeORM của service bằng user migrator; stage "runtime" chỉ có bản build + deps chạy.
 # Service nào cần khác (ví dụ Identity) thì dùng Dockerfile riêng trong thư mục service.

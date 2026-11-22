@@ -1,4 +1,4 @@
-// Gửi sự kiện mẫu của Phụ lục C (docs/events/samples) lên ride.events, dùng làm bản giả bên gửi (BA mục 11.3).
+// Gửi sự kiện mẫu (docs/events/samples) lên ride.events, dùng làm bản giả bên gửi.
 //   npm run events:send -- all                 gửi cả 11 mẫu
 //   npm run events:send -- evt-01 trip.cancelled
 //   npm run events:send -- evt-02 --new-id     event_id mới (không bị bên nhận bỏ trùng)

@@ -49,9 +49,9 @@ Ký hiệu: ✅ đạt · ⚠️ đạt một phần / cần bổ sung · ❌ ch
 | 10.1 | `docs/report.pdf` | ✅ có |
 | 10.1 | `docs/slides.pdf` | ❌ chưa có (đề ghi "if available" nhưng nên có) |
 | 10.1 | Commit của từng thành viên | ✅ 3 người đều có commit |
-| 10.1 | **Bảng phân công trong repo** | ⚠️ README chỉ ghi "nằm trong báo cáo BA mục 11", chưa có bảng |
+| 10.1 | **Bảng phân công trong repo** | ✅ README mục 1 có bảng phân công |
 | 10.1 | **Tag/release cuối, ví dụ `v1.0.0`** | ❌ chưa có tag nào trên remote |
-| 10.1 | README có kịch bản demo | ⚠️ README chưa trỏ tới `docs/demo/` |
+| 10.1 | README có kịch bản demo | ✅ README mục 6 trỏ tới `docs/demo/` |
 | 11 | Demo ≥ 3 node, có đồng thời, có lỗi live, có log, đủ thành viên | ✅ nếu theo kịch bản dưới |
 
 ### 1.3 Tính năng nâng cao (mục 7.5) – điểm cộng
@@ -103,11 +103,22 @@ Phân công của nhóm:
 
 - **Cửa sổ 1** – chạy `npm run demo` (dừng chờ Enter sau mỗi bước).
 - **Cửa sổ 2** – log song song: `npm run stack:logs`.
-- **Cửa sổ 3** – để trống, dùng gõ lệnh lọc log theo mã theo dõi:
+- **Cửa sổ 3** – để trống. Ở bước 3 và bước 8, script in sẵn dòng **"Lọc log của luồng này"**; copy nguyên lệnh đó dán vào đây. Dạng lệnh:
 
 ```powershell
-docker compose --env-file .env -f deploy/docker-compose.yml logs --no-color trip matching driver payment notification | Select-String "<correlationId>"
+docker compose --env-file .env -f deploy/docker-compose.yml logs --no-color | Select-String '<correlationId>'
 ```
+
+### Cách đọc màn hình demo
+
+Mỗi bước in theo cùng một khuôn, người trình bày đọc từ trên xuống:
+
+1. `BƯỚC n/9` và **Mục tiêu**: bước này cần chứng minh điều gì.
+2. Dòng `… …`: việc script đang làm. Khi phải chờ (Matching mời tài xế, Payment xử lý), dòng này đếm giây rồi đổi thành `→ xong sau x s`.
+3. Các dòng số liệu: đọc thật từ API, DB của từng service và RabbitMQ.
+4. **→ Kết luận**: một câu chốt. Đọc to câu này trước khi bấm Enter sang bước tiếp.
+
+Người dùng được đặt tên **Tài xế 1, Khách A, Khách B**; mã UUID chỉ in 8 ký tự đầu. Cuối demo có phần **TÓM TẮT** liệt kê 9 bước đã đạt.
 
 ### Chuẩn bị 30 phút trước giờ demo
 
@@ -159,6 +170,7 @@ Mỗi bước ứng với một gạch đầu dòng của đề mục 7.4.
 
 - **Đề yêu cầu:** *The Matching Service selects a driver.*
 - **Thao tác:** Enter. Script chờ lời mời xuất hiện trong Notification của tài xế.
+- **Lưu ý nhịp trình bày:** lời mời chỉ sống 15 giây kể từ lúc đặt chuyến ở bước 3. Nói lâu ở bước 3 hoặc bước 4 thì lời mời hết hạn; khi đó script tự hủy chuyến cũ, đặt lại và in dòng giải thích (bước 4 hoặc trước khi nhận ở bước 5). Nên đọc *Kết luận* bước 3 và 4 rồi Enter ngay, phần giải thích để nói trong bước 5. Nếu bị đặt lại, có thể dùng luôn làm ví dụ: "hết 15 giây là lời mời hết hạn, đúng như thiết kế".
 - **Chỉ vào:** việc tìm (matching job) trong DB Matching; lời mời có hạn 15 giây; người nhận đúng tài xế; các queue gắn vào exchange `ride.events`.
 - **Lời thoại:** "Matching không bị Trip gọi trực tiếp mà nhận `trip.requested` qua queue. Nó hỏi Driver danh sách ứng viên cùng vùng, mời từng người, hết 15 giây thì mời người tiếp theo. Nếu nhận trùng sự kiện, bảng `processed_events` bỏ qua."
 
@@ -169,11 +181,12 @@ Mỗi bước ứng với một gạch đầu dòng của đề mục 7.4.
 - **Chỉ vào:** operation Saga `SUCCEEDED`; giữ xe `CONFIRMED` rồi `RELEASED`; lịch sử trạng thái chuyến; thanh toán `SUCCEEDED` lần thử 1; thông báo tới khách.
 - **Lời thoại:** "Nhận chuyến là một distributed transaction kiểu Saga có điều phối ở Trip: giữ xe bên Driver → xác nhận → gán chuyến. Bước nào hỏng thì chạy bù trừ `RELEASE_DRIVER` để trả xe, kết thúc ở `FAILED_COMPENSATED`. Kết thúc chuyến thì Trip phát `payment.requested`, Payment xử lý bất đồng bộ."
 
-### Bước 6 – Hai khách cùng tranh một tài xế  *(A + B trình bày)*
+### Bước 6 – Đồng thời: hai khách đặt cùng lúc, một tài xế bấm nhận cả hai  *(A + B trình bày)*
 
 - **Đề yêu cầu:** *Two passengers simultaneously request the same driver.*
-- **Thao tác:** Enter. Hai khách đặt cùng lúc khi chỉ có một tài xế; tài xế bấm nhận mọi lời mời cùng lúc.
-- **Chỉ vào:** một chuyến thắng; số lượt giữ xe còn hiệu lực ≤ 1; chuyến còn lại thành `NO_DRIVER` (tối đa ~60 giây).
+- **Thao tác:** Enter. Khách A và Khách B đặt cùng lúc khi ZONE_A chỉ có Tài xế 1; Tài xế 1 bấm nhận cả hai lời mời cùng lúc.
+- **Nói rõ điểm tranh chấp:** hai Saga nhận chuyến cùng xin Driver giữ **một** tài xế. Đây là chỗ có thể gán trùng nếu không khoá.
+- **Chỉ vào:** một chuyến `SUCCEEDED – thắng`; chuyến kia `FAILED_COMPENSATED – thua (DRIVER_UNAVAILABLE) → Saga bù trừ`; lượt giữ xe còn hiệu lực = 1; chuyến thua thành `NO_DRIVER` (tối đa ~60 giây). Nhấn mạnh: `FAILED_COMPENSATED` là kết quả **đúng**, không phải lỗi.
 - **Lời thoại:**
   - B: "Driver chỉ cho một reservation còn hiệu lực trên mỗi tài xế – được bảo đảm hai lớp trong DB Driver: khóa dòng tài xế (`SELECT … FOR UPDATE`) và unique index một phần `uq_reservations_active_driver` trên `driver_id` khi trạng thái là `HELD`/`CONFIRMED`. Kể cả code sai thì DB vẫn chặn."
   - A: "Request nhận chuyến thứ hai bị từ chối và Saga của nó bù trừ. Chuyến thua không treo mãi mà về `NO_DRIVER`. Trạng thái cuối được kiểm bằng truy vấn DB chứ không chỉ nhìn response."
@@ -190,8 +203,8 @@ Mỗi bước ứng với một gạch đầu dòng của đề mục 7.4.
 
 - **Đề yêu cầu:** *Demonstrate retry, queue handling, or compensation.*
 - **Thao tác:** Enter. Script đọc outbox của Trip và độ dài queue `payment.events`.
-- **Chỉ vào:** `payment.requested` đã gửi; số tin đang chờ ở `payment.events`; chưa có khoản thanh toán nào; mã theo dõi.
-- **Làm thêm ở cửa sổ 3:** dán correlationId vào lệnh lọc log để thấy cùng một mã đi qua Gateway → Trip → Driver/Matching.
+- **Chỉ vào:** `payment.requested` ở trạng thái `PUBLISHED` (nghĩa là RabbitMQ đã nhận và giữ tin, **chưa** phải đã thu tiền); 1 tin đang chờ ở `payment.events`; DB Payment có 0 khoản.
+- **Làm thêm ở cửa sổ 3 (sau bước 9):** dán lệnh "Lọc log của luồng này" của bước 8. Kết quả cho thấy lệnh kết thúc chuyến đi qua Gateway → Driver → Trip, rồi khoảng 20 giây sau, khi Payment được bật lại, dòng log của Payment xử lý đúng sự kiện đó. Lệnh lọc gồm cả correlationId lẫn `event_id`, vì log của Payment ghi theo `event_id`.
 - **Lời thoại:** "Tin không mất vì queue durable và tin được lưu bền. Khi consumer báo lỗi tạm, tin đi qua hàng retry 1 s, 5 s, 15 s; quá 3 lần hoặc sai cấu trúc thì vào DLQ kèm mã lỗi để vận hành xem và replay."
 - **Bằng chứng retry/DLQ:** `docs/test-evidence/c/recovery.json` – F09 (lỗi tạm rồi thành công), R03 (trùng, tin hỏng vào DLQ, consumer chết giữa chừng, RabbitMQ restart).
 
@@ -210,7 +223,8 @@ Mỗi bước ứng với một gạch đầu dòng của đề mục 7.4.
 
 | Tình huống | Cách xử lý |
 |---|---|
-| Bước 4/6 chờ lời mời > 30 giây | Tài xế mất vị trí hoặc đang bận từ lần trước: Ctrl+C, chạy lại `npm run demo` |
+| Bước 4/5 in "Lời mời … đã hết hạn 15 s … đặt lại chuyến" | Bình thường: đã dừng trình bày quá 15 s sau khi đặt chuyến; script tự đặt lại, cứ tiếp tục |
+| Bước 4/6 chờ lời mời > 30 giây | Hiếm khi xảy ra vì script đã gửi GPS nền mỗi 20 s. Kiểm tra `npm run stack:ps` (Matching, Notification, RabbitMQ còn chạy?) rồi Ctrl+C, chạy lại `npm run demo` |
 | Dừng giữa bước 7–8 mà Payment vẫn tắt | `docker compose --env-file .env -f deploy/docker-compose.yml start payment` |
 | Demo hỏng hẳn | Mở `docs/test-evidence/demo/demo-run.json` của lần tập dượt và giải thích từng bước |
 | Giám khảo muốn xem DLQ live | `npm run events:dlq -- trip.events` (xem), thêm `--replay` để đẩy lại |

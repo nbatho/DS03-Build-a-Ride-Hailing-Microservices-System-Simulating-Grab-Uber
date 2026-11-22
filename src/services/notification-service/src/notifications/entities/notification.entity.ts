@@ -6,7 +6,7 @@ export enum NotificationType {
   PAYMENT_STATUS = 'PAYMENT_STATUS',
 }
 
-// Field riêng từng loại (offer/pickup/dropoff/amount/currency, tripStatus, paymentStatus; Phụ lục B) lưu trong payload.
+// Field riêng từng loại (offer/pickup/dropoff/amount/currency, tripStatus, paymentStatus) lưu trong payload.
 // read = read_at IS NOT NULL; actionable tính lúc đọc từ trip_projection và hạn lời mời.
 // Không trùng theo (recipient_id, source_event_id, type).
 @Entity({ name: 'notifications', schema: 'notification_schema' })

@@ -32,7 +32,7 @@ test('first attempt of a new payment is charged', () => {
   assert.deepEqual(decideAttempt(fresh, request), { kind: 'CHARGE' });
 });
 
-test('a succeeded payment is never charged again (BA 5.6: không thu hai lần)', () => {
+test('a succeeded payment is never charged again (không thu hai lần)', () => {
   const succeeded = { ...fresh, status: 'SUCCEEDED', attemptNo: 1, retryable: false };
 
   assert.deepEqual(decideAttempt(succeeded, request), { kind: 'SKIP', reason: 'ALREADY_SUCCEEDED' });

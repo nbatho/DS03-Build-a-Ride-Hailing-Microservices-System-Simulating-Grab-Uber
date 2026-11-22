@@ -6,7 +6,7 @@ import type {
   TripStatus,
 } from '@app/contracts';
 
-// Quy tắc của Notification (BA mục 8.3, Phụ lục C), tách khỏi DB để test được:
+// Quy tắc của Notification, tách khỏi DB để test được:
 // từ bản sao trạng thái chuyến + một sự kiện -> bản sao mới + các thông báo cần tạo.
 
 export const NOTIFICATION_EVENT_TYPES = [

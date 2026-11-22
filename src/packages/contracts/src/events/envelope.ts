@@ -1,8 +1,8 @@
-// Vỏ sự kiện (BA mục 8.1, Phụ lục C). Field của vỏ dùng snake_case; payload dùng camelCase.
+// Vỏ sự kiện (docs/api/events.schema.json). Field của vỏ dùng snake_case; payload dùng camelCase.
 
 export const RIDE_EVENTS_EXCHANGE = 'ride.events';
 export const EVENT_SCHEMA_VERSION = 1;
-/** Cỡ tối đa của một sự kiện đã mã hóa JSON (BA mục 10.1): kiểm tra ở bên gửi và trước khi bên nhận đọc JSON. */
+/** Cỡ tối đa của một sự kiện đã mã hóa JSON: kiểm tra ở bên gửi và trước khi bên nhận đọc JSON. */
 export const MAX_EVENT_BYTES = 128 * 1024;
 
 export const EVENT_PRODUCERS = ['trip-booking-service', 'matching-service', 'simulated-payment-service'] as const;

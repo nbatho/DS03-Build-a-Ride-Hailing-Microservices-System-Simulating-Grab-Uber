@@ -1,6 +1,6 @@
 import type { Currency, MoneyAmount } from '../dtos/common';
 
-// Sự kiện do simulated-payment-service phát (Phụ lục C, EVT-10, 11). aggregate_id của envelope = paymentId.
+// Sự kiện do simulated-payment-service phát (EVT-10, 11 trong docs/events/samples). aggregate_id của envelope = paymentId.
 
 export const PAYMENT_EVENT_PRODUCER = 'simulated-payment-service';
 

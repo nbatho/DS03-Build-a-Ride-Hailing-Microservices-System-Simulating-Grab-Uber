@@ -79,7 +79,7 @@ export class PaymentsService {
   }
 
   /**
-   * Xử lý payment.requested (BA mục 5.6): trong một transaction ghi "đã xử lý", tạo/khóa khoản thanh toán,
+   * Xử lý payment.requested: trong một transaction ghi "đã xử lý", tạo/khóa khoản thanh toán,
    * chạy lần thử mô phỏng, ghi lần thử, cập nhật trạng thái và ghi payment.succeeded/failed vào outbox.
    */
   async handlePaymentRequested(event: PaymentRequested): Promise<RequestOutcome> {

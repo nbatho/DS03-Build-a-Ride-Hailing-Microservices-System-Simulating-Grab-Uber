@@ -6,7 +6,7 @@ import { MATCHING_FAILED_REASONS } from './matching';
 import { PAYMENT_FAILED_REASONS } from './payment';
 import { TRIP_CANCEL_REASONS, TRIP_NO_DRIVER_REASONS } from './trip';
 
-// Kiểm tra JSON lúc chạy: type TypeScript không bảo vệ được tin đến từ RabbitMQ (BA mục 11.2).
+// Kiểm tra JSON lúc chạy: type TypeScript không bảo vệ được tin đến từ RabbitMQ.
 // Cùng một mô tả field dùng cho validator và cho docs/api/events.schema.json để hai bản không lệch nhau.
 
 type FieldSpec =
@@ -312,7 +312,7 @@ function objectSchema(fields: Fields): Record<string, unknown> {
   };
 }
 
-/** Bản máy đọc được của Phụ lục C (docs/api/events.schema.json). */
+/** Bản máy đọc được của danh mục sự kiện (docs/api/events.schema.json). */
 export function buildEventsJsonSchema(): Record<string, unknown> {
   const envelope = objectSchema(ENVELOPE_FIELDS);
   const envelopeProperties = envelope.properties as Record<string, unknown>;

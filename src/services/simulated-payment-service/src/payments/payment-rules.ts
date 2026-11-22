@@ -6,7 +6,7 @@ import {
 } from '@app/contracts';
 import type { AttemptOutcome } from './payment.types';
 
-// Quy tắc xử lý "yêu cầu thanh toán" (BA mục 5.6, 8.3; Phụ lục C EVT-09..11), tách khỏi DB để test được.
+// Quy tắc xử lý "yêu cầu thanh toán" (EVT-09..11 trong docs/events/samples), tách khỏi DB để test được.
 
 /** Phần của khoản thanh toán đã lưu mà quy tắc cần; entity Payment khớp sẵn kiểu này. */
 export interface PaymentState {

@@ -1,4 +1,4 @@
-# RabbitMQ dev (BA mục 9, 11.2). Chạy qua npm: mq:up, mq:stop, mq:start, mq:status.
+# RabbitMQ dev. Chạy qua npm: mq:up, mq:stop, mq:start, mq:status.
 # Topology (ride.events, 4 queue, retry, DLQ) do code tự khai báo: npm run events:topology.
 name: ds03-rabbitmq-dev
 services:

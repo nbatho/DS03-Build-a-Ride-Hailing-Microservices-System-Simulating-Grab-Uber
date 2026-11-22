@@ -1,4 +1,4 @@
-// P01 — test tải (BA mục 12.1 test 15, chỉ tiêu mục 10.2) chạy trên stack Compose thật qua Gateway:
+// P01 — test tải (mục 9 của đề) chạy trên stack Compose thật qua Gateway:
 // nạp 20 tài xế tự nhận chuyến; 10, 25, 50 client báo giá + đặt chuyến + đọc chuyến, mỗi mức 60 giây.
 // Đo request/giây, thời gian ở mốc 50/95/99%, tỉ lệ lỗi; đo riêng thời gian nghiệp vụ (ghép, hoàn thành, thanh toán)
 // từ DB vì trả 201/202 nhanh không chứng minh quy trình xong. "Không có tài xế" là kết quả hợp lệ, không tính là lỗi.
@@ -352,7 +352,7 @@ function businessTimings(where) {
   };
 }
 
-/** Ràng buộc nghiệp vụ sau tải, đọc trên DB của đúng service (BA mục 10.2 "Đúng đắn", 12.2). */
+/** Ràng buộc nghiệp vụ sau tải, đọc trên DB của đúng service. */
 function constraints(passengerIds, driverIds) {
   return {
     driversWithTwoActiveTrips: scalar(
@@ -461,7 +461,7 @@ test('P01: quote and booking under 10, 25 and 50 clients', { timeout: 60 * 60 * 
   const evidence = {
     test: FLOOD ? 'P01-flood' : 'P01',
     mode: FLOOD ? 'flood: mỗi client lặp POST /quotes → POST /trips → GET /trips/{id} không nghỉ, không chờ chuyến xong' : 'khách chờ chuyến của mình xong rồi mới đặt chuyến mới',
-    requirement: 'BA mục 12.1 test 15 (tải) và mục 10.2: 95% request đọc, báo giá, đặt chuyến dưới 1 giây; không giữ một tài xế cho hai chuyến; không chuyến nào có hơn một khoản thanh toán',
+    requirement: 'P01 (tải): 95% request đọc, báo giá, đặt chuyến dưới 1 giây; không giữ một tài xế cho hai chuyến; không chuyến nào có hơn một khoản thanh toán',
     setup: `Stack Compose đầy đủ trên một máy; ${DRIVERS} tài xế mô phỏng ở ZONE_A (GPS 5 giây/lần, hỏi lời mời mỗi giây, nhận rồi chạy hết chuyến); ${PASSENGERS} tài khoản khách dùng chung cho các client; Gateway tạm tắt giới hạn request`,
     steps: `Mỗi mức ${LEVELS.join(', ')} client chạy ${DURATION_MS / 1000} giây; mỗi client là một khách lặp: POST /quotes → POST /trips → GET /trips/{id} mỗi giây tới khi chuyến xong (NO_DRIVER, hoặc COMPLETED và có kết quả thanh toán) rồi đặt chuyến mới. Sau mỗi mức chờ mọi chuyến về trạng thái cuối (tối đa ${SETTLE_MS / 1000} giây) rồi đọc DB`,
     method: 'Thời gian request đo ở client từ lúc gửi tới lúc đọc xong body, tính trên mọi request kể cả lỗi; mốc phần trăm theo nearest-rank. Lỗi hệ thống = HTTP 5xx, lỗi mạng hoặc quá 15 giây. NO_DRIVER là kết quả hợp lệ. Thời gian nghiệp vụ lấy từ trip_schema.state_history so với created_at của chuyến',

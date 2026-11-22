@@ -11,7 +11,7 @@ import type {
   TripStartedPayload,
 } from './trip';
 
-// Event catalog và routing RabbitMQ (Phụ lục C, BA mục 8.1, 15.2). Đây là nguồn duy nhất để dựng
+// Event catalog và routing RabbitMQ. Đây là nguồn duy nhất để dựng
 // exchange/queue/binding; không khai báo routing key ở chỗ khác.
 
 /** Mỗi subscriber một queue riêng để cùng một sự kiện đến đủ các bên. */
@@ -43,7 +43,7 @@ export type EventType = keyof EventPayloads;
 /** Envelope đã kiểm tra, payload đúng kiểu theo `type`. */
 export type RideEvent<T extends EventType = EventType> = { [K in T]: EventEnvelope<K, EventPayloads[K]> }[T];
 
-/** aggregate_id là mã của đối tượng nào; ba dãy phiên bản không so với nhau (BA mục 8.3). */
+/** aggregate_id là mã của đối tượng nào; ba dãy phiên bản không so với nhau. */
 export type EventAggregate = 'trip' | 'matching_job' | 'payment';
 
 export interface EventDefinition {

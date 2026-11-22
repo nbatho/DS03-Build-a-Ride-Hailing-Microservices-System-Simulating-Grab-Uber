@@ -1,6 +1,6 @@
 import { Column, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
 
-// Bản sao trạng thái chuyến để xử lý sự kiện sai thứ tự (BA mục 8.3).
+// Bản sao trạng thái chuyến để xử lý sự kiện sai thứ tự.
 // trip_version và payment_version là hai dãy riêng, không so với nhau.
 @Entity({ name: 'trip_projection', schema: 'notification_schema' })
 export class TripProjection {

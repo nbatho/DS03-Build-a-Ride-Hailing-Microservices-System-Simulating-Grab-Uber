@@ -1,6 +1,6 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-// Bảng của Notification trong notification_db. Căn cứ: trien-khai-db-ds03.md mục 4.9, 5; BA mục 8.3.
+// Bảng của Notification trong notification_db.
 // Notification chỉ nhận sự kiện, không phát nên không có outbox.
 export class InitialNotification1792454400000 implements MigrationInterface {
   name = 'InitialNotification1792454400000';
