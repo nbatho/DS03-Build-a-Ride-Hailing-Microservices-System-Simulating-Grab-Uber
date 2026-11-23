@@ -1,113 +1,113 @@
 {
-  "demo": "Mục 7.4 của đề (BA mục 13.3) — demo 9 bước",
+  "demo": "Mục 7.4 của đề — demo 9 bước",
   "gateway": "http://127.0.0.1:8080",
-  "startedAt": "2026-11-22T09:41:55.011Z",
+  "startedAt": "2026-11-23T02:18:29.646Z",
   "steps": [
     {
       "step": 1,
       "title": "Các service chạy độc lập",
       "conclusion": "8/8 tiến trình sẵn sàng, mỗi tiến trình một mã instance khác nhau; 7 PostgreSQL tách biệt, không service nào đọc DB của service khác. Log song song: npm run stack:logs.",
-      "durationMs": 2346,
+      "durationMs": 2194,
       "services": [
         {
           "service": "gateway",
           "port": 8080,
           "http": 200,
           "status": "UP",
-          "instanceId": "035ce102-d74d-4e4e-8040-599bfd657afc"
+          "instanceId": "91ba7cd5-48b4-4c7f-8d61-900faf0c0f67"
         },
         {
           "service": "identity",
           "port": 3001,
           "http": 200,
           "status": "UP",
-          "instanceId": "b0789f11-0a58-44bf-8fac-7ca4b1c23c4d"
+          "instanceId": "7c22bbb8-516f-4c3e-adbc-c7a6f89d1719"
         },
         {
           "service": "driver",
           "port": 3002,
           "http": 200,
           "status": "UP",
-          "instanceId": "527c8386-e195-4c15-b716-082051d9e2d9"
+          "instanceId": "8898d5fe-67d1-44ad-9aa2-5e59fa44a088"
         },
         {
           "service": "trip",
           "port": 3003,
           "http": 200,
           "status": "UP",
-          "instanceId": "5a0d1964-5a4e-4f82-9fa4-7275420db9a5"
+          "instanceId": "9220c34e-6555-4707-8042-d561eb9f19f2"
         },
         {
           "service": "payment",
           "port": 3004,
           "http": 200,
           "status": "UP",
-          "instanceId": "9353a810-728f-471d-add8-22483e1d16ba"
+          "instanceId": "1851fcbf-a982-478e-8443-a9dc2f2d7312"
         },
         {
           "service": "notification",
           "port": 3005,
           "http": 200,
           "status": "UP",
-          "instanceId": "2fd51437-a76b-4386-87cc-51b0542b4ec0"
+          "instanceId": "e26c385f-0f4f-46d4-918b-c0caed3aba57"
         },
         {
           "service": "matching",
           "port": 3006,
           "http": 200,
           "status": "UP",
-          "instanceId": "3ff9ac27-6771-416c-a487-7e87cd9fa154"
+          "instanceId": "a4cc0a89-09c5-47b7-a9af-68ebed6edbaa"
         },
         {
           "service": "pricing",
           "port": 3007,
           "http": 200,
           "status": "UP",
-          "instanceId": "ae05602c-bcbc-4156-86c8-145e35b01e62"
+          "instanceId": "e113dfb0-eadd-4f69-9578-5cdd9a1a9001"
         }
       ],
       "databases": [
-        "driver-db Up 15 minutes (healthy)",
-        "identity-db Up 15 minutes (healthy)",
-        "matching-db Up 15 minutes (healthy)",
-        "notification-db Up 15 minutes (healthy)",
-        "payment-db Up 15 minutes (healthy)",
-        "pricing-db Up 15 minutes (healthy)",
-        "trip-db Up 15 minutes (healthy)"
+        "driver-db Up 11 minutes (healthy)",
+        "identity-db Up 11 minutes (healthy)",
+        "matching-db Up 11 minutes (healthy)",
+        "notification-db Up 11 minutes (healthy)",
+        "payment-db Up 11 minutes (healthy)",
+        "pricing-db Up 11 minutes (healthy)",
+        "trip-db Up 11 minutes (healthy)"
       ]
     },
     {
       "step": 2,
       "title": "Tài xế sẵn sàng nhận chuyến",
       "conclusion": "Tài xế 1 đang AVAILABLE ở ZONE_A nên là ứng viên cho chuyến trong vùng này. GPS đóng vai trò heartbeat: quá 60 s không gửi thì tài xế bị coi là offline.",
-      "durationMs": 622,
-      "driverId": "8aa6e586-dc33-4e5a-9e66-6e51a520ee94",
+      "durationMs": 542,
+      "driverId": "2afdacb2-79c7-4c1b-9be9-2087f0ed543d",
       "driverStatus": "AVAILABLE",
-      "location": "ZONE_A lúc 16:41:58",
-      "passengerId": "7214c58b-6060-4abb-89a6-b323c2f3320c",
-      "rivalId": "77cc892f-e994-41bc-894e-c65f432dbb49"
+      "location": "ZONE_A lúc 09:18:32",
+      "passengerId": "e8a29980-7a13-408d-ac3b-d028ccd1d216",
+      "rivalId": "aea6030a-ed8a-421e-a03a-72c6920322fd"
     },
     {
       "step": 3,
       "title": "Khách A đặt xe",
       "conclusion": "Chuyến được tạo ở trạng thái MATCHING. Trip ghi chuyến và sự kiện trip.requested trong cùng một transaction (outbox), rồi gửi sang RabbitMQ (PUBLISHED). Trip không gọi thẳng Matching: đây là luồng bất đồng bộ.",
-      "durationMs": 490,
-      "quoteId": "c3f38dbd-ee73-4815-b43f-0367066beda8",
-      "tripId": "ca007ecd-14c6-4fab-8880-b2c2cb88315c",
+      "durationMs": 468,
+      "quoteId": "7b5a37d5-6f6c-4aa6-8c4a-21549ef4088c",
+      "tripId": "b3d23b94-9058-44aa-ae1b-f51cdd950c6b",
       "amount": "41000",
       "fare": "41000 VND, bảng giá CAR_V1",
       "event": "trip.requested | PUBLISHED",
-      "correlationId": "1816f46f-9d96-4b02-845f-f54321c7c261"
+      "correlationId": "d4c2497a-834a-4579-8eeb-e23316f43b2b"
     },
     {
       "step": 4,
       "title": "Matching chọn tài xế",
       "conclusion": "Chuỗi bất đồng bộ Trip → RabbitMQ → Matching → RabbitMQ → Notification đã chạy. Lời mời đến đúng Tài xế 1, có hạn 15 s; mọi hàng đợi về 0 nghĩa là tin đã được xử lý, không có tin lỗi trong DLQ.",
-      "durationMs": 1357,
+      "durationMs": 1256,
       "job": "OFFERING",
-      "offerId": "14a6282a-2573-45bc-a5a5-b208d8f8dee8",
-      "recipientId": "8aa6e586-dc33-4e5a-9e66-6e51a520ee94",
-      "sourceEventId": "ffff50b0-1981-493b-beac-bfbc7a5ae0c9",
+      "offerId": "b0239899-fa5d-4015-b0bb-1e36502bd203",
+      "recipientId": "2afdacb2-79c7-4c1b-9be9-2087f0ed543d",
+      "sourceEventId": "406e45c4-ecb0-41b1-bf9f-93df71be9962",
       "queues": [
         {
           "name": "matching.events",
@@ -155,10 +155,10 @@
       "step": 5,
       "title": "Tài xế nhận và hoàn thành chuyến",
       "conclusion": "Saga nhận chuyến SUCCEEDED (giữ xe CONFIRMED, sau chuyến RELEASED). Chuyến đi đúng thứ tự trạng thái, thanh toán SUCCEEDED sau 1 lần thử, Khách A nhận 4 thông báo.",
-      "durationMs": 4824,
-      "assignmentId": "a4d7b66f-94b5-4b57-8215-5451b3372c07",
+      "durationMs": 4727,
+      "assignmentId": "0f798231-763d-463a-9520-db928574317f",
       "history": "MATCHING → ASSIGNING → ASSIGNED → IN_PROGRESS → COMPLETED",
-      "paymentId": "1f82d19d-08b6-4f2a-b5e1-f339c6094a78",
+      "paymentId": "103b0c0b-dd44-4f3c-846a-c0cd1adfa3ce",
       "paymentStatus": "SUCCEEDED",
       "notices": [
         "Đã có tài xế nhận chuyến",
@@ -171,31 +171,31 @@
       "step": 6,
       "title": "Đồng thời: hai khách đặt cùng lúc, một tài xế bấm nhận cả hai",
       "conclusion": "Driver khoá hàng tài xế và có chỉ mục duy nhất trên lượt giữ xe, nên chỉ một Saga thành công: 1 lượt giữ xe còn hiệu lực. Bên thua không bị treo mà được bù trừ, chuyến kết thúc hợp lệ ở NO_DRIVER.",
-      "durationMs": 7420,
+      "durationMs": 7400,
       "trips": [
-        "fbba33e7-5e88-4afb-a5cf-2731c94ca28e",
-        "fbdd457b-5b3d-4f7a-a968-09853c13802a"
+        "17db6030-3b0e-44d3-bb3c-03712567409a",
+        "1248b094-1792-4b73-9053-48e5cc4642d7"
       ],
       "offers": 2,
       "results": [
         {
-          "tripId": "fbba33e7-5e88-4afb-a5cf-2731c94ca28e",
+          "tripId": "17db6030-3b0e-44d3-bb3c-03712567409a",
+          "http": 202,
+          "operation": "SUCCEEDED",
+          "assignmentId": "0905d7cd-12de-4ac0-b7e9-a9946e4812c5"
+        },
+        {
+          "tripId": "1248b094-1792-4b73-9053-48e5cc4642d7",
           "http": 202,
           "operation": "FAILED_COMPENSATED",
           "errorCode": "DRIVER_UNAVAILABLE",
-          "assignmentId": "e839a2c7-e6e9-4167-9142-6a5b13c34592"
-        },
-        {
-          "tripId": "fbdd457b-5b3d-4f7a-a968-09853c13802a",
-          "http": 202,
-          "operation": "SUCCEEDED",
-          "assignmentId": "e87d0d52-3c10-4a6a-8504-1b2985e27e35"
+          "assignmentId": "1bb21996-0a87-41ff-a257-d3c636958a8e"
         }
       ],
       "activeReservations": 1,
-      "winner": "fbdd457b-5b3d-4f7a-a968-09853c13802a",
+      "winner": "17db6030-3b0e-44d3-bb3c-03712567409a",
       "loser": {
-        "tripId": "fbba33e7-5e88-4afb-a5cf-2731c94ca28e",
+        "tripId": "1248b094-1792-4b73-9053-48e5cc4642d7",
         "status": "NO_DRIVER"
       }
     },
@@ -203,14 +203,14 @@
       "step": 7,
       "title": "Lỗi: tắt Payment giữa luồng nghiệp vụ",
       "conclusion": "Chỉ chức năng thanh toán bị ảnh hưởng: xem thanh toán trả lỗi 502 có thời hạn thay vì treo, còn chuyến vẫn COMPLETED và đọc được (200). Yêu cầu thanh toán đang nằm chờ ở payment.events (1 tin).",
-      "durationMs": 17783,
-      "tripId": "605d4dc3-fb10-41d9-8fec-3d6b91f33be3",
+      "durationMs": 17559,
+      "tripId": "fa7a4b34-61b8-4307-bbf5-fa44be5f9aec",
       "tripStatus": "COMPLETED",
       "paymentStatus": "PENDING",
       "paymentsWhileDown": {
         "http": 502,
         "code": "BAD_GATEWAY",
-        "elapsedMs": 8006
+        "elapsedMs": 8005
       },
       "tripsWhileDown": 200,
       "queues": [
@@ -260,19 +260,19 @@
       "step": 8,
       "title": "Tin nhắn không mất: outbox, hàng đợi, mã theo dõi",
       "conclusion": "PUBLISHED không có nghĩa là đã thu tiền: outbox chỉ đánh dấu PUBLISHED khi RabbitMQ xác nhận đã nhận (publisher confirm), và RabbitMQ giữ tin bền vững tới khi Payment quay lại. Nếu xử lý lỗi, tin được thử lại sau 1 s, 5 s, 15 s rồi mới vào DLQ.",
-      "durationMs": 1528,
-      "outbox": "PUBLISHED lúc 16:42:33",
+      "durationMs": 1468,
+      "outbox": "PUBLISHED lúc 09:21:23",
       "waitingInQueue": 1,
       "paymentsBeforeRestart": 0,
-      "correlationId": "a5057bda-ff81-4a1b-9625-77ccaa94cf83",
-      "eventId": "aa842988-d319-4c24-a61c-f1fdd2ced9fa"
+      "correlationId": "15ccbcfe-a44d-4b66-ad1c-11642a5a8f64",
+      "eventId": "4593cf4e-eba9-4592-b871-45e6fe6975b5"
     },
     {
       "step": 9,
       "title": "Phục hồi: bật lại Payment và xử lý tiếp",
       "conclusion": "Payment bật lại tự xử lý tin đang chờ: thanh toán SUCCEEDED, đúng 1 khoản và 1 lần thử (không thu trùng), mọi hàng đợi về 0.",
-      "durationMs": 2642,
-      "tripId": "605d4dc3-fb10-41d9-8fec-3d6b91f33be3",
+      "durationMs": 2480,
+      "tripId": "fa7a4b34-61b8-4307-bbf5-fa44be5f9aec",
       "paymentStatus": "SUCCEEDED",
       "payments": 1,
       "attempts": 1,
@@ -321,6 +321,6 @@
     }
   ],
   "status": "PASS",
-  "finishedAt": "2026-11-22T09:43:12.585Z",
+  "finishedAt": "2026-11-23T02:22:34.194Z",
   "tokens": "[REDACTED]"
 }
