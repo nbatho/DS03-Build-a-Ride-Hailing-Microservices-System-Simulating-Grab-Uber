@@ -6,8 +6,7 @@ có PostgreSQL riêng, giao tiếp **đồng bộ bằng REST** và **bất đ�
 với bước bù trừ, Transactional Outbox, retry có giới hạn, khử trùng, dead-letter queue và correlation ID.
 
 - Báo cáo: [docs/report.pdf](docs/report.pdf)
-- Kịch bản demo: [docs/demo/kich-ban-demo.md](docs/demo/kich-ban-demo.md) (kỹ thuật),
-  [docs/demo/kich-ban-demo-chi-tiet.md](docs/demo/kich-ban-demo-chi-tiet.md) (lời thoại, phân vai, câu hỏi vấn đáp)
+- Kịch bản demo: [docs/demo/kich-ban-demo.md](docs/demo/kich-ban-demo.md)
 - Hợp đồng API và sự kiện: [docs/api/](docs/api/)
 
 ## Mục lục
@@ -338,7 +337,7 @@ lệnh lọc log theo `correlationId` để lần theo đúng một luồng qua 
 `.env` phải để `PAYMENT_SIMULATION_MODE=SUCCEED` (mặc định).
 
 Mỗi bước in **Mục tiêu**, việc đang làm, số liệu đọc từ API/DB/RabbitMQ và một dòng **→ Kết luận**; người dùng
-được đặt tên Tài xế 1, Khách A, Khách B. Chi tiết lời thoại và phân vai: [kich-ban-demo-chi-tiet.md](docs/demo/kich-ban-demo-chi-tiet.md).
+được đặt tên Tài xế 1, Khách A, Khách B. Chi tiết từng bước: [kich-ban-demo.md](docs/demo/kich-ban-demo.md).
 
 | Bước | Yêu cầu của đề (mục 7.4) | Script làm gì | Kết quả cần thấy |
 | --- | --- | --- | --- |
